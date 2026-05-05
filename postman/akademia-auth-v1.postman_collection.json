@@ -1,0 +1,1117 @@
+{
+  "info": {
+    "name": "akademia - auth v1",
+    "_postman_id": "3fdccfe5-53c4-4545-85eb-3f56f664eb6b",
+    "description": "Collection para testar fluxo completo da API v1 multi-tenant: auth, perfil, dados fisicos/medicos, preferencias, geracao de treino assincrona e status.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "app_host",
+      "value": "localhost"
+    },
+    {
+      "key": "tenant_host",
+      "value": "academia-centro.localhost"
+    },
+    {
+      "key": "email",
+      "value": "multi@akademia.test"
+    },
+    {
+      "key": "password",
+      "value": "@akademia123"
+    },
+    {
+      "key": "selection_token",
+      "value": ""
+    },
+    {
+      "key": "tenant_id",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "workout_id",
+      "value": ""
+    },
+    {
+      "key": "plan_id",
+      "value": "1"
+    },
+    {
+      "key": "payment_method_id",
+      "value": "pm_card_visa"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Auth Options",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/options",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "options"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 - Login (Sem Subdominio)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 403, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  let data = null;",
+              "  try {",
+              "    data = pm.response.json();",
+              "  } catch (e) {",
+              "    pm.test('Resposta deve ser JSON valido', function () {",
+              "      throw new Error('Resposta nao e JSON. Host atual: ' + pm.request.headers.get('Host') + '. Body: ' + pm.response.text());",
+              "    });",
+              "  }",
+              "  if (!data) {",
+              "    return;",
+              "  }",
+              "",
+              "  pm.test('Retorno sem subdominio exige selecao de tenant', function () {",
+              "    pm.expect(data).to.have.property('requiresTenantSelection', true);",
+              "    pm.expect(data).to.have.property('selectionToken').that.is.a('string').and.not.empty;",
+              "    pm.expect(data).to.have.property('tenants').that.is.an('array').and.not.empty;",
+              "  });",
+              "",
+              "  if (data.selectionToken) {",
+              "    pm.collectionVariables.set('selection_token', data.selectionToken);",
+              "  }",
+              "",
+              "  if (Array.isArray(data.tenants) && data.tenants.length > 0 && data.tenants[0].id) {",
+              "    pm.collectionVariables.set('tenant_id', String(data.tenants[0].id));",
+              "    if (data.tenants[0].slug) {",
+              "      pm.collectionVariables.set('tenant_host', data.tenants[0].slug + '.localhost');",
+              "    }",
+              "  }",
+              "",
+              "  if (data.token) {",
+              "    pm.collectionVariables.set('token', data.token);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 - Login (Com Subdominio)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 403, 404, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  let data = null;",
+              "  try {",
+              "    data = pm.response.json();",
+              "  } catch (e) {",
+              "    pm.test('Resposta deve ser JSON valido', function () {",
+              "      throw new Error('Resposta nao e JSON. Host atual: ' + pm.request.headers.get('Host') + '. Body: ' + pm.response.text());",
+              "    });",
+              "  }",
+              "  if (!data) {",
+              "    return;",
+              "  }",
+              "  pm.test('Login com subdominio retorna token e tenant', function () {",
+              "    pm.expect(data).to.have.property('token').that.is.a('string').and.not.empty;",
+              "    pm.expect(data).to.have.property('tenant').that.is.an('object');",
+              "    pm.expect(data.tenant).to.have.property('id');",
+              "    pm.expect(data.tenant).to.have.property('slug');",
+              "  });",
+              "  if (data.token) {",
+              "    pm.collectionVariables.set('token', data.token);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 - Select Tenant",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  let data = null;",
+              "  try {",
+              "    data = pm.response.json();",
+              "  } catch (e) {",
+              "    pm.test('Resposta deve ser JSON valido', function () {",
+              "      throw new Error('Resposta nao e JSON. Host atual: ' + pm.request.headers.get('Host') + '. Body: ' + pm.response.text());",
+              "    });",
+              "  }",
+              "  if (!data) {",
+              "    return;",
+              "  }",
+              "  pm.test('Select tenant retorna token e tenant', function () {",
+              "    pm.expect(data).to.have.property('token').that.is.a('string').and.not.empty;",
+              "    pm.expect(data).to.have.property('tenant').that.is.an('object');",
+              "    pm.expect(data.tenant).to.have.property('id');",
+              "    pm.expect(String(data.tenant.id)).to.eql(pm.collectionVariables.get('tenant_id'));",
+              "  });",
+              "  if (data.token) {",
+              "    pm.collectionVariables.set('token', data.token);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"selectionToken\": \"{{selection_token}}\",\n  \"tenant_id\": {{tenant_id}}\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/select-tenant",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "select-tenant"
+          ]
+        }
+      }
+    },
+    {
+      "name": "05 - Me (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 503]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Resposta contem dados de perfil', function () {",
+              "    pm.expect(data).to.have.property('id');",
+              "    pm.expect(data).to.have.property('tenant_id');",
+              "    pm.expect(data).to.have.property('name');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/me",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "06 - Me (PUT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 422, 503]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Perfil atualizado', function () {",
+              "    pm.expect(data).to.have.property('name', 'Multi Tenant User');",
+              "    pm.expect(data).to.have.property('height', 1.75);",
+              "    pm.expect(data).to.have.property('weight', 82);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Multi Tenant User\",\n  \"birth_date\": \"1992-05-10\",\n  \"gender\": \"male\",\n  \"height\": 1.75,\n  \"weight\": 82,\n  \"goal\": \"gain_muscle\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/me",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 - Physical Data (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"body_fat_percentage\": 18.5,\n  \"activity_level\": \"moderate\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/physical-data",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "physical-data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "08 - Physical Data (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/physical-data",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "physical-data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "09 - Physical Data (PUT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 404, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"body_fat_percentage\": 17.8,\n  \"activity_level\": \"active\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/physical-data",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "physical-data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 - Medical Data (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"injuries\": \"none\",\n  \"diseases\": \"none\",\n  \"medications\": \"none\",\n  \"restrictions\": \"evitar corrida de alto impacto\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/medical-data",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "medical-data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11 - Medical Data (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/medical-data",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "medical-data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "12 - Medical Data (PUT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 404, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"restrictions\": \"evitar agachamento profundo com carga\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/medical-data",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "medical-data"
+          ]
+        }
+      }
+    },
+    {
+      "name": "13 - Preferences (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"preferred_foods\": [\"frango\", \"arroz\"],\n  \"disliked_foods\": [\"figado\"],\n  \"drinks\": [\"agua\", \"cha\"],\n  \"available_hours\": [\"06:00\", \"19:00\"],\n  \"training_frequency\": 5\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/preferences",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "preferences"
+          ]
+        }
+      }
+    },
+    {
+      "name": "14 - Preferences (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/preferences",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "preferences"
+          ]
+        }
+      }
+    },
+    {
+      "name": "15 - Preferences (PUT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 404, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"training_frequency\": 4\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/preferences",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "preferences"
+          ]
+        }
+      }
+    },
+    {
+      "name": "16 - Workout Generate (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([202, 401, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 202) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Geracao iniciada com id', function () {",
+              "    pm.expect(data).to.have.property('status', 'processing');",
+              "    pm.expect(data).to.have.property('id');",
+              "  });",
+              "  pm.collectionVariables.set('workout_id', String(data.id));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/workouts/generate",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workouts",
+            "generate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "17 - Workout Status (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Retorno possui status valido', function () {",
+              "    pm.expect(['processing', 'done', 'error']).to.include(data.status);",
+              "  });",
+              "  pm.test('Retorno traz result quando done', function () {",
+              "    if (data.status === 'done') {",
+              "      pm.expect(data.result).to.be.an('object');",
+              "      pm.expect(data.result).to.have.property('workout_plan');",
+              "    } else {",
+              "      pm.expect(data.result).to.eql(null);",
+              "    }",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/workouts/status/{{workout_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workouts",
+            "status",
+            "{{workout_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "18 - Admin AI Logs (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/ai-logs",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "ai-logs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "19 - Admin Usage (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Uso admin possui campos esperados', function () {",
+              "    pm.expect(data).to.have.property('current_plan');",
+              "    pm.expect(data).to.have.property('ai_usage');",
+              "    pm.expect(data).to.have.property('ai_limit');",
+              "    pm.expect(data).to.have.property('ai_consumed_percentage');",
+              "    pm.expect(data).to.have.property('students_used');",
+              "    pm.expect(data).to.have.property('students_limit');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/usage",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "usage"
+          ]
+        }
+      }
+    },
+    {
+      "name": "20 - Billing Subscription (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plan_id\": {{plan_id}},\n  \"payment_method_id\": \"{{payment_method_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/billing/subscriptions",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "billing",
+            "subscriptions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "21 - Admin Upgrade Plan (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 422]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plan_id\": {{plan_id}}\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/upgrade-plan",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "upgrade-plan"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+    "$schema": "https://www.schemastore.org/package.json",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite",
+        "format": "prettier --write resources/",
+        "format:check": "prettier --check resources/",
+        "lint": "echo \"lint skipped (blade-only)\"",
+        "lint:check": "echo \"lint check skipped (blade-only)\"",
+        "types:check": "echo \"types check skipped (blade-only)\""
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.19.0",
+        "@stylistic/eslint-plugin": "^5.10.0",
+        "@types/node": "^22.13.5",
+        "autoprefixer": "^10.5.0",
+        "concurrently": "^9.0.1",
+        "eslint": "^9.17.0",
+        "eslint-config-prettier": "^10.0.1",
+        "eslint-import-resolver-typescript": "^4.4.4",
+        "eslint-plugin-import": "^2.32.0",
+        "postcss": "^8.5.13",
+        "prettier": "^3.4.2",
+        "prettier-plugin-tailwindcss": "^0.6.11",
+        "tailwindcss": "^3.4.17",
+        "typescript": "^5.2.2",
+        "typescript-eslint": "^8.23.0",
+        "vite": "^8.0.0"
+    },
+    "dependencies": {
+        "axios": "^1.15.2",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "laravel-vite-plugin": "^3.0.0",
+        "tailwind-merge": "^3.2.0",
+        "tw-animate-css": "^1.2.5"
+    },
+    "optionalDependencies": {
+        "@rollup/rollup-linux-x64-gnu": "4.9.5",
+        "@rollup/rollup-win32-x64-msvc": "4.9.5",
+        "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
+        "@tailwindcss/oxide-win32-x64-msvc": "^4.0.1",
+        "lightningcss-linux-x64-gnu": "^1.29.1",
+        "lightningcss-win32-x64-msvc": "^1.29.1"
+    }
+}
