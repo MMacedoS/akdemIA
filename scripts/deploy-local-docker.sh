@@ -14,6 +14,7 @@ SCHEDULER_SERVICE="scheduler"
 NGINX_SERVICE="nginx"
 PHPMYADMIN_SERVICE="phpmyadmin"
 HEALTH_WAIT_SECONDS="120"
+DOCKER_INFO_LOG=""
 
 log() {
   printf "\n[%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -28,9 +29,35 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+configure_docker_endpoint() {
+  local default_info_log=""
+
+  DOCKER_INFO_LOG="$(docker info 2>&1 || true)"
+  if [[ "$DOCKER_INFO_LOG" != *"Cannot connect to the Docker daemon"* ]] && [[ "$DOCKER_INFO_LOG" != *"permission denied while trying to connect"* ]]; then
+    return 0
+  fi
+
+  default_info_log="$(docker --context default info 2>&1 || true)"
+  if [[ "$default_info_log" != *"Cannot connect to the Docker daemon"* ]] && [[ "$default_info_log" != *"permission denied while trying to connect"* ]]; then
+    export DOCKER_HOST="unix:///var/run/docker.sock"
+    DOCKER_INFO_LOG="$default_info_log"
+    return 0
+  fi
+
+  if [[ "$default_info_log" == *"permission denied while trying to connect"* ]]; then
+    fail "sem permissao no daemon Docker em /var/run/docker.sock. Adicione o usuario ao grupo docker e reabra a sessao: sudo usermod -aG docker $USER"
+  fi
+
+  if [[ "$DOCKER_INFO_LOG" == *"/home/"*"/.docker/desktop/docker.sock"* ]]; then
+    fail "o contexto ativo do Docker aponta para Docker Desktop, mas esse daemon nao esta disponivel. Inicie o Docker Desktop ou execute: docker context use default"
+  fi
+
+  fail "docker daemon indisponivel. Verifique se o servico Docker esta em execucao."
+}
+
 ensure_requirements() {
   command_exists docker || fail "docker nao encontrado."
-  docker info >/dev/null 2>&1 || fail "docker daemon indisponivel."
+  configure_docker_endpoint
   $DC version >/dev/null 2>&1 || fail "docker compose nao disponivel."
   [[ -f .env ]] || fail ".env nao encontrado em ${PROJECT_DIR}."
 }
