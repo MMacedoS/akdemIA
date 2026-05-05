@@ -1,0 +1,198 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    image: akdemia-app-local:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://akademia.localhost:8080
+      APP_LANDING_ROOT_DOMAIN: akademia.localhost
+      APP_CREATE_STORAGE_LINK: "true"
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: redis
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: akdemia_local
+      DB_USERNAME: akdemia
+      DB_PASSWORD: akdemia
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SESSION_DOMAIN: .akademia.localhost
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/var/www
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - app_net
+
+  worker:
+    image: akdemia-app-local:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://akademia.localhost:8080
+      APP_LANDING_ROOT_DOMAIN: akademia.localhost
+      APP_CREATE_STORAGE_LINK: "true"
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: redis
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: akdemia_local
+      DB_USERNAME: akdemia
+      DB_PASSWORD: akdemia
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SESSION_DOMAIN: .akademia.localhost
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=120"]
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/var/www
+    networks:
+      - app_net
+
+  scheduler:
+    image: akdemia-app-local:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://akademia.localhost:8080
+      APP_LANDING_ROOT_DOMAIN: akademia.localhost
+      APP_CREATE_STORAGE_LINK: "true"
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: redis
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: akdemia_local
+      DB_USERNAME: akdemia
+      DB_PASSWORD: akdemia
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SESSION_DOMAIN: .akademia.localhost
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/var/www
+    networks:
+      - app_net
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    image: akdemia-nginx-local:latest
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www:ro
+    networks:
+      - app_net
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: akdemia_local
+      MYSQL_USER: akdemia
+      MYSQL_PASSWORD: akdemia
+      MYSQL_ROOT_PASSWORD: root
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - db_data_local:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - app_net
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_data_local:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app_net
+
+  phpmyadmin:
+    image: phpmyadmin:5.2-apache
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 0
+      PMA_ABSOLUTE_URI: http://127.0.0.1:8081/
+      UPLOAD_LIMIT: 128M
+      MEMORY_LIMIT: 256M
+      MAX_EXECUTION_TIME: 300
+    ports:
+      - "127.0.0.1:8081:80"
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    driver: bridge
+
+volumes:
+  db_data_local:
+  redis_data_local:
