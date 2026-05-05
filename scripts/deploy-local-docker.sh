@@ -15,6 +15,7 @@ NGINX_SERVICE="nginx"
 PHPMYADMIN_SERVICE="phpmyadmin"
 HEALTH_WAIT_SECONDS="120"
 DOCKER_INFO_LOG=""
+TEMP_DOCKER_CONFIG_DIR=""
 
 log() {
   printf "\n[%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -28,6 +29,14 @@ fail() {
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
+
+cleanup() {
+  if [[ -n "$TEMP_DOCKER_CONFIG_DIR" ]] && [[ -d "$TEMP_DOCKER_CONFIG_DIR" ]]; then
+    rm -rf "$TEMP_DOCKER_CONFIG_DIR"
+  fi
+}
+
+trap cleanup EXIT
 
 configure_docker_endpoint() {
   local default_info_log=""
@@ -55,9 +64,31 @@ configure_docker_endpoint() {
   fail "docker daemon indisponivel. Verifique se o servico Docker esta em execucao."
 }
 
+configure_docker_auth() {
+  local docker_config_file="${DOCKER_CONFIG:-$HOME/.docker}/config.json"
+
+  if ! [[ -f "$docker_config_file" ]]; then
+    return 0
+  fi
+
+  if ! grep -q '"credsStore"[[:space:]]*:[[:space:]]*"desktop"' "$docker_config_file"; then
+    return 0
+  fi
+
+  if command_exists docker-credential-desktop; then
+    return 0
+  fi
+
+  TEMP_DOCKER_CONFIG_DIR="$(mktemp -d)"
+  printf '{\n  "auths": {}\n}\n' > "$TEMP_DOCKER_CONFIG_DIR/config.json"
+  export DOCKER_CONFIG="$TEMP_DOCKER_CONFIG_DIR"
+  log "Usando configuracao Docker temporaria sem docker-credential-desktop para builds locais"
+}
+
 ensure_requirements() {
   command_exists docker || fail "docker nao encontrado."
   configure_docker_endpoint
+  configure_docker_auth
   $DC version >/dev/null 2>&1 || fail "docker compose nao disponivel."
   [[ -f .env ]] || fail ".env nao encontrado em ${PROJECT_DIR}."
 }
