@@ -21,8 +21,21 @@ class AiService
     ): array {
         $input = $this->workoutInputFromUser($user);
         $prompt = $this->buildWorkoutPrompt($input, $conservativeMode, $adjustmentRequest);
+        $workout = $user->workouts()->latest()->first();
+        $previousWorkoutPlan = $workout?->workout_plan;
+        $prompt .= $this->preparePreviousWorkoutAdjustmentPrompt($previousWorkoutPlan ?? []);
 
         return $this->callOpenAi($prompt, $user, $tenant, 'workout');
+    }
+
+    private function preparePreviousWorkoutAdjustmentPrompt(array $previousWorkoutPlan): string
+    {
+        return "# =========================\n"
+            . "# TREINO ANTERIOR\n"
+            . "# =========================\n\n"
+            . "O plano de treino anterior gerado para o usuario foi:\n\n"
+            . json_encode($previousWorkoutPlan, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n\n"
+            . " Evite repetir os mesmos exercicios do plano anterior, buscando variacoes seguras e eficientes, mas mantendo a estrutura 4+1 por dia e obedecendo as regras criticas de seguranca e estrutura do treino.";
     }
 
     public function generateRecommendations(User $user, ?Tenant $tenant): array
