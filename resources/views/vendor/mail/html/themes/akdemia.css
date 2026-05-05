@@ -1,0 +1,360 @@
+body,
+body *:not(html):not(style):not(br):not(tr):not(code) {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, Arial, sans-serif;
+    position: relative;
+}
+
+body {
+    -webkit-text-size-adjust: none;
+    background-color: #f4efe7;
+    color: #2a211a;
+    height: 100%;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    width: 100% !important;
+}
+
+p,
+ul,
+ol,
+blockquote {
+    line-height: 1.65;
+    text-align: start;
+}
+
+a {
+    color: #c75b12;
+}
+
+a img {
+    border: none;
+}
+
+h1 {
+    color: #16110d;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 0 0 18px;
+    text-align: left;
+}
+
+h2 {
+    color: #2a211a;
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 14px;
+    text-align: left;
+}
+
+h3 {
+    color: #3b3027;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 12px;
+    text-align: left;
+}
+
+p {
+    font-size: 16px;
+    margin: 0 0 16px;
+    text-align: left;
+}
+
+p.sub {
+    font-size: 13px;
+}
+
+img {
+    max-width: 100%;
+}
+
+.wrapper {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    background:
+        radial-gradient(circle at top, #f9d7a2 0, #f4efe7 28%),
+        linear-gradient(180deg, #f4efe7 0%, #efe5d7 100%);
+    margin: 0;
+    padding: 28px 14px;
+    width: 100%;
+}
+
+.mail-frame {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.header {
+    padding: 12px 0 20px;
+    text-align: center;
+}
+
+.mail-brand {
+    color: #16110d;
+    display: inline-flex;
+    text-align: left;
+    text-decoration: none;
+}
+
+.mail-brand-mark {
+    background: linear-gradient(135deg, #ff9b4a 0%, #d94801 100%);
+    border-radius: 16px;
+    color: #fff9f2;
+    display: inline-block;
+    font-size: 22px;
+    font-weight: 800;
+    height: 52px;
+    line-height: 52px;
+    margin-right: 14px;
+    text-align: center;
+    width: 52px;
+}
+
+.mail-brand-copy {
+    display: inline-block;
+    padding-top: 2px;
+}
+
+.mail-brand-name {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.mail-brand-tag {
+    color: #7b6a5a;
+    display: block;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+
+.body {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.mail-shell {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 620px;
+    margin: 0 auto;
+    width: 620px;
+}
+
+.mail-card {
+    background: #fffaf4;
+    border: 1px solid #ecd9c2;
+    border-radius: 26px;
+    box-shadow: 0 22px 44px rgba(86, 45, 11, 0.12);
+    overflow: hidden;
+}
+
+.mail-accent {
+    background: linear-gradient(90deg, #ff9b4a 0%, #ef6c28 48%, #b53b12 100%);
+    height: 8px;
+}
+
+.mail-content {
+    padding: 42px 46px 34px;
+}
+
+.mail-content a {
+    word-break: break-word;
+}
+
+.subcopy {
+    border-top: 1px solid #ecd9c2;
+    margin-top: 28px;
+    padding-top: 22px;
+}
+
+.subcopy p {
+    color: #6c5b4b;
+    font-size: 13px;
+}
+
+.mail-footer {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 620px;
+    margin: 0 auto;
+    padding: 18px 0 0;
+    text-align: center;
+    width: 620px;
+}
+
+.mail-footer-cell {
+    padding: 0 20px 10px;
+}
+
+.mail-footer p {
+    color: #866f5c;
+    font-size: 12px;
+    margin: 0;
+    text-align: center;
+}
+
+.mail-footer a {
+    color: #6b4a2f;
+    text-decoration: none;
+}
+
+.mail-table table {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 24px auto;
+    width: 100%;
+}
+
+.mail-table th {
+    border-bottom: 1px solid #ecd9c2;
+    color: #6a5442;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    padding: 0 0 12px;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.mail-table td {
+    border-bottom: 1px solid #f2e4d3;
+    color: #2a211a;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 12px 0;
+}
+
+.action {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 30px auto 26px;
+    padding: 0;
+    text-align: center;
+    width: 100%;
+}
+
+.button {
+    -webkit-text-size-adjust: none;
+    border-radius: 999px;
+    color: #fff8f1;
+    display: inline-block;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    overflow: hidden;
+    text-decoration: none;
+}
+
+.button-blue,
+.button-primary {
+    background: #c75b12;
+    border-bottom: 14px solid #c75b12;
+    border-left: 28px solid #c75b12;
+    border-right: 28px solid #c75b12;
+    border-top: 14px solid #c75b12;
+}
+
+.button-green,
+.button-success {
+    background: #1f8f5f;
+    border-bottom: 14px solid #1f8f5f;
+    border-left: 28px solid #1f8f5f;
+    border-right: 28px solid #1f8f5f;
+    border-top: 14px solid #1f8f5f;
+}
+
+.button-red,
+.button-error {
+    background: #c0392b;
+    border-bottom: 14px solid #c0392b;
+    border-left: 28px solid #c0392b;
+    border-right: 28px solid #c0392b;
+    border-top: 14px solid #c0392b;
+}
+
+.panel {
+    border-left: 4px solid #ef6c28;
+    margin: 24px 0;
+}
+
+.panel-content {
+    background: #fff1e4;
+    border: 1px solid #f3c89f;
+    border-left: 0;
+    border-radius: 0 18px 18px 0;
+    padding: 18px 20px;
+}
+
+.panel-item p:last-child {
+    margin-bottom: 0;
+}
+
+blockquote {
+    border-left: 4px solid #f0b784;
+    color: #5b493b;
+    margin: 22px 0;
+    padding-left: 18px;
+}
+
+ul,
+ol {
+    margin: 0 0 18px;
+    padding-left: 22px;
+}
+
+li {
+    margin-bottom: 8px;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #ecd9c2;
+    margin: 28px 0;
+}
+
+@media only screen and (max-width: 600px) {
+    .wrapper {
+        padding: 18px 10px;
+    }
+
+    .mail-brand {
+        display: block;
+    }
+
+    .mail-brand-mark {
+        margin: 0 auto 12px;
+    }
+
+    .mail-brand-copy {
+        display: block;
+        text-align: center;
+    }
+
+    .mail-content {
+        padding: 30px 22px 24px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+}
