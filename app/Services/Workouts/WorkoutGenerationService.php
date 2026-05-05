@@ -34,31 +34,6 @@ class WorkoutGenerationService
             return $this->generateAndStore($user, $tenant, $normalizedAdjustmentRequest);
         }
 
-        $cacheKey = $this->buildCacheKey($user, $tenant);
-        $cacheTtlSeconds = (int) config('services.openai.workout_cache_ttl', 3600);
-
-        $workoutId = Cache::remember($cacheKey, $cacheTtlSeconds, function () use ($user, $tenant): int {
-            return $this->generateAndStore($user, $tenant)->id;
-        });
-
-        $cachedWorkoutQuery = Workout::query()
-            ->where('id', $workoutId)
-            ->where('user_id', $user->id);
-
-        if ($tenant instanceof Tenant) {
-            $cachedWorkoutQuery->where('tenant_id', $tenant->id);
-        } else {
-            $cachedWorkoutQuery->whereNull('tenant_id');
-        }
-
-        $cachedWorkout = $cachedWorkoutQuery->first();
-
-        if ($cachedWorkout !== null) {
-            return $cachedWorkout;
-        }
-
-        Cache::forget($cacheKey);
-
         return $this->generateAndStore($user, $tenant);
     }
 

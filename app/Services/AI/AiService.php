@@ -5,6 +5,7 @@ namespace App\Services\AI;
 use App\Models\AI\AiLog;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
+use App\Models\Workout\Workout;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -21,7 +22,12 @@ class AiService
     ): array {
         $input = $this->workoutInputFromUser($user);
         $prompt = $this->buildWorkoutPrompt($input, $conservativeMode, $adjustmentRequest);
-        $workout = $user->workouts()->latest()->first();
+        $workoutQuery = Workout::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'done');
+        $workout = $workoutQuery
+            ->latest('id')
+            ->first();
         $previousWorkoutPlan = $workout?->workout_plan;
         $prompt .= $this->preparePreviousWorkoutAdjustmentPrompt($previousWorkoutPlan ?? []);
 
