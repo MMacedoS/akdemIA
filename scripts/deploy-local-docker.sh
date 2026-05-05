@@ -123,6 +123,30 @@ install_js_dependencies() {
     sh -lc "npm ci && npm run build"
 }
 
+reset_laravel_runtime_cache() {
+  log "Limpando cache compilado local antes do bootstrap Laravel"
+
+  mkdir -p \
+    bootstrap/cache \
+    storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    storage/tmp
+
+  chmod -R a+rwX \
+    bootstrap/cache \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    storage/tmp 2>/dev/null || true
+
+  find bootstrap/cache -maxdepth 1 -type f \( -name '*.php' -o -name '*.json' \) -delete 2>/dev/null || true
+  find storage/framework/cache/data -mindepth 1 ! -name '.gitignore' -delete 2>/dev/null || true
+  find storage/framework/views -mindepth 1 ! -name '.gitignore' -delete 2>/dev/null || true
+}
+
 wait_for_service_health() {
   local service="$1"
   local elapsed=0
@@ -171,6 +195,7 @@ up_stack() {
 
 run_laravel_tasks() {
   log "Executando tarefas Laravel no container local"
+  reset_laravel_runtime_cache
   $DC exec -T "$APP_SERVICE" php artisan optimize:clear || true
   $DC exec -T "$APP_SERVICE" php artisan storage:link || true
   $DC exec -T "$APP_SERVICE" php artisan migrate --force
