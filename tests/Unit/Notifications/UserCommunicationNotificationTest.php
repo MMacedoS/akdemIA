@@ -45,5 +45,8 @@ class UserCommunicationNotificationTest extends TestCase
         $mailMessage = $notification->toMail($notifiable);
 
         $this->assertSame('Aviso importante', $mailMessage->subject);
+        $this->assertSame('emails.notifications.user-communication', $mailMessage->markdown);
+        $this->assertSame('Maria', $mailMessage->viewData['recipientName']);
+        $this->assertSame('Aviso importante', $mailMessage->viewData['subjectLine']);
     }
 }

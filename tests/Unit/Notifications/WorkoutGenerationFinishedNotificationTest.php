@@ -33,4 +33,23 @@ class WorkoutGenerationFinishedNotificationTest extends TestCase
         $this->assertSame('done', $payload['status']);
         $this->assertSame('Treino gerado.', $payload['message']);
     }
+
+    public function test_it_builds_markdown_mail_message_with_status_context(): void
+    {
+        $notification = new WorkoutGenerationFinishedNotification(
+            workoutId: 123,
+            status: 'error',
+            message: 'Falha ao gerar o treino.',
+        );
+
+        $notifiable = new stdClass();
+        $notifiable->name = 'Carlos';
+
+        $mailMessage = $notification->toMail($notifiable);
+
+        $this->assertSame('Atualizacao da geracao do treino #123', $mailMessage->subject);
+        $this->assertSame('emails.notifications.workout-generation-finished', $mailMessage->markdown);
+        $this->assertSame('Carlos', $mailMessage->viewData['recipientName']);
+        $this->assertSame('Falha na geracao', $mailMessage->viewData['statusLabel']);
+    }
 }

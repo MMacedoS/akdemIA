@@ -28,14 +28,14 @@ class TenantAccessCreatedNotification extends Notification implements ShouldQueu
     {
         return (new MailMessage())
             ->subject('Acesso inicial do tenant ' . $this->tenantName)
-            ->greeting('Ola, ' . $notifiable->name . '!')
-            ->line('Seu acesso inicial ao tenant foi criado com sucesso.')
-            ->line('Tenant: ' . $this->tenantName)
-            ->line('Email de acesso: ' . $this->email)
-            ->line('Senha inicial: ' . $this->password)
-            ->line('URL do tenant: ' . $this->tenantUrl)
-            ->action('Entrar no painel', $this->loginUrl)
-            ->line('Troque a senha imediatamente no primeiro acesso.');
+            ->markdown('emails.notifications.tenant-access-created', [
+                'recipientName' => $this->resolveRecipientName($notifiable),
+                'tenantName' => $this->tenantName,
+                'tenantUrl' => $this->tenantUrl,
+                'loginUrl' => $this->loginUrl,
+                'email' => $this->email,
+                'password' => $this->password,
+            ]);
     }
 
     public function toArray(object $notifiable): array
@@ -52,5 +52,10 @@ class TenantAccessCreatedNotification extends Notification implements ShouldQueu
             'password_warning' => 'Troque a senha no primeiro acesso.',
             'level' => 'success',
         ];
+    }
+
+    private function resolveRecipientName(object $notifiable): string
+    {
+        return isset($notifiable->name) ? (string) $notifiable->name : 'usuario';
     }
 }
