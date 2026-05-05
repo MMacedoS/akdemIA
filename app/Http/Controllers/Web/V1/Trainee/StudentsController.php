@@ -60,6 +60,7 @@ class StudentsController extends Controller
             'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
             'height' => ['nullable', 'numeric', 'min:0.5', 'max:3'],
             'weight' => ['nullable', 'numeric', 'min:20', 'max:500'],
+            'activity_level' => ['nullable', 'string', 'max:255'],
             'goal' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -69,7 +70,10 @@ class StudentsController extends Controller
         if ($imc !== null) {
             PhysicalData::query()->updateOrCreate(
                 ['user_id' => $student->id],
-                ['imc' => $imc]
+                [
+                    'activity_level' => $payload['activity_level'] ?? 'moderado',
+                    'imc' => $imc,
+                ]
             );
         }
 
