@@ -13,6 +13,10 @@
             <div class="card">
                 <h3>Sem treino gerado</h3>
                 <p>Seu plano ainda nao foi gerado. Mantenha seus dados de saude e perfil atualizados.</p>
+                <form method="POST" action="{{ route('students.workout.generate') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-primary">Gerar treino</button>
+                </form>
             </div>
         @else
             @include('web.v1.workouts.board', [

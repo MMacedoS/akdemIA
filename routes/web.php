@@ -141,6 +141,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/workout/start', [StudentWorkoutController::class, 'start'])->name('workout.start');
         Route::post('/workout/{workoutId}/activate', [StudentWorkoutController::class, 'activate'])->name('workout.activate');
         Route::post('/workout/{workoutId}/inactivate', [StudentWorkoutController::class, 'inactivate'])->name('workout.inactivate');
+        Route::post('/workout/generate', [StudentWorkoutController::class, 'generate'])->name('workout.generate');
+        Route::post('/workout/{workoutId}/regenerate', [StudentWorkoutController::class, 'retryWorkout'])->name('workout.retry');
     });
 
     Route::prefix('admin')->name('admin.')->middleware(['role:admin'])->group(function () {

@@ -228,6 +228,12 @@
         </div>
         <div class="plan-actions-group">
             <span class="badge {{ $statusColor }}">{{ strtoupper((string) $workout->status) }}</span>
+            @if ((string) $workout->status === 'error')
+                <form method="POST" action="{{ route('students.workout.retry', [$workout->id]) }}">
+                   @csrf
+                   <button class="btn btn-primary" type="submit">Reenviar</button>
+                </form>
+            @endif
 
             @if ($activateRoute !== '' && $inactivateRoute !== '')
                 @if ($isWorkoutActive)
@@ -240,6 +246,10 @@
                         @csrf
                         <button type="submit" class="btn btn-soft">Ativar treino</button>
                     </form>
+                    <form method="POST" action="{{ route('students.workout.generate') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-primary">Gerar treino</button>
+                </form>
                 @endif
             @endif
 
