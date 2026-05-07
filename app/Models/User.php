@@ -12,7 +12,6 @@ use App\Models\Preferences\Preference;
 use App\Models\Tenant\Tenant;
 use App\Models\Tenant\TenantStudentTraineeLink;
 use App\Models\Workout\Workout;
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;

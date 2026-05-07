@@ -2,10 +2,8 @@
 
 namespace Tests\Unit\Services\AI;
 
-use App\Models\User;
 use App\Services\AI\ValidationService;
 use Illuminate\Validation\ValidationException;
-use Mockery;
 use Tests\TestCase;
 
 class ValidationServiceTest extends TestCase
@@ -85,44 +83,7 @@ class ValidationServiceTest extends TestCase
 
     public function test_validate_workout_response_rejects_plan_with_less_days_than_training_frequency(): void
     {
-        $user = Mockery::mock(User::class)->makePartial();
-        $user->birth_date = null;
-        $user->gender = 'female';
-        $user->height = 165;
-        $user->weight = 60;
-        $user->goal = 'hipertrofia';
-
-        $user->shouldReceive('physicalData')->andReturn(new class
-        {
-            public function first(): object
-            {
-                return (object) [
-                    'imc' => 24.5,
-                    'activity_level' => 'moderate',
-                ];
-            }
-        });
-
-        $user->shouldReceive('medicalData')->andReturn(new class
-        {
-            public function first(): object
-            {
-                return (object) [
-                    'restrictions' => null,
-                    'injuries' => null,
-                ];
-            }
-        });
-
-        $user->shouldReceive('preference')->andReturn(new class
-        {
-            public function first(): object
-            {
-                return (object) [
-                    'training_frequency' => '5x por semana',
-                ];
-            }
-        });
+        $user = $this->mockCreateUserTotal();
 
         $service = new ValidationService();
         $service->validateUserForWorkout($user);
@@ -149,8 +110,6 @@ class ValidationServiceTest extends TestCase
 
     protected function tearDown(): void
     {
-        Mockery::close();
-
         parent::tearDown();
     }
 }

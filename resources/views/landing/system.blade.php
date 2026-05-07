@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>AkdemIA | Sistema SaaS para gestao de treinos</title>
+    <title>AcademAI | Sistema SaaS para gestao de treinos</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -292,7 +292,7 @@
                 <a class="brand" href="#inicio">
                     <span class="brand-mark">A</span>
                     <span class="brand-copy">
-                        <strong>AkdemIA</strong>
+                        <strong>AcademAI</strong>
                         <span>Gestao de treinos em modelo SaaS</span>
                     </span>
                 </a>
@@ -419,8 +419,8 @@
                             <li>Gerenciamento de alunos</li>
                             <li>Gerenciamento de treinadores</li>
                             <li>Relatorios e metricas</li>
-                            <li>Controle de planos futuramente</li>
-                            <li>Gestao completa da academia futuramente</li>
+                            <li>Controle de planos(em breve)</li>
+                            <li>Gestao completa da academia(em breve)</li>
                         </ul>
                     </article>
 
@@ -444,8 +444,8 @@
                         <ul class="feature-list">
                             <li>Visualizar treinos</li>
                             <li>Acompanhar progresso</li>
-                            <li>Ver execucao de exercicios com imagem ou GIF</li>
-                            <li>Receber instrucoes do treinador</li>
+                            <li>Ver execucao de exercicios com imagem ou GIF(beta)</li>
+                            <li>Receber instrucoes do treinador(em breve)</li>
                         </ul>
                     </article>
                 </div>
