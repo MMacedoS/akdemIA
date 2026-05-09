@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('logo.png') }}">
     <title>AcademAI | Sistema SaaS para gestao de treinos</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -132,6 +134,19 @@
             gap: 16px;
             padding: 26px;
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(7, 15, 27, 0.56) 100%), linear-gradient(145deg, rgba(244, 245, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+        }
+        .hero-logo-wrap {
+            display: grid;
+            place-items: center;
+            padding: 12px;
+            border-radius: 24px;
+            background: rgba(4, 12, 22, 0.38);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .hero-logo {
+            width: min(100%, 430px);
+            max-height: 220px;
+            object-fit: contain;
         }
         .hero-placeholder-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .hero-placeholder-card, .hero-placeholder-note {
@@ -274,12 +289,12 @@
         $secondaryCtaText = $setting?->secondary_cta_text ?: 'Ver como funciona';
         $secondaryCtaUrl = $setting?->secondary_cta_url ?: '#sobre';
         $aboutTitle = $setting?->about_title ?: 'Uma plataforma unica para simplificar a gestao de treinos e acelerar a operacao da academia.';
-        $aboutContent = $setting?->about_content ?: 'A AkdemIA organiza a jornada completa entre academia, treinadores e alunos. Em um unico ambiente, a equipe acompanha matriculas, cria fichas, atualiza treinos, entrega instrucoes e monitora a evolucao dos alunos com mais clareza, agilidade e padrao operacional.';
+        $aboutContent = $setting?->about_content ?: 'A AcademAI organiza a jornada completa entre academia, treinadores e alunos. Em um unico ambiente, a equipe acompanha matriculas, cria fichas, atualiza treinos, entrega instrucoes e monitora a evolucao dos alunos com mais clareza, agilidade e padrao operacional.';
         $tenantsSectionTitle = $setting?->tenants_section_title ?: 'Contratantes em destaque';
         $professionalsSectionTitle = $setting?->professionals_section_title ?: 'Profissionais e trainees';
-        $differentialsSectionTitle = $setting?->differentials_section_title ?: 'Por que a AkdemIA cresce como produto SaaS';
+        $differentialsSectionTitle = $setting?->differentials_section_title ?: 'Por que a AcademAI cresce como produto SaaS';
         $contactSectionTitle = $setting?->contact_section_title ?: 'Vamos conversar sobre sua operacao';
-        $contactDescription = $setting?->contact_description ?: 'Envie sua mensagem para conhecer a plataforma, entender o modelo SaaS e avaliar como a AkdemIA pode apoiar a sua academia ou equipe tecnica.';
+        $contactDescription = $setting?->contact_description ?: 'Envie sua mensagem para conhecer a plataforma, entender o modelo SaaS e avaliar como a AcademAI pode apoiar a sua academia ou equipe tecnica.';
         $contactEmail = $setting?->contact_email ?: config('mail.from.address');
         $contactWhatsapp = $setting?->contact_whatsapp;
         $contactWhatsappDigits = $contactWhatsapp ? preg_replace('/\D+/', '', $contactWhatsapp) : null;
@@ -338,9 +353,12 @@
 
                     <div class="hero-image-card">
                         @if($heroImageUrl)
-                            <img src="{{ $heroImageUrl }}" alt="Painel da plataforma AkdemIA em destaque">
+                            <img src="{{ $heroImageUrl }}" alt="Painel da plataforma AcademAI em destaque">
                         @else
                             <div class="hero-placeholder">
+                                <div class="hero-logo-wrap">
+                                    <img src="{{ asset('logo.png') }}" alt="Logo da plataforma AcademAI" class="hero-logo">
+                                </div>
                                 <div class="hero-placeholder-grid">
                                     <div class="hero-placeholder-card">
                                         <strong>Academia</strong>
@@ -604,7 +622,7 @@
         <div class="container">
             <div class="footer-panel">
                 <div>
-                    <strong>AkdemIA</strong>
+                    <strong>AcademAI</strong>
                     <span>Plataforma para academias, trainers e alunos operarem em sintonia.</span>
                 </div>
                 <a href="{{ $primaryCtaUrl }}" class="button button-primary">{{ $primaryCtaText }}</a>
@@ -637,7 +655,7 @@
                 }
 
                 const composedMessage = [
-                    'Novo contato via landing AkdemIA',
+                    'Novo contato via landing AcademAI',
                     '',
                     'Nome: ' + name,
                     'Email: ' + email,
@@ -653,7 +671,7 @@
                 }
 
                 if (contactEmail) {
-                    window.location.href = 'mailto:' + contactEmail + '?subject=' + encodeURIComponent('Contato via landing AkdemIA') + '&body=' + encodeURIComponent(composedMessage);
+                    window.location.href = 'mailto:' + contactEmail + '?subject=' + encodeURIComponent('Contato via landing AcademAI') + '&body=' + encodeURIComponent(composedMessage);
                     note.textContent = 'Mensagem preparada no seu aplicativo de email.';
                     return;
                 }

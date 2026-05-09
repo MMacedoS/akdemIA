@@ -1,6 +1,6 @@
-# AkademIA
+# AcademAI
 
-AkademIA e uma plataforma multi-tenant para gestao de operacoes fitness, com autenticacao, painel administrativo, landing pages publicas, gestao de alunos, treinadores e trainees, geracao de treinos com apoio de IA, controle de creditos e configuracoes globais por tenant e por sistema.
+AcademAI e uma plataforma multi-tenant para gestao de operacoes fitness, com autenticacao, painel administrativo, landing pages publicas, gestao de alunos, treinadores e trainees, geracao de treinos com apoio de IA, controle de creditos e configuracoes globais por tenant e por sistema.
 
 O projeto foi construido com Laravel 13, interface web em Blade, assets compilados com Vite e Tailwind CSS, API versionada em `/api/v1` e fluxo local baseado em Docker.
 

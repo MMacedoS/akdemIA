@@ -252,13 +252,13 @@
                             <div class="system-preview-sections">
                                 <div class="system-preview-section">
                                     <h5 id="preview-about-title">{{ old('about_title', $setting?->about_title ?: 'Uma plataforma unica para simplificar a gestao de treinos e acelerar a operacao da academia.') }}</h5>
-                                    <p id="preview-about-content">{{ old('about_content', $setting?->about_content ?: 'A AkdemIA organiza a jornada completa entre academia, treinadores e alunos em um unico ambiente.') }}</p>
+                                    <p id="preview-about-content">{{ old('about_content', $setting?->about_content ?: 'A AcademAI organiza a jornada completa entre academia, treinadores e alunos em um unico ambiente.') }}</p>
                                 </div>
 
                                 <div class="system-preview-section">
                                     <h5 id="preview-tenants-title">{{ old('tenants_section_title', $setting?->tenants_section_title ?: 'Contratantes em destaque') }}</h5>
                                     <h5 id="preview-professionals-title" style="margin-top: 14px;">{{ old('professionals_section_title', $setting?->professionals_section_title ?: 'Profissionais e trainees') }}</h5>
-                                    <p id="preview-differentials-title" style="margin-top: 14px; font-weight: 700; color: #1f2c3a;">{{ old('differentials_section_title', $setting?->differentials_section_title ?: 'Por que a AkdemIA cresce como produto SaaS') }}</p>
+                                    <p id="preview-differentials-title" style="margin-top: 14px; font-weight: 700; color: #1f2c3a;">{{ old('differentials_section_title', $setting?->differentials_section_title ?: 'Por que a AcademAI cresce como produto SaaS') }}</p>
                                     <ul class="system-preview-list">
                                         <li>Sistema SaaS multi-tenant</li>
                                         <li>Interface moderna</li>
@@ -269,7 +269,7 @@
 
                                 <div class="system-preview-section">
                                     <h5 id="preview-contact-title">{{ old('contact_section_title', $setting?->contact_section_title ?: 'Vamos conversar sobre sua operacao') }}</h5>
-                                    <p id="preview-contact-description">{{ old('contact_description', $setting?->contact_description ?: 'Envie sua mensagem para conhecer a plataforma, entender o modelo SaaS e avaliar como a AkdemIA pode apoiar a sua academia ou equipe tecnica.') }}</p>
+                                    <p id="preview-contact-description">{{ old('contact_description', $setting?->contact_description ?: 'Envie sua mensagem para conhecer a plataforma, entender o modelo SaaS e avaliar como a AcademAI pode apoiar a sua academia ou equipe tecnica.') }}</p>
                                     <div class="system-preview-contact" style="margin-top: 12px;">
                                         <div class="system-preview-contact-row">
                                             <span>Email</span>
@@ -346,12 +346,12 @@
             bindTextPreview('primary_cta_text', 'preview-primary-cta', 'Comecar agora');
             bindTextPreview('secondary_cta_text', 'preview-secondary-cta', 'Ver como funciona');
             bindTextPreview('about_title', 'preview-about-title', 'Uma plataforma unica para simplificar a gestao de treinos e acelerar a operacao da academia.');
-            bindTextPreview('about_content', 'preview-about-content', 'A AkdemIA organiza a jornada completa entre academia, treinadores e alunos em um unico ambiente.');
+            bindTextPreview('about_content', 'preview-about-content', 'A AcademAI organiza a jornada completa entre academia, treinadores e alunos em um unico ambiente.');
             bindTextPreview('tenants_section_title', 'preview-tenants-title', 'Contratantes em destaque');
             bindTextPreview('professionals_section_title', 'preview-professionals-title', 'Profissionais e trainees');
-            bindTextPreview('differentials_section_title', 'preview-differentials-title', 'Por que a AkdemIA cresce como produto SaaS');
+            bindTextPreview('differentials_section_title', 'preview-differentials-title', 'Por que a AcademAI cresce como produto SaaS');
             bindTextPreview('contact_section_title', 'preview-contact-title', 'Vamos conversar sobre sua operacao');
-            bindTextPreview('contact_description', 'preview-contact-description', 'Envie sua mensagem para conhecer a plataforma, entender o modelo SaaS e avaliar como a AkdemIA pode apoiar a sua academia ou equipe tecnica.');
+            bindTextPreview('contact_description', 'preview-contact-description', 'Envie sua mensagem para conhecer a plataforma, entender o modelo SaaS e avaliar como a AcademAI pode apoiar a sua academia ou equipe tecnica.');
             bindTextPreview('contact_email', 'preview-contact-email', '{{ config('mail.from.address') ?: 'comercial@akdemia.com' }}');
             bindTextPreview('contact_whatsapp', 'preview-contact-whatsapp', 'Nao informado');
             bindImagePreview('hero_image_url', 'preview-hero-image', 'preview-hero-image-fallback');

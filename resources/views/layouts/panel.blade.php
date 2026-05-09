@@ -3,7 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('pageTitle', 'Painel') - AkademAI</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('logo.png') }}">
+    <title>@yield('pageTitle', 'Painel') - AcademAI</title>
     @vite(['resources/js/app.js'])
 </head>
 <body class="panel-layout">
@@ -210,7 +212,7 @@
             @yield('content')
 
             <footer class="platform-footer">
-                <span>Projeto: AcademAi</span>
+                <span>Projeto: AcademAI</span>
                 <span>Data: {{ now()->format('d/m/Y') }}</span>
                 <span>Desenvolvedor: Codigo&Rede</span>
             </footer>
