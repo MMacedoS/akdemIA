@@ -32,39 +32,43 @@ Route::prefix('v1')->group(function () {
         ->name('api.internal.catalog.exercises.index');
 
     Route::middleware(['tenant.auth', 'tenant.user'])->group(function () {
-        Route::middleware(['subscription'])->group(function () {
-            Route::get('me', [MeController::class, 'show'])->name('api.me.show');
-            Route::put('me', [MeController::class, 'update'])->name('api.me.update');
-            Route::get('me/trainers', ['App\\Http\\Controllers\\Api\\V1\\Profile\\StudentTrainerController', 'index'])->middleware(['role:student'])->name('api.me.trainers.index');
-            Route::put('me/trainer', ['App\\Http\\Controllers\\Api\\V1\\Profile\\StudentTrainerController', 'update'])->middleware(['role:student'])->name('api.me.trainer.update');
+        Route::post('auth/accept-policies', [AuthController::class, 'acceptPolicies'])->name('api.auth.accept-policies');
 
-            Route::middleware(['role:admin'])->group(function () {
-                Route::get('users', [UserManagementController::class, 'index'])->name('api.users.index');
-                Route::post('students', [UserManagementController::class, 'storeStudent'])->name('api.students.store');
-                Route::post('trainers', [UserManagementController::class, 'storeTrainer'])->name('api.trainers.store');
-            });
+        Route::middleware(['policies.accepted'])->group(function () {
+            Route::middleware(['subscription'])->group(function () {
+                Route::get('me', [MeController::class, 'show'])->name('api.me.show');
+                Route::put('me', [MeController::class, 'update'])->name('api.me.update');
+                Route::get('me/trainers', ['App\\Http\\Controllers\\Api\\V1\\Profile\\StudentTrainerController', 'index'])->middleware(['role:student'])->name('api.me.trainers.index');
+                Route::put('me/trainer', ['App\\Http\\Controllers\\Api\\V1\\Profile\\StudentTrainerController', 'update'])->middleware(['role:student'])->name('api.me.trainer.update');
 
-            Route::get('physical-data', [PhysicalDataController::class, 'show'])->name('api.physical-data.show');
-            Route::post('physical-data', [PhysicalDataController::class, 'store'])->name('api.physical-data.store');
-            Route::put('physical-data', [PhysicalDataController::class, 'update'])->name('api.physical-data.update');
+                Route::middleware(['role:admin'])->group(function () {
+                    Route::get('users', [UserManagementController::class, 'index'])->name('api.users.index');
+                    Route::post('students', [UserManagementController::class, 'storeStudent'])->name('api.students.store');
+                    Route::post('trainers', [UserManagementController::class, 'storeTrainer'])->name('api.trainers.store');
+                });
 
-            Route::get('medical-data', [MedicalDataController::class, 'show'])->name('api.medical-data.show');
-            Route::post('medical-data', [MedicalDataController::class, 'store'])->name('api.medical-data.store');
-            Route::put('medical-data', [MedicalDataController::class, 'update'])->name('api.medical-data.update');
+                Route::get('physical-data', [PhysicalDataController::class, 'show'])->name('api.physical-data.show');
+                Route::post('physical-data', [PhysicalDataController::class, 'store'])->name('api.physical-data.store');
+                Route::put('physical-data', [PhysicalDataController::class, 'update'])->name('api.physical-data.update');
 
-            Route::get('preferences', [PreferencesController::class, 'show'])->name('api.preferences.show');
-            Route::post('preferences', [PreferencesController::class, 'store'])->name('api.preferences.store');
-            Route::put('preferences', [PreferencesController::class, 'update'])->name('api.preferences.update');
+                Route::get('medical-data', [MedicalDataController::class, 'show'])->name('api.medical-data.show');
+                Route::post('medical-data', [MedicalDataController::class, 'store'])->name('api.medical-data.store');
+                Route::put('medical-data', [MedicalDataController::class, 'update'])->name('api.medical-data.update');
 
-            Route::post('workouts/generate', [GenerateWorkoutController::class, 'store'])->name('api.workouts.generate');
-            Route::get('workouts/status/{id}', [WorkoutStatusController::class, 'show'])->name('api.workouts.status.show');
-            Route::get('workouts/exercises/name/{name}', [ExerciseLookupController::class, 'show'])->name('api.workouts.exercises.show');
+                Route::get('preferences', [PreferencesController::class, 'show'])->name('api.preferences.show');
+                Route::post('preferences', [PreferencesController::class, 'store'])->name('api.preferences.store');
+                Route::put('preferences', [PreferencesController::class, 'update'])->name('api.preferences.update');
 
-            Route::prefix('admin')->middleware(['role:admin'])->group(function () {
-                Route::get('dashboard', [DashboardController::class, 'show'])->name('api.admin.dashboard.show');
-                Route::get('ai-logs', [AiLogController::class, 'index'])->name('api.admin.ai-logs.index');
-                Route::get('usage', [UsageController::class, 'show'])->name('api.admin.usage.show');
-                Route::post('communications/email', [EmailCommunicationController::class, 'store'])->name('api.admin.communications.email.store');
+                Route::post('workouts/generate', [GenerateWorkoutController::class, 'store'])->name('api.workouts.generate');
+                Route::get('workouts/status/{id}', [WorkoutStatusController::class, 'show'])->name('api.workouts.status.show');
+                Route::get('workouts/exercises/name/{name}', [ExerciseLookupController::class, 'show'])->name('api.workouts.exercises.show');
+
+                Route::prefix('admin')->middleware(['role:admin'])->group(function () {
+                    Route::get('dashboard', [DashboardController::class, 'show'])->name('api.admin.dashboard.show');
+                    Route::get('ai-logs', [AiLogController::class, 'index'])->name('api.admin.ai-logs.index');
+                    Route::get('usage', [UsageController::class, 'show'])->name('api.admin.usage.show');
+                    Route::post('communications/email', [EmailCommunicationController::class, 'store'])->name('api.admin.communications.email.store');
+                });
             });
         });
     });

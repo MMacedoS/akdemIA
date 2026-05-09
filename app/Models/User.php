@@ -12,6 +12,7 @@ use App\Models\Preferences\Preference;
 use App\Models\Tenant\Tenant;
 use App\Models\Tenant\TenantStudentTraineeLink;
 use App\Models\Workout\Workout;
+use App\Support\LegalDocuments;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -40,6 +41,10 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'is_active',
     'is_system_admin',
     'profile_type',
+    'terms_version',
+    'terms_accepted_at',
+    'privacy_policy_version',
+    'privacy_policy_accepted_at',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
@@ -64,7 +69,31 @@ class User extends Authenticatable
             'credits_balance' => 'integer',
             'is_active' => 'boolean',
             'is_system_admin' => 'boolean',
+            'terms_accepted_at' => 'datetime',
+            'privacy_policy_accepted_at' => 'datetime',
         ];
+    }
+
+    public function hasAcceptedCurrentTerms(): bool
+    {
+        return $this->terms_accepted_at !== null
+            && (string) $this->terms_version === LegalDocuments::termsVersion();
+    }
+
+    public function hasAcceptedCurrentPrivacyPolicy(): bool
+    {
+        return $this->privacy_policy_accepted_at !== null
+            && (string) $this->privacy_policy_version === LegalDocuments::privacyPolicyVersion();
+    }
+
+    public function hasAcceptedRequiredPolicies(): bool
+    {
+        return $this->hasAcceptedCurrentTerms() && $this->hasAcceptedCurrentPrivacyPolicy();
+    }
+
+    public function acceptRequiredPolicies(): void
+    {
+        $this->forceFill(LegalDocuments::acceptanceAttributes())->save();
     }
 
     public function profileType(): ?Role

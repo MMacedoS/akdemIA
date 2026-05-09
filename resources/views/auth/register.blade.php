@@ -29,6 +29,16 @@
             <input id="password_confirmation" name="password_confirmation" type="password" required class="field-control">
         </div>
 
+        <label class="remember-row" for="terms_of_use">
+            <input id="terms_of_use" type="checkbox" name="terms_of_use" value="1" {{ old('terms_of_use') ? 'checked' : '' }} required>
+            <span>Li e aceito os <a href="{{ route('legal.terms') }}" target="_blank" rel="noopener noreferrer">Termos de Uso</a>.</span>
+        </label>
+
+        <label class="remember-row" for="privacy_policy">
+            <input id="privacy_policy" type="checkbox" name="privacy_policy" value="1" {{ old('privacy_policy') ? 'checked' : '' }} required>
+            <span>Li e aceito a <a href="{{ route('legal.privacy') }}" target="_blank" rel="noopener noreferrer">Politica de Privacidade</a>.</span>
+        </label>
+
         <button type="submit" class="auth-btn">Cadastrar</button>
     </form>
 

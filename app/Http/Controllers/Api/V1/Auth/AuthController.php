@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
 use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
+use App\Support\LegalDocuments;
 use App\Services\Tenant\PlatformTenantService;
 use App\Services\Tenant\Auth\TenantAuthService;
 use App\Services\Tenant\TenantManager;
@@ -32,6 +33,8 @@ class AuthController extends Controller
             'name' => FormPatterns::name(),
             'email' => FormPatterns::email(),
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'terms_of_use' => ['accepted'],
+            'privacy_policy' => ['accepted'],
         ]);
 
         $platformTrainee = $this->platformTenantService->resolvePlatformTrainee();
@@ -43,6 +46,7 @@ class AuthController extends Controller
     public function options(): JsonResponse
     {
         return response()->json([
+            'legal' => $this->legalDocuments(),
             'scenarios' => [
                 [
                     'name' => 'subdomain_login',
@@ -97,6 +101,29 @@ class AuthController extends Controller
         ]);
     }
 
+    public function acceptPolicies(Request $request): JsonResponse
+    {
+        $request->validate([
+            'terms_of_use' => ['accepted'],
+            'privacy_policy' => ['accepted'],
+        ]);
+
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            return response()->json([
+                'message' => 'Usuario nao autenticado.',
+            ], 401);
+        }
+
+        $user->acceptRequiredPolicies();
+
+        return response()->json([
+            'message' => 'Aceite registrado com sucesso.',
+            'policies' => $this->policyStatus($user->fresh()),
+        ]);
+    }
+
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -126,6 +153,7 @@ class AuthController extends Controller
             return response()->json([
                 'token' => $token,
                 'tenant' => $this->tenantTransformer->transform($tenant),
+                'policies' => $this->policyStatus($user),
             ]);
         }
 
@@ -142,6 +170,7 @@ class AuthController extends Controller
                     'profile' => 'trainer',
                     'requiresTenantSelection' => false,
                     'message' => 'Trainer autenticado sem vinculo de tenant.',
+                    'policies' => $this->policyStatus($user),
                     'user' => [
                         'id' => $user->id,
                         'name' => $user->name,
@@ -161,6 +190,7 @@ class AuthController extends Controller
             'requiresTenantSelection' => true,
             'selectionToken' => $selectionToken,
             'tenants' => $this->tenantTransformer->transformCollection($tenants),
+            'policies' => $this->policyStatus($user),
         ]);
     }
 
@@ -200,6 +230,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'tenant' => $this->tenantTransformer->transform($tenant),
+            'policies' => $this->policyStatus($user),
         ]);
     }
 
@@ -213,6 +244,7 @@ class AuthController extends Controller
             'requiresTenantSelection' => false,
             'message' => $message,
             'token' => $this->tenantAuthService->generateStandaloneToken($user),
+            'policies' => $this->policyStatus($user),
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -224,5 +256,28 @@ class AuthController extends Controller
                 'email' => $assignedTrainee->email,
             ],
         ], $status);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function policyStatus(User $user): array
+    {
+        return [
+            'accepted' => $user->hasAcceptedRequiredPolicies(),
+            'terms_accepted' => $user->hasAcceptedCurrentTerms(),
+            'privacy_policy_accepted' => $user->hasAcceptedCurrentPrivacyPolicy(),
+            'terms_accepted_at' => optional($user->terms_accepted_at)?->toIso8601String(),
+            'privacy_policy_accepted_at' => optional($user->privacy_policy_accepted_at)?->toIso8601String(),
+            ...$this->legalDocuments(),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function legalDocuments(): array
+    {
+        return LegalDocuments::documents();
     }
 }

@@ -31,14 +31,32 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'terms_of_use' => '1',
+            'privacy_policy' => '1',
         ]);
 
         $this->assertDatabaseHas('users', [
             'email' => 'test@example.com',
-            'profile_type' => 'trainee',
+            'profile_type' => 'trainer',
+            'terms_version' => config('legal.terms.version'),
+            'privacy_policy_version' => config('legal.privacy_policy.version'),
         ]);
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_new_users_must_accept_legal_documents_to_register()
+    {
+        $response = $this->from(route('register'))->post(route('register.store'), [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertRedirect(route('register'));
+        $response->assertSessionHasErrors(['terms_of_use', 'privacy_policy']);
+        $this->assertGuest();
     }
 }

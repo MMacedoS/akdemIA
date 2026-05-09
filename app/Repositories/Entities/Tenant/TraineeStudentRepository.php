@@ -7,6 +7,7 @@ use App\Models\Tenant\Tenant;
 use App\Models\Tenant\TenantStudentTraineeLink;
 use App\Models\User;
 use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
+use App\Support\LegalDocuments;
 use App\Support\FormPatterns;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -127,6 +128,7 @@ class TraineeStudentRepository implements TraineeStudentRepositoryContract
                 'is_active' => true,
                 'is_system_admin' => false,
                 'credits_balance' => 0,
+                ...$this->policyAcceptanceAttributes($attributes),
             ]);
 
             $tenant->users()->attach($student->id, ['role' => Role::STUDENT->value]);
@@ -374,6 +376,7 @@ class TraineeStudentRepository implements TraineeStudentRepositoryContract
                 'is_active' => true,
                 'is_system_admin' => false,
                 'credits_balance' => 0,
+                ...$this->policyAcceptanceAttributes($attributes),
             ]);
 
             $this->syncStudentTraineeLink(null, $student->id, $traineeUserId, $linkedByUserId);
@@ -445,5 +448,18 @@ class TraineeStudentRepository implements TraineeStudentRepositoryContract
         }
 
         return is_numeric($value) ? (float) $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function policyAcceptanceAttributes(array $attributes): array
+    {
+        if (($attributes['terms_of_use'] ?? false) && ($attributes['privacy_policy'] ?? false)) {
+            return LegalDocuments::acceptanceAttributes();
+        }
+
+        return [];
     }
 }

@@ -38,6 +38,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', SystemLandingController::class)->name('home');
 Route::get('/pro/{slug}', [PublicLandingController::class, 'user'])->name('landing.user');
+Route::view('/termos-de-uso', 'legal.terms')->name('legal.terms');
+Route::view('/politica-de-privacidade', 'legal.privacy')->name('legal.privacy');
 
 $configuredLandingDomain = env('APP_LANDING_ROOT_DOMAIN');
 $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
