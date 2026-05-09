@@ -242,6 +242,8 @@ wait_for_service_health() {
 repair_db_access() {
   log "Tentando autoreparo de acesso ao banco"
 
+  local grant_sql
+
   $DC up -d "$DB_SERVICE"
 
   if [[ "${DB_USERNAME}" == "root" ]]; then
@@ -253,7 +255,8 @@ repair_db_access() {
   fi
 
   log "Criando/atualizando usuario da aplicacao e grants"
-    $DC exec -T "$DB_SERVICE" sh -lc "mysql -uroot -p\"$DB_ROOT_PASSWORD\" -e \"CREATE DATABASE IF NOT EXISTS \\`$DB_DATABASE\\`; CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD'; ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD'; GRANT ALL PRIVILEGES ON \\`$DB_DATABASE\\`.* TO '$DB_USERNAME'@'%'; FLUSH PRIVILEGES;\""
+  printf -v grant_sql "%s" "CREATE DATABASE IF NOT EXISTS ${DB_DATABASE}; CREATE USER IF NOT EXISTS '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; ALTER USER '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; GRANT ALL PRIVILEGES ON ${DB_DATABASE}.* TO '${DB_USERNAME}'@'%'; FLUSH PRIVILEGES;"
+  $DC exec -T "$DB_SERVICE" sh -lc "mysql -uroot -p\"$DB_ROOT_PASSWORD\" -e \"$grant_sql\""
 }
 
 run_laravel_tasks() {

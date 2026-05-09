@@ -14,6 +14,7 @@ use App\Http\Controllers\Web\V1\SystemAdmin\SystemLandingController as SystemAdm
 use App\Http\Controllers\Web\V1\SystemAdmin\CreditOverviewController as SystemAdminCreditOverviewController;
 use App\Http\Controllers\Web\V1\SystemAdmin\EmailSettingsController as SystemAdminEmailSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\PaymentSettingsController as SystemAdminPaymentSettingsController;
+use App\Http\Controllers\Web\V1\SystemAdmin\WorkoutRulesSettingsController as SystemAdminWorkoutRulesSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\WorkoutxSettingsController as SystemAdminWorkoutxSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\TraineeManagementController as SystemAdminTraineeManagementController;
 use App\Http\Controllers\Web\V1\SystemAdmin\TenantManagementController as SystemAdminTenantManagementController;
@@ -215,6 +216,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/settings/email', [SystemAdminEmailSettingsController::class, 'edit'])->name('settings.email.edit');
         Route::put('/settings/email', [SystemAdminEmailSettingsController::class, 'update'])->name('settings.email.update');
+
+        Route::get('/settings/workouts', [SystemAdminWorkoutRulesSettingsController::class, 'edit'])->name('settings.workouts.edit');
+        Route::put('/settings/workouts', [SystemAdminWorkoutRulesSettingsController::class, 'update'])->name('settings.workouts.update');
 
         Route::get('/settings/workoutx', [SystemAdminWorkoutxSettingsController::class, 'edit'])->name('settings.workoutx.edit');
         Route::get('/settings/workoutx/audit', [SystemAdminWorkoutxSettingsController::class, 'audit'])->name('settings.workoutx.audit');

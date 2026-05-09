@@ -36,6 +36,10 @@ class SystemSettingsRuntimeService
                 'workoutx.request_timeout',
                 'workoutx.default_limit',
                 'workoutx.allow_fallback',
+                'workout.generate_cost',
+                'workout.reuse_cost',
+                'workout.reactivate_cost',
+                'workout.active_days',
             ])
             ->pluck('value', 'key');
 
@@ -65,6 +69,10 @@ class SystemSettingsRuntimeService
             'services.workoutx.request_timeout' => $this->intOrNull($settings->get('workoutx.request_timeout')) ?: config('services.workoutx.request_timeout'),
             'services.workoutx.default_limit' => $this->intOrNull($settings->get('workoutx.default_limit')) ?: config('services.workoutx.default_limit'),
             'services.workoutx.allow_fallback' => $this->boolOrNull($settings->get('workoutx.allow_fallback')) ?? config('services.workoutx.allow_fallback'),
+            'workouts.credits.generate' => $this->intOrNull($settings->get('workout.generate_cost')) ?: config('workouts.credits.generate'),
+            'workouts.credits.reuse' => $this->intOrNull($settings->get('workout.reuse_cost')) ?: config('workouts.credits.reuse'),
+            'workouts.credits.reactivate' => $this->intOrNull($settings->get('workout.reactivate_cost')) ?: config('workouts.credits.reactivate'),
+            'workouts.active_days' => $this->intOrNull($settings->get('workout.active_days')) ?: config('workouts.active_days'),
         ]);
     }
 

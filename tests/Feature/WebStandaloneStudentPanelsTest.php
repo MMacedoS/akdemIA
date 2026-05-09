@@ -134,6 +134,50 @@ class WebStandaloneStudentPanelsTest extends TestCase
             'tenant_id' => null,
             'status' => 'processing',
         ]);
+
+        $this->assertSame(0, $trainer->fresh()->credits_balance);
+    }
+
+    public function test_trainer_panel_consumes_credits_when_reusing_workout_without_ai(): void
+    {
+        [$tenant,, $trainer] = $this->createTenantContext();
+
+        $student = User::factory()->create([
+            'name' => 'Aluno Reuso',
+            'email' => 'reuso@trainer.test',
+            'profile_type' => Role::STUDENT->value,
+        ]);
+
+        TenantStudentTraineeLink::query()->create([
+            'tenant_id' => null,
+            'student_user_id' => $student->id,
+            'trainee_user_id' => $trainer->id,
+            'linked_by_user_id' => $trainer->id,
+            'note' => null,
+        ]);
+
+        $sourceWorkout = \App\Models\Workout\Workout::query()->create([
+            'tenant_id' => null,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'active',
+            'workout_plan' => ['weekly_plan' => [['day' => 'Segunda']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
+        $response = $this->actingAs($trainer)
+            ->withSession(['tenant_id' => $tenant->id])
+            ->post(route('trainer.students.workouts.reuse', [$student->id, $sourceWorkout->id]));
+
+        $newWorkout = \App\Models\Workout\Workout::query()->where('user_id', $student->id)->latest('id')->firstOrFail();
+
+        $response->assertRedirect(route('trainer.students.workouts.show', [$student->id, $newWorkout->id]));
+        $this->assertNotSame($sourceWorkout->id, $newWorkout->id);
+        $this->assertSame(2, $trainer->fresh()->credits_balance);
+    }
     }
 
     private function createTenantContext(): array

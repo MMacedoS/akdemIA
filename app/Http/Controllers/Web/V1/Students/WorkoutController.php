@@ -8,7 +8,9 @@ use App\Jobs\GenerateWorkoutJob;
 use App\Models\Tenant\Tenant;
 use App\Models\Workout\Workout;
 use App\Services\Credits\CreditService;
+use App\Services\Workouts\WorkoutLifecycleService;
 use App\Services\Workouts\WorkoutMediaService;
+use App\Services\Workouts\WorkoutRulesService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,7 +20,9 @@ class WorkoutController extends Controller
 {
     public function __construct(
         private readonly WorkoutMediaService $workoutMediaService,
-        private readonly CreditService $creditService
+        private readonly CreditService $creditService,
+        private readonly WorkoutRulesService $workoutRulesService,
+        private readonly WorkoutLifecycleService $workoutLifecycleService,
     ) {}
 
     public function show(Request $request): View
@@ -56,18 +60,40 @@ class WorkoutController extends Controller
             ->where('id', $workoutId)
             ->firstOrFail();
 
-        Workout::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('user_id', (int) $user->id)
-            ->where('id', '!=', $workout->id)
-            ->where('request_status', 'active')
-            ->update(['request_status' => 'inactive']);
+        $workout = $this->workoutLifecycleService->syncWorkoutStatus($workout);
 
-        $workout->request_status = 'active';
-        $workout->save();
+        if ((string) $workout->request_status === 'active') {
+            return redirect()->route('students.workout.show')
+                ->with('status', 'Treino ja esta ativo.');
+        }
+
+        try {
+            $this->creditService->consumeCredits(
+                $user,
+                $this->workoutRulesService->reactivationCredits(),
+                'consume_reactivation',
+                [
+                    'context' => 'web_student',
+                    'tenant_id' => $tenant->id,
+                    'student_id' => (int) $user->id,
+                    'workout_id' => $workout->id,
+                ],
+                $tenant,
+            );
+        } catch (RuntimeException $exception) {
+            return redirect()->route('students.workout.show')
+                ->withErrors(['workout' => $exception->getMessage()]);
+        }
+
+        $this->workoutLifecycleService->activateWorkout(
+            Workout::query()
+                ->where('tenant_id', $tenant->id)
+                ->where('user_id', (int) $user->id),
+            $workout,
+        );
 
         return redirect()->route('students.workout.show')
-            ->with('status', 'Treino ativado com sucesso.');
+            ->with('status', 'Treino ativado com sucesso. Saldo atual: ' . (int) $user->fresh()?->credits_balance . ' credito(s).');
     }
 
     public function inactivate(Request $request, int $workoutId): RedirectResponse
@@ -81,8 +107,7 @@ class WorkoutController extends Controller
             ->where('id', $workoutId)
             ->firstOrFail();
 
-        $workout->request_status = 'inactive';
-        $workout->save();
+        $this->workoutLifecycleService->inactivateWorkout($workout);
 
         return redirect()->route('students.workout.show')
             ->with('status', 'Treino inativado com sucesso.');
@@ -101,6 +126,8 @@ class WorkoutController extends Controller
 
     private function resolveCurrentWorkout(Tenant $tenant, int $userId): ?Workout
     {
+        $this->workoutLifecycleService->expireExpiredWorkouts($tenant->id, $userId);
+
         $doneWorkout = Workout::query()
             ->where('tenant_id', $tenant->id)
             ->where('user_id', $userId)
@@ -158,7 +185,7 @@ class WorkoutController extends Controller
         try {
             $this->creditService->consumeCredits(
                 $user,
-                2,
+                $this->workoutRulesService->generationCredits(),
                 'consume_generation',
                 [
                     'context' => 'web_student',
@@ -172,17 +199,16 @@ class WorkoutController extends Controller
                 ->withErrors(['workout' => $exception->getMessage()]);
         }
 
-        $workout = Workout::query()->create([
+        $workout = Workout::query()->create(array_merge([
             'tenant_id' => $tenant->id,
             'user_id' => (int) $user->id,
             'status' => 'processing',
-            'request_status' => 'active',
             'workout_plan' => ['weekly_plan' => []],
             'meal_plan' => [],
             'recommendations' => [],
             'cardio_plan' => [],
             'safety_flags' => [],
-        ]);
+        ], $this->workoutLifecycleService->activeAttributes()));
 
         GenerateWorkoutJob::dispatch($workout->id, (int) $user->id, $tenant->id, null, (int) $user->id);
 

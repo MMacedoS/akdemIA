@@ -322,6 +322,8 @@ class WorkoutMediaServiceTest extends TestCase
 
     public function test_sync_exercise_catalog_paginates_and_updates_existing_records(): void
     {
+        $this->configureIsolatedPublicDisk();
+
         config()->set('services.workoutx.enabled', true);
         config()->set('services.workoutx.api_base_url', 'https://api.workoutxapp.com/v1');
         config()->set('services.workoutx.api_key', 'secret-from-settings');
@@ -359,6 +361,15 @@ class WorkoutMediaServiceTest extends TestCase
                     'gifUrl' => 'https://cdn.workoutx.test/cable-fly.gif',
                 ],
             ], 200),
+            'https://cdn.workoutx.test/barbell-bench-press.gif' => Http::response('gif-binary-1', 200, [
+                'Content-Type' => 'image/gif',
+            ]),
+            'https://cdn.workoutx.test/incline-dumbbell-press.gif' => Http::response('gif-binary-2', 200, [
+                'Content-Type' => 'image/gif',
+            ]),
+            'https://cdn.workoutx.test/cable-fly.gif' => Http::response('gif-binary-3', 200, [
+                'Content-Type' => 'image/gif',
+            ]),
         ]);
 
         $service = new WorkoutMediaService();
@@ -375,17 +386,24 @@ class WorkoutMediaServiceTest extends TestCase
             'remote_exercise_id' => '0025',
             'workoutx_name' => 'barbell-bench-press',
             'remote_gif_url' => 'https://cdn.workoutx.test/barbell-bench-press.gif',
+            'storage_path' => 'exercises/barbell-bench-press.gif',
         ]);
         $this->assertDatabaseHas('exercise_media_caches', [
             'remote_exercise_id' => '0026',
             'workoutx_name' => 'incline-dumbbell-press',
+            'storage_path' => 'exercises/incline-dumbbell-press.gif',
         ]);
         $this->assertDatabaseHas('exercise_media_caches', [
             'remote_exercise_id' => '0027',
             'workoutx_name' => 'cable-fly',
+            'storage_path' => 'exercises/cable-fly.gif',
         ]);
 
-        Http::assertSentCount(2);
+        $this->assertTrue(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
+        $this->assertTrue(Storage::disk('public')->exists('exercises/incline-dumbbell-press.gif'));
+        $this->assertTrue(Storage::disk('public')->exists('exercises/cable-fly.gif'));
+
+        Http::assertSentCount(5);
         Http::assertSent(static function ($request) {
             return $request->hasHeader('X-WorkoutX-Key', 'secret-from-settings');
         });

@@ -4,8 +4,10 @@ namespace Database\Seeders;
 
 use App\Enums\Role;
 use App\Models\Tenant\Tenant;
+use App\Models\Tenant\TenantStudentTraineeLink;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class TenantUserSeeder extends Seeder
@@ -18,50 +20,96 @@ class TenantUserSeeder extends Seeder
         $defaultPassword = Hash::make('@akademia123');
         $adminPassword = Hash::make('@Akdemia1707');
 
-        $tenantCentro = Tenant::query()->firstOrCreate(
-            ['slug' => 'academia-centro'],
-            ['name' => 'Akademia Centro', 'is_active' => true],
+        $tenantPlataforma = Tenant::query()->updateOrCreate(
+            ['slug' => 'plataforma-academai'],
+            ['name' => 'Plataforma AcademAI', 'is_active' => true],
         );
 
-        $tenantNorte = Tenant::query()->firstOrCreate(
-            ['slug' => 'academia-norte'],
-            ['name' => 'Akademia Norte', 'is_active' => true],
+        $systemAdmin = User::query()->updateOrCreate(
+            ['email' => 'administrador@academai.com.br'],
+            [
+                'name' => 'Administrador da Plataforma',
+                'password' => $adminPassword,
+                'profile_type' => Role::TRAINER->value,
+                'is_system_admin' => true,
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ],
         );
 
-        $admin = User::query()->updateOrCreate(
-            ['email' => 'admin@akdemia.com.br'],
-            ['name' => 'Admin Geral', 'password' => $adminPassword, 'is_system_admin' => true, 'email_verified_at' => now()],
-        );
-
-        $trainer = User::query()->updateOrCreate(
-            ['email' => 'trainer@akademia.test'],
-            ['name' => 'Trainer Principal', 'password' => $defaultPassword],
+        $tenantAdmin = User::query()->updateOrCreate(
+            ['email' => 'admplataforma@academai.com.br'],
+            [
+                'name' => 'Admin Plataforma',
+                'password' => $adminPassword,
+                'profile_type' => Role::TRAINER->value,
+                'is_system_admin' => false,
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ],
         );
 
         $student = User::query()->updateOrCreate(
-            ['email' => 'student@akademia.test'],
-            ['name' => 'Aluno Teste', 'password' => $defaultPassword],
+            ['email' => 'contato@academai.com.br'],
+            [
+                'name' => 'Contato Plataforma',
+                'password' => $defaultPassword,
+                'profile_type' => Role::STUDENT->value,
+                'is_system_admin' => false,
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ],
         );
 
-        $multiTenantUser = User::query()->updateOrCreate(
-            ['email' => 'multi@akademia.test'],
-            ['name' => 'Usuario Multi Tenant', 'password' => $defaultPassword],
+        $trainer = User::query()->updateOrCreate(
+            ['email' => 'plataforma@academai.com.br'],
+            [
+                'name' => 'Trainer Plataforma',
+                'password' => $defaultPassword,
+                'profile_type' => Role::TRAINER->value,
+                'is_system_admin' => false,
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ],
         );
 
-        $admin->tenants()->detach();
+        $systemAdmin->tenants()->detach();
+
+        $tenantAdmin->tenants()->sync([
+            $tenantPlataforma->id => ['role' => Role::ADMIN->value],
+        ]);
 
         $trainer->tenants()->syncWithoutDetaching([
-            $tenantCentro->id => ['role' => Role::TRAINER->value],
-            $tenantNorte->id => ['role' => Role::TRAINER->value],
+            $tenantPlataforma->id => ['role' => Role::TRAINER->value],
         ]);
 
-        $student->tenants()->syncWithoutDetaching([
-            $tenantCentro->id => ['role' => Role::STUDENT->value],
+        $student->tenants()->sync([
+            $tenantPlataforma->id => ['role' => Role::STUDENT->value],
         ]);
 
-        $multiTenantUser->tenants()->syncWithoutDetaching([
-            $tenantCentro->id => ['role' => Role::STUDENT->value],
-            $tenantNorte->id => ['role' => Role::ADMIN->value],
-        ]);
+        DB::table('tenant_trainee')->updateOrInsert(
+            [
+                'tenant_id' => $tenantPlataforma->id,
+                'trainee_user_id' => $trainer->id,
+            ],
+            [
+                'linked_by_user_id' => $tenantAdmin->id,
+                'note' => 'Vinculo seedado automaticamente.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        );
+
+        TenantStudentTraineeLink::query()->updateOrCreate(
+            [
+                'tenant_id' => $tenantPlataforma->id,
+                'student_user_id' => $student->id,
+            ],
+            [
+                'trainee_user_id' => $trainer->id,
+                'linked_by_user_id' => $tenantAdmin->id,
+                'note' => 'Vinculo seedado automaticamente.',
+            ],
+        );
     }
 }

@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'status',
     'request_status',
     'regeneration_request',
+    'activated_at',
+    'active_until_at',
     'workout_plan',
     'meal_plan',
     'recommendations',
@@ -30,6 +32,8 @@ class Workout extends Model
             'recommendations' => 'array',
             'cardio_plan' => 'array',
             'safety_flags' => 'array',
+            'activated_at' => 'immutable_datetime',
+            'active_until_at' => 'immutable_datetime',
         ];
     }
 

@@ -11,6 +11,10 @@ use RuntimeException;
 
 class CreditService
 {
+    public const WORKOUT_GENERATION_COST = 5;
+
+    public const WORKOUT_REUSE_COST = 3;
+
     public function consumeCredits(User $user, int $amount, string $type, array $metadata = [], ?Tenant $tenant = null): void
     {
         if ($amount <= 0) {

@@ -102,7 +102,8 @@ class ApiStudentStandaloneWorkoutCatalogTest extends TestCase
         $workoutId = (int) $generateResponse->json('id');
 
         $generateResponse->assertAccepted()
-            ->assertJsonPath('status', 'processing');
+            ->assertJsonPath('status', 'processing')
+            ->assertJsonPath('credits_balance', 3);
 
         Queue::assertPushed(GenerateWorkoutJob::class, function (GenerateWorkoutJob $job) use ($student, $workoutId): bool {
             return $job->userId === $student->id
@@ -126,5 +127,7 @@ class ApiStudentStandaloneWorkoutCatalogTest extends TestCase
             ->assertJsonPath('result.tenant_id', null)
             ->assertJsonPath('result.user_id', $student->id)
             ->assertJsonPath('result.workout_plan.weekly_plan.0.day', 'monday');
+
+        $this->assertSame(3, $student->fresh()->credits_balance);
     }
 }

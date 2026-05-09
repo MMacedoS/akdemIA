@@ -91,6 +91,7 @@
                         <th style="padding: 10px;">ID</th>
                         <th style="padding: 10px;">Nome pt-BR</th>
                         <th style="padding: 10px;">Nome WorkoutX</th>
+                        <th style="padding: 10px;">Midia</th>
                         <th style="padding: 10px;">Foco</th>
                         <th style="padding: 10px;">Body Part</th>
                         <th style="padding: 10px;">Target</th>
@@ -112,6 +113,28 @@
                             <td style="padding: 10px;">
                                 <div>{{ $row['name'] }}</div>
                                 <small style="color: #64748b;">{{ $row['workoutx_name'] }}</small>
+                            </td>
+                            <td style="padding: 10px; min-width: 220px;">
+                                @if (filled($row['storage_path'] ?? null))
+                                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                                        <img
+                                            src="{{ asset('storage/' . ltrim((string) $row['storage_path'], '/')) }}"
+                                            alt="Preview do GIF {{ $row['name'] }}"
+                                            style="width: 72px; height: 72px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc;"
+                                        >
+                                        <div style="display: grid; gap: 4px;">
+                                            <span class="badge success">Salvo local</span>
+                                            <small style="color: #475569; word-break: break-word;">{{ $row['storage_path'] }}</small>
+                                        </div>
+                                    </div>
+                                @elseif (filled($row['remote_gif_url'] ?? null))
+                                    <div style="display: grid; gap: 4px;">
+                                        <span class="badge warning">Sem arquivo local</span>
+                                        <small style="color: #64748b; word-break: break-word;">{{ $row['remote_gif_url'] }}</small>
+                                    </div>
+                                @else
+                                    -
+                                @endif
                             </td>
                             <td style="padding: 10px; text-transform: capitalize;">{{ $row['focus'] }}</td>
                             <td style="padding: 10px; text-transform: capitalize;">{{ $row['body_part'] }}</td>

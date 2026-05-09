@@ -445,6 +445,7 @@ class WorkoutMediaService
 
         $workoutxName = $this->normalizeWorkoutxName($name, $remoteExerciseId !== '' ? 'exercise-' . $remoteExerciseId : 'body-weight-exercise');
         $gifUrl = trim((string) data_get($exercise, 'gifUrl', ''));
+        $media = $gifUrl !== '' ? $this->storeGifFromUrl($workoutxName, $gifUrl) : ['path' => '', 'url' => ''];
 
         $cache = null;
 
@@ -465,6 +466,7 @@ class WorkoutMediaService
             'workoutx_name' => $workoutxName,
             'query_name' => $name !== '' ? $name : null,
             'remote_gif_url' => $gifUrl !== '' ? $gifUrl : null,
+            'storage_path' => $media['path'] !== '' ? $media['path'] : null,
             'payload' => $exercise,
         ];
 

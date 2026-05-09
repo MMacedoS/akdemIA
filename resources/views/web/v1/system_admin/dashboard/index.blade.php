@@ -87,6 +87,14 @@
                     <span class="nav-go">&gt;</span>
                 </a>
 
+                <a class="nav-link" href="{{ route('system-admin.settings.workouts.edit') }}">
+                    <span class="nav-link-left">
+                        <span class="nav-icon">TR</span>
+                        <span class="nav-label">Regras de treino</span>
+                    </span>
+                    <span class="nav-go">&gt;</span>
+                </a>
+
                 <a class="nav-link" href="{{ route('system-admin.settings.workoutx.edit') }}">
                     <span class="nav-link-left">
                         <span class="nav-icon">WX</span>

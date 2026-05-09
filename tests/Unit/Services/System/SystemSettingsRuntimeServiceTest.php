@@ -42,4 +42,42 @@ class SystemSettingsRuntimeServiceTest extends TestCase
 
         $this->assertSame('smtps', config('mail.mailers.smtp.scheme'));
     }
+
+    public function test_apply_maps_workout_rules_to_runtime_config(): void
+    {
+        SystemSetting::query()->create([
+            'domain' => 'workout',
+            'key' => 'workout.generate_cost',
+            'value' => '7',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workout',
+            'key' => 'workout.reuse_cost',
+            'value' => '4',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workout',
+            'key' => 'workout.reactivate_cost',
+            'value' => '2',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workout',
+            'key' => 'workout.active_days',
+            'value' => '45',
+            'is_secret' => false,
+        ]);
+
+        app(SystemSettingsRuntimeService::class)->apply();
+
+        $this->assertSame(7, config('workouts.credits.generate'));
+        $this->assertSame(4, config('workouts.credits.reuse'));
+        $this->assertSame(2, config('workouts.credits.reactivate'));
+        $this->assertSame(45, config('workouts.active_days'));
+    }
 }

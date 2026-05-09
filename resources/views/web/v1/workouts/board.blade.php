@@ -329,7 +329,7 @@
                 <button id="close-refazer-modal-btn" type="button" class="btn btn-soft">Fechar</button>
             </div>
 
-            <p style="margin: 0;">Escolha como refazer: com IA (informando ajuste) ou reaproveitando sem IA.</p>
+            <p style="margin: 0;">Escolha como refazer: com IA ou reaproveitando sem IA. Ambos consomem 3 creditos.</p>
 
             <form method="POST" action="{{ $regenerateRoute }}" class="content-stack">
                 @csrf

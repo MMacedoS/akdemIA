@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
 use App\Models\Workout\Workout;
 use App\Services\Credits\CreditService;
+use App\Services\Workouts\WorkoutLifecycleService;
+use App\Services\Workouts\WorkoutRulesService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -16,6 +18,8 @@ class GenerateWorkoutController extends Controller
 {
     public function __construct(
         private readonly CreditService $creditService,
+        private readonly WorkoutRulesService $workoutRulesService,
+        private readonly WorkoutLifecycleService $workoutLifecycleService,
     ) {}
 
     public function store(Request $request): JsonResponse
@@ -54,7 +58,7 @@ class GenerateWorkoutController extends Controller
         try {
             $this->creditService->consumeCredits(
                 $user,
-                2,
+                $this->workoutRulesService->generationCredits(),
                 'consume_generation',
                 [
                     'context' => 'api',
@@ -68,17 +72,16 @@ class GenerateWorkoutController extends Controller
             ], 422);
         }
 
-        $workout = Workout::query()->create([
+        $workout = Workout::query()->create(array_merge([
             'tenant_id' => $tenant?->id,
             'user_id' => $user->id,
             'status' => 'processing',
-            'request_status' => 'active',
             'workout_plan' => ['weekly_plan' => []],
             'meal_plan' => [],
             'recommendations' => [],
             'cardio_plan' => [],
             'safety_flags' => [],
-        ]);
+        ], $this->workoutLifecycleService->activeAttributes()));
 
         GenerateWorkoutJob::dispatch($workout->id, $user->id, $tenant?->id, null, $user->id);
 
