@@ -30,7 +30,7 @@ class TenantUserSeeder extends Seeder
             [
                 'name' => 'Administrador da Plataforma',
                 'password' => $adminPassword,
-                'profile_type' => Role::TRAINER->value,
+                'profile_type' => Role::ADMIN->value,
                 'is_system_admin' => true,
                 'is_active' => true,
                 'email_verified_at' => now(),
@@ -42,7 +42,7 @@ class TenantUserSeeder extends Seeder
             [
                 'name' => 'Admin Plataforma',
                 'password' => $adminPassword,
-                'profile_type' => Role::TRAINER->value,
+                'profile_type' => Role::ADMIN->value,
                 'is_system_admin' => false,
                 'is_active' => true,
                 'email_verified_at' => now(),
