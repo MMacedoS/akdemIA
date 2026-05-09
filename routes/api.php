@@ -4,11 +4,9 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Admin\AiLogController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Admin\EmailCommunicationController;
-use App\Http\Controllers\Api\V1\Admin\UpgradePlanController;
 use App\Http\Controllers\Api\V1\Admin\UsageController;
 use App\Http\Controllers\Api\V1\Admin\UserManagementController;
-use App\Http\Controllers\Api\V1\Billing\StripeWebhookController;
-use App\Http\Controllers\Api\V1\Billing\SubscriptionController;
+use App\Http\Controllers\Api\V1\Billing\MercadoPagoWebhookController;
 use App\Http\Controllers\Api\V1\MedicalData\MedicalDataController;
 use App\Http\Controllers\Api\V1\PhysicalData\PhysicalDataController;
 use App\Http\Controllers\Api\V1\Preferences\PreferencesController;
@@ -20,7 +18,7 @@ use App\Http\Controllers\Api\V1\Workouts\WorkoutStatusController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    Route::post('billing/stripe/webhook', StripeWebhookController::class)->name('api.billing.stripe.webhook');
+    Route::post('billing/mercadopago/webhook', MercadoPagoWebhookController::class)->name('api.billing.mercadopago.webhook');
 
     Route::prefix('auth')->group(function () {
         Route::get('options', [AuthController::class, 'options'])->name('api.auth.options');
@@ -29,12 +27,6 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::middleware(['tenant.auth', 'tenant.user'])->group(function () {
-        Route::post('billing/subscriptions', [SubscriptionController::class, 'store'])->name('api.billing.subscriptions.store');
-
-        Route::prefix('admin')->middleware(['role:admin'])->group(function () {
-            Route::post('upgrade-plan', [UpgradePlanController::class, 'store'])->name('api.admin.upgrade-plan.store');
-        });
-
         Route::middleware(['subscription'])->group(function () {
             Route::get('me', [MeController::class, 'show'])->name('api.me.show');
             Route::put('me', [MeController::class, 'update'])->name('api.me.update');

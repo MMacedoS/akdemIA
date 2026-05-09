@@ -49,11 +49,17 @@
                         @if ($creditRequest->note)
                             <p>Obs: {{ $creditRequest->note }}</p>
                         @endif
+                        @if ($creditRequest->payment_status)
+                            <p>Status Pix: {{ strtoupper($creditRequest->payment_status) }}@if($creditRequest->payment_status_detail) - {{ $creditRequest->payment_status_detail }}@endif</p>
+                        @endif
 
                         @if ($creditRequest->status === 'pending' && $creditRequest->qr_code_url)
                             <div style="margin-top: 10px;">
                                 <img src="{{ $creditRequest->qr_code_url }}" alt="QR Code PIX" style="width: 180px; height: 180px; border: 1px solid #ddd; border-radius: 10px;">
                                 <p style="margin-top: 8px; font-size: 12px; color: #666; word-break: break-all;">{{ $creditRequest->pix_payload }}</p>
+                                @if ($creditRequest->payment_ticket_url)
+                                    <p style="margin-top: 8px;"><a href="{{ $creditRequest->payment_ticket_url }}" target="_blank" rel="noopener noreferrer">Abrir pagina de pagamento Pix</a></p>
+                                @endif
                             </div>
                         @endif
                     </article>

@@ -9,8 +9,8 @@
 
 @section('content')
     <div class="card" style="max-width: 860px;">
-        <h3>Parametros internos de pagamento</h3>
-        <p>Dominio separado para gateways e credenciais de API.</p>
+        <h3>Configuracao do Mercado Pago</h3>
+        <p>Este ambiente usa somente Mercado Pago para Pix. Informe as credenciais do provedor e o segredo do webhook.</p>
 
         <form method="POST" action="{{ route('system-admin.settings.payment.update') }}" class="content-stack" style="margin-top: 12px;">
             @csrf
@@ -18,8 +18,9 @@
 
             <div class="form-grid">
                 <div class="field">
-                    <label for="payment_provider_name">Provedor</label>
-                    <input id="payment_provider_name" name="payment_provider_name" type="text" maxlength="120" value="{{ old('payment_provider_name', $settings->get('payment.provider_name')) }}">
+                    <label>Provedor</label>
+                    <input type="text" value="Mercado Pago" disabled>
+                    <small>O provedor de pagamento desta aplicacao esta fixado em Mercado Pago.</small>
                 </div>
 
                 <div class="field">
@@ -29,7 +30,7 @@
 
                 <div class="field" style="grid-column: 1 / -1;">
                     <label for="payment_api_token">Token da API (segredo)</label>
-                    <input id="payment_api_token" name="payment_api_token" type="password" maxlength="2000" placeholder="Preencha para atualizar o token">
+                    <input id="payment_api_token" name="payment_api_token" type="password" maxlength="2000" placeholder="Preencha para atualizar o access token do Mercado Pago">
                     <small>
                         Status atual:
                         @if (filled($settings->get('payment.api_token')))
@@ -54,11 +55,11 @@
                 </div>
 
                 <div class="field">
-                    <label for="payment_stripe_secret">Stripe secret</label>
-                    <input id="payment_stripe_secret" name="payment_stripe_secret" type="password" maxlength="255" placeholder="Preencha para atualizar a chave secreta Stripe">
+                    <label for="payment_mercadopago_webhook_secret">Segredo do webhook</label>
+                    <input id="payment_mercadopago_webhook_secret" name="payment_mercadopago_webhook_secret" type="password" maxlength="255" placeholder="Preencha para atualizar o segredo compartilhado do webhook">
                     <small>
                         Status atual:
-                        @if (filled($settings->get('payment.stripe_secret')))
+                        @if (filled($settings->get('payment.mercadopago_webhook_secret')))
                             <span class="badge success">Configurado</span>
                         @else
                             <span class="badge warning">Nao configurado</span>
@@ -67,16 +68,9 @@
                 </div>
 
                 <div class="field" style="grid-column: 1 / -1;">
-                    <label for="payment_stripe_webhook_secret">Stripe webhook secret</label>
-                    <input id="payment_stripe_webhook_secret" name="payment_stripe_webhook_secret" type="password" maxlength="255" placeholder="Preencha para atualizar o segredo do webhook Stripe">
-                    <small>
-                        Status atual:
-                        @if (filled($settings->get('payment.stripe_webhook_secret')))
-                            <span class="badge success">Configurado</span>
-                        @else
-                            <span class="badge warning">Nao configurado</span>
-                        @endif
-                    </small>
+                    <label>URL sugerida para o webhook</label>
+                    <input type="text" value="{{ url('/api/v1/billing/mercadopago/webhook') }}?secret=SEU_SEGREDO" readonly>
+                    <small>Cadastre esta URL no painel do Mercado Pago substituindo SEU_SEGREDO pelo mesmo valor salvo acima.</small>
                 </div>
             </div>
 

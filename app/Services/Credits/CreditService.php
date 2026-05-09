@@ -48,7 +48,7 @@ class CreditService
     public function addCredits(
         User $targetUser,
         int $amount,
-        User $actor,
+        ?User $actor,
         string $type,
         string $description,
         array $metadata = [],
@@ -71,7 +71,7 @@ class CreditService
 
             CreditTransaction::query()->create([
                 'user_id' => $lockedUser->id,
-                'actor_user_id' => $actor->id,
+                'actor_user_id' => $actor?->id,
                 'tenant_id' => $tenant?->id,
                 'credit_request_id' => $creditRequest?->id,
                 'amount' => $amount,

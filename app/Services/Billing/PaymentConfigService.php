@@ -6,7 +6,7 @@ class PaymentConfigService
 {
     public function providerName(): string
     {
-        return (string) config('services.payment.provider_name', 'stripe');
+        return (string) config('services.payment.provider_name', 'mercadopago');
     }
 
     public function apiBaseUrl(): string
@@ -19,18 +19,23 @@ class PaymentConfigService
         return (string) config('services.payment.api_token', '');
     }
 
+    public function mercadoPagoBaseUrl(): string
+    {
+        return (string) config('services.payment.api_base_url', config('services.mercadopago.base_url', 'https://api.mercadopago.com'));
+    }
+
+    public function mercadoPagoAccessToken(): string
+    {
+        return (string) config('services.payment.api_token', config('services.mercadopago.token', ''));
+    }
+
+    public function mercadoPagoWebhookSecret(): string
+    {
+        return (string) config('services.mercadopago.webhook_secret', '');
+    }
+
     public function pixKey(): string
     {
         return (string) config('services.payment.pix_key', config('services.pix.key', ''));
-    }
-
-    public function stripeSecret(): string
-    {
-        return (string) config('services.payment.stripe_secret', config('services.stripe.secret', ''));
-    }
-
-    public function stripeWebhookSecret(): string
-    {
-        return (string) config('services.payment.stripe_webhook_secret', config('services.stripe.webhook_secret', ''));
     }
 }

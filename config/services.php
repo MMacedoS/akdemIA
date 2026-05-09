@@ -46,19 +46,17 @@ return [
     ],
 
     'payment' => [
-        'provider_name' => env('PAYMENT_PROVIDER_NAME', 'stripe'),
+        'provider_name' => env('PAYMENT_PROVIDER_NAME', 'mercadopago'),
         'api_base_url' => env('PAYMENT_API_BASE_URL'),
         'api_token' => env('PAYMENT_API_TOKEN'),
         'pix_key' => env('PIX_KEY'),
-        'stripe_secret' => env('STRIPE_SECRET_KEY'),
-        'stripe_webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
-    'stripe' => [
-        'secret' => env('STRIPE_SECRET_KEY'),
-        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    'mercadopago' => [
+        'base_url' => env('MERCADO_PAGO_BASE_URL', 'https://api.mercadopago.com'),
+        'token' => env('MERCADO_PAGO_ACCESS_TOKEN'),
+        'webhook_secret' => env('MERCADO_PAGO_WEBHOOK_SECRET'),
     ],
-
     'pix' => [
         'key' => env('PIX_KEY'),
     ],

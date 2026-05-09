@@ -17,6 +17,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'pix_key',
     'pix_payload',
     'qr_code_url',
+    'payment_external_reference',
+    'payment_provider_payment_id',
+    'payment_ticket_url',
+    'payment_status',
+    'payment_status_detail',
+    'payment_payload',
     'status',
     'reviewed_by_user_id',
     'reviewed_at',
@@ -28,6 +34,7 @@ class CreditRequest extends Model
     {
         return [
             'credits_requested' => 'integer',
+            'payment_payload' => 'array',
             'reviewed_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',

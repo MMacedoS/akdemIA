@@ -57,6 +57,11 @@ class CreditController extends Controller
 
         $creditRequest = CreditRequest::query()->where('status', 'pending')->findOrFail($id);
 
+        if ($creditRequest->payment_external_reference !== null && $creditRequest->payment_status !== 'approved') {
+            return redirect()->route('system-admin.credits.index')
+                ->with('status', 'A solicitacao ainda nao teve o pagamento Pix confirmado pelo Mercado Pago.');
+        }
+
         $this->creditService->addCredits(
             $creditRequest->targetUser,
             (int) $creditRequest->credits_requested,

@@ -16,26 +16,22 @@ class PaymentSettingsRepository implements PaymentSettingsRepositoryContract
                 'payment.api_base_url',
                 'payment.api_token',
                 'payment.pix_key',
-                'payment.stripe_secret',
-                'payment.stripe_webhook_secret',
+                'payment.mercadopago_webhook_secret',
             ])
             ->pluck('value', 'key');
     }
 
     public function update(
-        ?string $providerName,
         ?string $apiBaseUrl,
         ?string $apiToken,
         ?string $pixKey,
-        ?string $stripeSecret,
-        ?string $stripeWebhookSecret,
+        ?string $mercadoPagoWebhookSecret,
     ): void {
-        $this->upsert('payment.provider_name', $providerName, false);
+        $this->upsert('payment.provider_name', 'mercadopago', false);
         $this->upsert('payment.api_base_url', $apiBaseUrl, false);
         $this->upsert('payment.api_token', $apiToken, true);
         $this->upsert('payment.pix_key', $pixKey, true);
-        $this->upsert('payment.stripe_secret', $stripeSecret, true);
-        $this->upsert('payment.stripe_webhook_secret', $stripeWebhookSecret, true);
+        $this->upsert('payment.mercadopago_webhook_secret', $mercadoPagoWebhookSecret, true);
     }
 
     private function upsert(string $key, ?string $value, bool $isSecret): void

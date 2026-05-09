@@ -72,16 +72,25 @@
                         <p>Solicitante: {{ $requestItem->requester?->name }} ({{ $requestItem->requester?->email }})</p>
                         <p>Tenant: {{ $requestItem->tenant?->name ?? 'Sem tenant' }}</p>
                         <p>Chave PIX: {{ $requestItem->pix_key }}</p>
+                        @if ($requestItem->payment_status)
+                            <p>Status Pix: {{ strtoupper($requestItem->payment_status) }}@if($requestItem->payment_status_detail) - {{ $requestItem->payment_status_detail }}@endif</p>
+                        @endif
 
                         @if ($requestItem->qr_code_url)
                             <img src="{{ $requestItem->qr_code_url }}" alt="QR Code PIX" style="width: 150px; height: 150px; border-radius: 8px; border: 1px solid #ddd; margin: 10px 0;">
                         @endif
 
+                        @if ($requestItem->payment_ticket_url)
+                            <p><a href="{{ $requestItem->payment_ticket_url }}" target="_blank" rel="noopener noreferrer">Abrir pagina de pagamento Pix</a></p>
+                        @endif
+
                         <div class="actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <form method="POST" action="{{ route('system-admin.requests.approve', $requestItem->id) }}">
-                                @csrf
-                                <button type="submit" class="btn btn-primary">Aprovar</button>
-                            </form>
+                            @if ($requestItem->payment_external_reference === null || $requestItem->payment_status === 'approved')
+                                <form method="POST" action="{{ route('system-admin.requests.approve', $requestItem->id) }}">
+                                    @csrf
+                                    <button type="submit" class="btn btn-primary">Aprovar</button>
+                                </form>
+                            @endif
 
                             <form method="POST" action="{{ route('system-admin.requests.reject', $requestItem->id) }}" style="display: flex; gap: 6px; align-items: center;">
                                 @csrf
