@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers\Api\V1\Auth;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
+use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
+use App\Services\Tenant\PlatformTenantService;
 use App\Services\Tenant\Auth\TenantAuthService;
 use App\Services\Tenant\TenantManager;
+use App\Support\FormPatterns;
 use App\Transformers\Tenant\TenantTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +22,23 @@ class AuthController extends Controller
         private readonly TenantAuthService $tenantAuthService,
         private readonly TenantManager $tenantManager,
         private readonly TenantTransformer $tenantTransformer,
+        private readonly TraineeStudentRepositoryContract $traineeStudentRepository,
+        private readonly PlatformTenantService $platformTenantService,
     ) {}
+
+    public function registerStudent(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => FormPatterns::name(),
+            'email' => FormPatterns::email(),
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $platformTrainee = $this->platformTenantService->resolvePlatformTrainee();
+        $student = $this->traineeStudentRepository->createForTrainee(null, $platformTrainee->id, $validated);
+
+        return $this->standaloneStudentResponse($student, 201, 'Aluno criado e vinculado ao trainer Plataforma.');
+    }
 
     public function options(): JsonResponse
     {
@@ -109,6 +129,10 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($user->profileType() === Role::STUDENT) {
+            return $this->standaloneStudentResponse($user);
+        }
+
         $tenants = $user->tenants()->get();
 
         if ($tenants->isEmpty()) {
@@ -177,5 +201,28 @@ class AuthController extends Controller
             'token' => $token,
             'tenant' => $this->tenantTransformer->transform($tenant),
         ]);
+    }
+
+    private function standaloneStudentResponse(User $user, int $status = 200, string $message = 'Aluno autenticado sem vinculo de tenant.'): JsonResponse
+    {
+        $assignedTrainee = $this->traineeStudentRepository->assignedTraineeForStudent(null, (int) $user->id);
+
+        return response()->json([
+            'authenticated' => true,
+            'profile' => Role::STUDENT->value,
+            'requiresTenantSelection' => false,
+            'message' => $message,
+            'token' => $this->tenantAuthService->generateStandaloneToken($user),
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+            'assigned_trainer' => $assignedTrainee === null ? null : [
+                'id' => $assignedTrainee->id,
+                'name' => $assignedTrainee->name,
+                'email' => $assignedTrainee->email,
+            ],
+        ], $status);
     }
 }

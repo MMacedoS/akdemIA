@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Workouts;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
 use App\Models\Workout\Workout;
@@ -21,7 +22,7 @@ class WorkoutStatusController extends Controller
             ], 401);
         }
 
-        if (! $tenant instanceof Tenant || ! $user->belongsToTenant($tenant)) {
+        if (! $this->allowsWorkoutContext($user, $tenant)) {
             return response()->json([
                 'message' => 'Forbidden for tenant context.',
             ], 403);
@@ -29,8 +30,12 @@ class WorkoutStatusController extends Controller
 
         $workout = Workout::query()
             ->where('id', $id)
-            ->where('tenant_id', $tenant->id)
             ->where('user_id', $user->id)
+            ->when(
+                $tenant instanceof Tenant,
+                fn($query) => $query->where('tenant_id', $tenant->id),
+                fn($query) => $query->whereNull('tenant_id'),
+            )
             ->first();
 
         if ($workout === null) {
@@ -56,5 +61,14 @@ class WorkoutStatusController extends Controller
                 ? data_get($workout->safety_flags, 'generation_error')
                 : null,
         ]);
+    }
+
+    private function allowsWorkoutContext($user, mixed $tenant): bool
+    {
+        if ($tenant instanceof Tenant) {
+            return $user->belongsToTenant($tenant);
+        }
+
+        return $user->profileType() === Role::STUDENT;
     }
 }

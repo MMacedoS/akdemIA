@@ -22,6 +22,7 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('auth')->group(function () {
         Route::get('options', [AuthController::class, 'options'])->name('api.auth.options');
+        Route::post('register/student', [AuthController::class, 'registerStudent'])->name('api.auth.register-student');
         Route::post('login', [AuthController::class, 'login'])->name('api.auth.login');
         Route::post('select-tenant', [AuthController::class, 'selectTenant'])->name('api.auth.select-tenant');
     });
@@ -30,6 +31,8 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['subscription'])->group(function () {
             Route::get('me', [MeController::class, 'show'])->name('api.me.show');
             Route::put('me', [MeController::class, 'update'])->name('api.me.update');
+            Route::get('me/trainers', ['App\\Http\\Controllers\\Api\\V1\\Profile\\StudentTrainerController', 'index'])->middleware(['role:student'])->name('api.me.trainers.index');
+            Route::put('me/trainer', ['App\\Http\\Controllers\\Api\\V1\\Profile\\StudentTrainerController', 'update'])->middleware(['role:student'])->name('api.me.trainer.update');
 
             Route::middleware(['role:admin'])->group(function () {
                 Route::get('users', [UserManagementController::class, 'index'])->name('api.users.index');

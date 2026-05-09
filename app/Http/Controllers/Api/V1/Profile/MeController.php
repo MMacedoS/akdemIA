@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Profile;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Profile\UpdateMeRequest;
 use App\Models\Tenant\Tenant;
@@ -22,7 +23,7 @@ class MeController extends Controller
         $user = $request->user();
         $tenant = $request->attributes->get('tenant');
 
-        if ($user === null || ! $tenant instanceof Tenant || ! $user->belongsToTenant($tenant)) {
+        if ($user === null || ! $this->allowsSelfService($user, $tenant)) {
             return response()->json([
                 'message' => 'User is not linked to tenant.',
             ], 403);
@@ -30,7 +31,7 @@ class MeController extends Controller
 
         return response()->json([
             'id' => $user->id,
-            'tenant_id' => $tenant->id,
+            'tenant_id' => $tenant instanceof Tenant ? $tenant->id : null,
             'name' => $user->name,
             'birth_date' => $user->birth_date?->toDateString(),
             'gender' => $user->gender,
@@ -51,7 +52,7 @@ class MeController extends Controller
         $user = $request->user();
         $tenant = $request->attributes->get('tenant');
 
-        if ($user === null || ! $tenant instanceof Tenant || ! $user->belongsToTenant($tenant)) {
+        if ($user === null || ! $this->allowsSelfService($user, $tenant)) {
             return response()->json([
                 'message' => 'User is not linked to tenant.',
             ], 403);
@@ -62,7 +63,7 @@ class MeController extends Controller
 
         return response()->json([
             'id' => $user->id,
-            'tenant_id' => $tenant->id,
+            'tenant_id' => $tenant instanceof Tenant ? $tenant->id : null,
             'name' => $user->name,
             'birth_date' => $user->birth_date?->toDateString(),
             'gender' => $user->gender,
@@ -81,5 +82,14 @@ class MeController extends Controller
             'weight',
             'goal',
         ]);
+    }
+
+    private function allowsSelfService($user, mixed $tenant): bool
+    {
+        if ($tenant instanceof Tenant) {
+            return $user->belongsToTenant($tenant);
+        }
+
+        return $user->profileType() === Role::STUDENT;
     }
 }

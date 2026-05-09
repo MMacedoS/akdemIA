@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Role;
 use App\Models\Tenant\Tenant;
 use Closure;
 use Illuminate\Http\Request;
@@ -23,6 +24,10 @@ class EnsureTenantUserAssociation
         $tenant = $request->attributes->get('tenant');
 
         if (! $tenant instanceof Tenant) {
+            if ($user->profileType() === Role::STUDENT) {
+                return $next($request);
+            }
+
             return response()->json([
                 'message' => 'Tenant not identified.',
             ], 409);

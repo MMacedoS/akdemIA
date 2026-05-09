@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\PhysicalData;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\PhysicalData\StorePhysicalDataRequest;
 use App\Http\Requests\Api\V1\PhysicalData\UpdatePhysicalDataRequest;
@@ -21,7 +22,7 @@ class PhysicalDataController extends Controller
         $user = $request->user();
         $tenant = $request->attributes->get('tenant');
 
-        if ($user === null || ! $tenant instanceof Tenant || ! $user->belongsToTenant($tenant)) {
+        if ($user === null || ! $this->allowsSelfService($user, $tenant)) {
             return response()->json([
                 'message' => 'Forbidden for tenant context.',
             ], 403);
@@ -43,7 +44,7 @@ class PhysicalDataController extends Controller
         $user = $request->user();
         $tenant = $request->attributes->get('tenant');
 
-        if ($user === null || ! $tenant instanceof Tenant || ! $user->belongsToTenant($tenant)) {
+        if ($user === null || ! $this->allowsSelfService($user, $tenant)) {
             return response()->json([
                 'message' => 'Forbidden for tenant context.',
             ], 403);
@@ -59,7 +60,7 @@ class PhysicalDataController extends Controller
         $user = $request->user();
         $tenant = $request->attributes->get('tenant');
 
-        if ($user === null || ! $tenant instanceof Tenant || ! $user->belongsToTenant($tenant)) {
+        if ($user === null || ! $this->allowsSelfService($user, $tenant)) {
             return response()->json([
                 'message' => 'Forbidden for tenant context.',
             ], 403);
@@ -74,5 +75,14 @@ class PhysicalDataController extends Controller
         }
 
         return response()->json($physicalData);
+    }
+
+    private function allowsSelfService($user, mixed $tenant): bool
+    {
+        if ($tenant instanceof Tenant) {
+            return $user->belongsToTenant($tenant);
+        }
+
+        return $user->profileType() === Role::STUDENT;
     }
 }

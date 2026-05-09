@@ -2,14 +2,18 @@
 
 namespace App\Services\Tenant;
 
+use App\Enums\Role;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
+use App\Support\FormPatterns;
 use Illuminate\Support\Facades\DB;
 
 class PlatformTenantService
 {
     public const PLATFORM_TENANT_SLUG = 'plataforma';
     public const PLATFORM_TENANT_NAME = 'Plataforma';
+    public const PLATFORM_TRAINEE_NAME = 'Plataforma';
+    public const PLATFORM_TRAINEE_EMAIL = 'plataforma@akdemia.local';
 
     public function ensurePlatformTenant(): Tenant
     {
@@ -41,6 +45,31 @@ class PlatformTenantService
         );
 
         return $tenant;
+    }
+
+    public function resolvePlatformTrainee(): User
+    {
+        $trainee = User::query()
+            ->whereIn('profile_type', [Role::TRAINER->value, 'trainee'])
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower(self::PLATFORM_TRAINEE_NAME)])
+            ->orderBy('id')
+            ->first();
+
+        if (! $trainee instanceof User) {
+            $trainee = User::query()->create([
+                'name' => self::PLATFORM_TRAINEE_NAME,
+                'email' => FormPatterns::normalizeEmail(self::PLATFORM_TRAINEE_EMAIL),
+                'password' => bin2hex(random_bytes(24)),
+                'profile_type' => Role::TRAINER->value,
+                'is_active' => true,
+                'is_system_admin' => false,
+                'credits_balance' => 0,
+            ]);
+        }
+
+        $this->attachTraineeToPlatform($trainee);
+
+        return $trainee;
     }
 
     public function resolvePreferredTenantForTrainee(User $trainee): ?Tenant

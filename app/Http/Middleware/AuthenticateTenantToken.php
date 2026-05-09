@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Role;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
 use Closure;
@@ -55,21 +56,35 @@ class AuthenticateTenantToken
         }
 
         $userId = (int) ($payload['user_id'] ?? 0);
-        $tenantId = (int) ($payload['tenant_id'] ?? 0);
+        $tenantId = array_key_exists('tenant_id', $payload) ? (int) $payload['tenant_id'] : null;
         $role = isset($payload['role']) ? (string) $payload['role'] : null;
+        $profile = isset($payload['profile']) ? (string) $payload['profile'] : null;
 
-        if ($userId <= 0 || $tenantId <= 0 || $role === null || $role === '') {
+        if ($userId <= 0) {
             return response()->json([
                 'message' => 'Invalid token claims.',
             ], 401);
         }
 
         $user = User::query()->find($userId);
-        $tenant = Tenant::query()->where('id', $tenantId)->where('is_active', true)->first();
 
-        if ($user === null || $tenant === null) {
+        if ($user === null || ! (bool) $user->is_active) {
             return response()->json([
                 'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        if (($tenantId === null || $tenantId <= 0) && $profile === Role::STUDENT->value && $user->profileType() === Role::STUDENT) {
+            $request->setUserResolver(fn() => $user);
+
+            return $next($request);
+        }
+
+        $tenant = Tenant::query()->where('id', $tenantId)->where('is_active', true)->first();
+
+        if ($tenant === null || $role === null || $role === '') {
+            return response()->json([
+                'message' => 'Invalid token claims.',
             ], 401);
         }
 

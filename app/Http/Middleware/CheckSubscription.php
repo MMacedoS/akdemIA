@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Role;
 use App\Models\Tenant\Tenant;
 use App\Models\Tenant\TenantSubscription;
 use Closure;
@@ -13,6 +14,10 @@ class CheckSubscription
     public function handle(Request $request, Closure $next): Response
     {
         $tenant = $request->attributes->get('tenant');
+
+        if (! $tenant instanceof Tenant && $request->user()?->profileType() === Role::STUDENT) {
+            return $next($request);
+        }
 
         if (! $tenant instanceof Tenant) {
             return response()->json([

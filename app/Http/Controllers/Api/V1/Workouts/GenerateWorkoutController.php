@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Workouts;
 
+use App\Enums\Role;
 use App\Jobs\GenerateWorkoutJob;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
@@ -28,16 +29,20 @@ class GenerateWorkoutController extends Controller
             ], 401);
         }
 
-        if (! $tenant instanceof Tenant || ! $user->belongsToTenant($tenant)) {
+        if (! $this->allowsWorkoutContext($user, $tenant)) {
             return response()->json([
                 'message' => 'Forbidden for tenant context.',
             ], 403);
         }
 
         $hasProcessingWorkout = Workout::query()
-            ->where('tenant_id', $tenant->id)
             ->where('user_id', $user->id)
             ->where('status', 'processing')
+            ->when(
+                $tenant instanceof Tenant,
+                fn($query) => $query->where('tenant_id', $tenant->id),
+                fn($query) => $query->whereNull('tenant_id'),
+            )
             ->exists();
 
         if ($hasProcessingWorkout) {
@@ -53,8 +58,9 @@ class GenerateWorkoutController extends Controller
                 'consume_generation',
                 [
                     'context' => 'api',
-                    'tenant_id' => $tenant->id,
+                    'tenant_id' => $tenant?->id,
                 ],
+                $tenant instanceof Tenant ? $tenant : null,
             );
         } catch (RuntimeException $exception) {
             return response()->json([
@@ -63,7 +69,7 @@ class GenerateWorkoutController extends Controller
         }
 
         $workout = Workout::query()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => $tenant?->id,
             'user_id' => $user->id,
             'status' => 'processing',
             'request_status' => 'active',
@@ -74,7 +80,7 @@ class GenerateWorkoutController extends Controller
             'safety_flags' => [],
         ]);
 
-        GenerateWorkoutJob::dispatch($workout->id, $user->id, $tenant->id, null, $user->id);
+        GenerateWorkoutJob::dispatch($workout->id, $user->id, $tenant?->id, null, $user->id);
 
         return response()->json([
             'status' => 'processing',
@@ -82,5 +88,14 @@ class GenerateWorkoutController extends Controller
             'message' => 'Workout generation started.',
             'credits_balance' => (int) $user->fresh()?->credits_balance,
         ], 202);
+    }
+
+    private function allowsWorkoutContext($user, mixed $tenant): bool
+    {
+        if ($tenant instanceof Tenant) {
+            return $user->belongsToTenant($tenant);
+        }
+
+        return $user->profileType() === Role::STUDENT;
     }
 }

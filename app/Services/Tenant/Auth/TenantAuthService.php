@@ -61,6 +61,27 @@ class TenantAuthService
         return $basePayload . '.' . $signature;
     }
 
+    public function generateStandaloneToken(User $user): string
+    {
+        $payload = [
+            'sub' => $user->id,
+            'user_id' => $user->id,
+            'profile' => $user->profileType()?->value ?? (string) $user->profile_type,
+            'iat' => Carbon::now()->timestamp,
+        ];
+
+        $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES);
+
+        if ($jsonPayload === false) {
+            $jsonPayload = '{}';
+        }
+
+        $basePayload = base64_encode($jsonPayload);
+        $signature = hash_hmac('sha256', $basePayload, (string) config('app.key'));
+
+        return $basePayload . '.' . $signature;
+    }
+
     private function selectionTokenCacheKey(string $selectionToken): string
     {
         return 'tenant_selection:' . $selectionToken;

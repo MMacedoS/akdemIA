@@ -7,7 +7,7 @@
     <div class="content-stack">
         <div class="card">
             <h3>Lista de alunos permitidos</h3>
-            <p>Visualizacao e edicao de dados de saude dos alunos vinculados ao tenant atual.</p>
+            <p>Visualizacao e edicao de dados de saude dos alunos vinculados diretamente a este trainer.</p>
         </div>
 
         <div class="card">

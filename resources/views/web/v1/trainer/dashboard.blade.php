@@ -11,7 +11,7 @@
     <div class="content-stack">
         <div class="stats">
             <div class="card">
-                <h3>Alunos no tenant</h3>
+                <h3>Alunos vinculados</h3>
                 <p class="stat-value">{{ $summary['students'] }}</p>
                 <span class="badge primary">Base ativa</span>
             </div>
@@ -25,7 +25,7 @@
             <div class="card">
                 <h3>Treinos concluidos</h3>
                 <p class="stat-value">{{ $summary['completed_workouts'] }}</p>
-                <span class="badge success">Historico do tenant</span>
+                <span class="badge success">Historico standalone</span>
             </div>
         </div>
 
@@ -56,7 +56,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4">Nenhum aluno encontrado no tenant.</td>
+                            <td colspan="4">Nenhum aluno vinculado ao trainer.</td>
                         </tr>
                     @endforelse
                 </tbody>

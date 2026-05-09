@@ -41,7 +41,7 @@ class StudentsController extends PanelUsersController
         $user->loadMissing(['physicalData', 'medicalData', 'preference']);
 
         $workouts = Workout::query()
-            ->where('tenant_id', $tenant->id)
+            ->whereNull('tenant_id')
             ->where('user_id', $user->id)
             ->latest('id')
             ->limit(10)
@@ -49,7 +49,7 @@ class StudentsController extends PanelUsersController
 
         return view($this->viewBase() . '.show', [
             'user' => $user,
-            'assignedTrainee' => $this->repository->assignedTraineeForStudent($tenant, $user->id),
+            'assignedTrainee' => $this->repository->assignedTraineeForStudent(null, $user->id),
             'workouts' => $workouts,
         ]);
     }
@@ -60,9 +60,9 @@ class StudentsController extends PanelUsersController
         $search = trim((string) $request->query('q', ''));
 
         return view($this->viewBase() . '.index', [
-            'users' => $this->repository->paginateForTenant($tenant, $search),
+            'users' => $this->repository->paginateVisibleForTenant($tenant, $search),
             'search' => $search,
-            'metrics' => $this->repository->metricsForTenant($tenant),
+            'metrics' => $this->repository->metricsVisibleForTenant($tenant),
         ]);
     }
 
@@ -82,13 +82,13 @@ class StudentsController extends PanelUsersController
             'email' => FormPatterns::email(),
             'password' => ['required', 'string', 'min:8'],
             'goal' => ['nullable', 'string', 'max:500'],
-            'trainee_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'trainee_user_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
-        $this->repository->createForTenant(
+        $this->repository->createVisibleForTenant(
             $tenant,
             $payload,
-            isset($payload['trainee_user_id']) ? (int) $payload['trainee_user_id'] : null,
+            (int) $payload['trainee_user_id'],
             $request->user()?->id,
         );
 
@@ -103,7 +103,7 @@ class StudentsController extends PanelUsersController
         return view($this->viewBase() . '.edit', [
             'user' => $this->findUserInContextPublic($request, $id),
             'traineeOptions' => $this->repository->traineeOptionsForTenant($tenant),
-            'assignedTrainee' => $this->repository->assignedTraineeForStudent($tenant, $id),
+            'assignedTrainee' => $this->repository->assignedTraineeForStudent(null, $id),
         ]);
     }
 
@@ -120,7 +120,7 @@ class StudentsController extends PanelUsersController
             'trainee_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
-        $updatedStudent = $this->repository->updateForTenant(
+        $updatedStudent = $this->repository->updateVisibleForTenant(
             $tenant,
             $student->id,
             $payload,
@@ -147,10 +147,6 @@ class StudentsController extends PanelUsersController
     {
         $tenant = $this->resolveTenantContext($request);
 
-        return $tenant->users()
-            ->wherePivot('role', $this->role()->value)
-            ->where('users.id', $id)
-            ->select('users.*')
-            ->firstOrFail();
+        return $this->repository->findVisibleForTenant($tenant, $id);
     }
 }

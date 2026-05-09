@@ -6,12 +6,17 @@ use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
 use App\Models\Tenant\TenantSubscription;
+use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private readonly TraineeStudentRepositoryContract $studentRepository,
+    ) {}
+
     public function index(Request $request): View
     {
         $tenant = $request->attributes->get('tenant');
@@ -40,10 +45,7 @@ class DashboardController extends Controller
                 ->first();
         }
 
-        $totalStudents = DB::table('tenant_user')
-            ->where('tenant_id', $tenant->id)
-            ->where('role', Role::STUDENT->value)
-            ->count();
+        $studentMetrics = $this->studentRepository->metricsVisibleForTenant($tenant);
 
         $totalTrainers = DB::table('tenant_user')
             ->where('tenant_id', $tenant->id)
@@ -57,7 +59,7 @@ class DashboardController extends Controller
 
         return view('web.v1.admin.dashboard.index', [
             'summary' => [
-                'total_students' => $totalStudents,
+                'total_students' => $studentMetrics['total'],
                 'total_trainers' => $totalTrainers,
                 'credits_balance' => $creditsBalance,
                 'current_plan' => $subscription?->plan?->name ?? 'Sem plano',
