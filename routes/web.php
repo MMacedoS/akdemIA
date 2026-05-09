@@ -224,6 +224,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/settings/workoutx', [SystemAdminWorkoutxSettingsController::class, 'edit'])->name('settings.workoutx.edit');
         Route::get('/settings/workoutx/audit', [SystemAdminWorkoutxSettingsController::class, 'audit'])->name('settings.workoutx.audit');
+        Route::post('/settings/workoutx/audit/gifs-sync', [SystemAdminWorkoutxSettingsController::class, 'syncGifs'])->name('settings.workoutx.audit.gifs-sync');
         Route::put('/settings/workoutx', [SystemAdminWorkoutxSettingsController::class, 'update'])->name('settings.workoutx.update');
         Route::post('/settings/workoutx/sync', [SystemAdminWorkoutxSettingsController::class, 'sync'])->name('settings.workoutx.sync');
 

@@ -18,6 +18,7 @@ class WorkoutxSettingsRepository implements WorkoutxSettingsRepositoryContract
                 'workoutx.auth_mode',
                 'workoutx.request_timeout',
                 'workoutx.default_limit',
+                'workoutx.sync_page_delay_seconds',
                 'workoutx.allow_fallback',
             ])
             ->pluck('value', 'key');
@@ -31,6 +32,7 @@ class WorkoutxSettingsRepository implements WorkoutxSettingsRepositoryContract
         $this->upsert('workoutx.auth_mode', $payload['workoutx_auth_mode'] ?? 'header', false);
         $this->upsert('workoutx.request_timeout', isset($payload['workoutx_request_timeout']) ? (string) $payload['workoutx_request_timeout'] : null, false);
         $this->upsert('workoutx.default_limit', isset($payload['workoutx_default_limit']) ? (string) $payload['workoutx_default_limit'] : null, false);
+        $this->upsert('workoutx.sync_page_delay_seconds', isset($payload['workoutx_sync_page_delay_seconds']) ? (string) $payload['workoutx_sync_page_delay_seconds'] : null, false);
         $this->upsert('workoutx.allow_fallback', $payload['workoutx_allow_fallback'] ?? '0', false);
     }
 

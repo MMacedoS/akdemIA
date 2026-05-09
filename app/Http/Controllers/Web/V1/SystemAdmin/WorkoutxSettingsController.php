@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web\V1\SystemAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SyncWorkoutxCatalogGifJob;
+use App\Jobs\SyncWorkoutxCatalogPageJob;
 use App\Repositories\Contracts\SystemAdmin\WorkoutxSettingsRepositoryContract;
 use App\Services\System\SystemAdminAuditLogger;
 use App\Services\Workouts\ExerciseCatalogService;
@@ -27,6 +29,7 @@ class WorkoutxSettingsController extends Controller
         return view('web.v1.system_admin.settings.workoutx', [
             'settings' => $this->workoutxSettingsRepository->values(),
             'catalogStats' => $this->workoutMediaService->catalogStats(),
+            'syncStatus' => $this->workoutMediaService->workoutxSyncStatus(),
         ]);
     }
 
@@ -41,6 +44,7 @@ class WorkoutxSettingsController extends Controller
             'workoutx_auth_mode' => ['required', 'in:header,query'],
             'workoutx_request_timeout' => ['nullable', 'integer', 'between:3,120'],
             'workoutx_default_limit' => ['nullable', 'integer', 'between:1,100'],
+            'workoutx_sync_page_delay_seconds' => ['nullable', 'integer', 'between:10,3600'],
             'workoutx_allow_fallback' => ['nullable', 'in:0,1'],
         ]);
 
@@ -65,8 +69,16 @@ class WorkoutxSettingsController extends Controller
 
     public function sync(Request $request): RedirectResponse
     {
+        $syncStatus = $this->workoutMediaService->workoutxSyncStatus();
+        $syncState = (string) ($syncStatus['state'] ?? 'idle');
+
+        if (in_array($syncState, ['queued', 'running'], true)) {
+            return redirect()->route('system-admin.settings.workoutx.edit')
+                ->withErrors('Ja existe uma sincronizacao do catalogo WorkoutX em andamento. Aguarde a fila terminar antes de iniciar outra.');
+        }
+
         try {
-            $result = $this->workoutMediaService->syncExerciseCatalog();
+            $this->workoutMediaService->assertCatalogSyncConfigured();
         } catch (Throwable $exception) {
             report($exception);
 
@@ -74,27 +86,22 @@ class WorkoutxSettingsController extends Controller
                 ->withErrors($exception->getMessage());
         }
 
-        $this->bumpWorkoutxCacheBuster();
+        $this->workoutMediaService->startWorkoutxSyncStatus($request->user()?->id);
+        SyncWorkoutxCatalogPageJob::dispatch(0, null, $request->user()?->id);
 
         $this->auditLogger->log(
             $request->user()?->id,
             'workoutx_catalog',
-            'synced',
+            'queued',
             null,
             null,
-            $result,
-        );
-
-        $status = sprintf(
-            'Catalogo WorkoutX sincronizado. %d processados, %d novos, %d atualizados, %d sem alteracao.',
-            $result['synced'],
-            $result['created'],
-            $result['updated'],
-            $result['unchanged'],
+            [
+                'message' => 'Sincronizacao do catalogo WorkoutX enfileirada.',
+            ],
         );
 
         return redirect()->route('system-admin.settings.workoutx.edit')
-            ->with('status', $status);
+            ->with('status', 'Sincronizacao do catalogo enfileirada. O processamento vai ocorrer em paginas, com intervalo entre requests para evitar limite da API.');
     }
 
     public function audit(Request $request): View
@@ -107,7 +114,37 @@ class WorkoutxSettingsController extends Controller
                 (int) $request->query('limit', 25),
                 (int) $request->query('page', 1),
             ),
+            'gifCatalogStats' => $this->workoutMediaService->catalogGifStats(),
+            'gifSyncStatus' => $this->workoutMediaService->workoutxGifSyncStatus(),
         ]);
+    }
+
+    public function syncGifs(Request $request): RedirectResponse
+    {
+        $gifSyncStatus = $this->workoutMediaService->workoutxGifSyncStatus();
+        $gifSyncState = (string) ($gifSyncStatus['state'] ?? 'idle');
+
+        if (in_array($gifSyncState, ['queued', 'running'], true)) {
+            return redirect()->route('system-admin.settings.workoutx.audit')
+                ->withErrors('Ja existe uma sincronizacao de GIFs do catalogo WorkoutX em andamento. Aguarde a fila terminar antes de iniciar outra.');
+        }
+
+        $this->workoutMediaService->startWorkoutxGifSyncStatus($request->user()?->id);
+        SyncWorkoutxCatalogGifJob::dispatch(null, null, $request->user()?->id);
+
+        $this->auditLogger->log(
+            $request->user()?->id,
+            'workoutx_catalog_gifs',
+            'queued',
+            null,
+            null,
+            [
+                'message' => 'Sincronizacao dos GIFs pendentes do catalogo WorkoutX enfileirada.',
+            ],
+        );
+
+        return redirect()->route('system-admin.settings.workoutx.audit')
+            ->with('status', 'Download dos GIFs pendentes enfileirado. O processamento vai preencher o storage_path a partir do remote_gif_url.');
     }
 
     private function bumpWorkoutxCacheBuster(): void

@@ -76,6 +76,7 @@ return [
         'auth_mode' => env('WORKOUTX_AUTH_MODE', 'header'),
         'request_timeout' => (int) env('WORKOUTX_REQUEST_TIMEOUT', 20),
         'default_limit' => (int) env('WORKOUTX_DEFAULT_LIMIT', 10),
+        'sync_page_delay_seconds' => (int) env('WORKOUTX_SYNC_PAGE_DELAY_SECONDS', 120),
         'allow_fallback' => (bool) env('WORKOUTX_ALLOW_FALLBACK', false),
     ],
 

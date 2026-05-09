@@ -4,8 +4,10 @@ namespace App\Services\Workouts;
 
 use App\Models\Workout\ExerciseMediaCache;
 use App\Support\Workout\ExerciseAssetBuilder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -256,7 +258,53 @@ class WorkoutMediaService
         ];
     }
 
+    public function catalogGifStats(): array
+    {
+        $baseQuery = ExerciseMediaCache::query()
+            ->whereNotNull('remote_exercise_id')
+            ->whereNotNull('remote_gif_url')
+            ->where('remote_gif_url', '!=', '');
+
+        return [
+            'with_remote_gif_url' => (clone $baseQuery)->count(),
+            'saved_local' => (clone $baseQuery)
+                ->whereNotNull('storage_path')
+                ->where('storage_path', '!=', '')
+                ->count(),
+            'pending_local_file' => $this->pendingCatalogGifsQuery()->count(),
+        ];
+    }
+
     public function syncExerciseCatalog(): array
+    {
+        $this->assertCatalogSyncConfigured();
+
+        $limit = $this->resolveCatalogRequestLimit();
+        $offset = 0;
+        $synced = 0;
+        $created = 0;
+        $updated = 0;
+
+        do {
+            $pageResult = $this->syncExerciseCatalogPage($offset, $limit);
+
+            $pageCount = $pageResult['page_count'];
+            $synced += $pageResult['synced'];
+            $created += $pageResult['created'];
+            $updated += $pageResult['updated'];
+            $offset += $pageCount;
+        } while ($pageCount === $limit && $pageCount > 0);
+
+        return [
+            'synced' => $synced,
+            'created' => $created,
+            'updated' => $updated,
+            'unchanged' => max($synced - $created - $updated, 0),
+            'total_cached' => ExerciseMediaCache::query()->count(),
+        ];
+    }
+
+    public function assertCatalogSyncConfigured(): void
     {
         if (! $this->isEnabled()) {
             throw new RuntimeException('Ative a integracao WorkoutX antes de sincronizar o catalogo.');
@@ -269,58 +317,374 @@ class WorkoutMediaService
         if ($this->workoutxApiKey() === '') {
             throw new RuntimeException('Defina a API Key da WorkoutX antes de sincronizar o catalogo.');
         }
+    }
 
-        $limit = $this->resolveCatalogRequestLimit();
-        $offset = 0;
+    public function syncExerciseCatalogPage(int $offset, ?int $limit = null): array
+    {
+        $this->assertCatalogSyncConfigured();
+
+        $safeOffset = max(0, $offset);
+        $safeLimit = max(1, $limit ?? $this->resolveCatalogRequestLimit());
+
+        $payload = $this->requestWorkoutxJson('/exercises', [
+            'limit' => $safeLimit,
+            'offset' => $safeOffset,
+        ]);
+
+        if (! is_array($payload)) {
+            throw new RuntimeException(
+                $safeOffset === 0
+                    ? 'Nao foi possivel consultar o catalogo da WorkoutX. Confira a configuracao e tente novamente.'
+                    : "A sincronizacao foi interrompida a partir do offset {$safeOffset}."
+            );
+        }
+
+        $exercises = $this->extractExerciseCollection($payload);
+        $pageCount = count($exercises);
         $synced = 0;
         $created = 0;
         $updated = 0;
 
-        do {
-            $payload = $this->requestWorkoutxJson('/exercises', [
-                'limit' => $limit,
-                'offset' => $offset,
-            ]);
+        foreach ($exercises as $exercise) {
+            $result = $this->upsertCatalogExercise($exercise);
 
-            if (! is_array($payload)) {
-                if ($synced === 0) {
-                    throw new RuntimeException('Nao foi possivel consultar o catalogo da WorkoutX. Confira a configuracao e tente novamente.');
-                }
-
-                throw new RuntimeException("A sincronizacao foi interrompida apos {$synced} exercicios processados.");
+            if ($result === null) {
+                continue;
             }
 
-            $exercises = $this->extractExerciseCollection($payload);
-            $pageCount = count($exercises);
+            $synced++;
 
-            foreach ($exercises as $exercise) {
-                $result = $this->upsertCatalogExercise($exercise);
-
-                if ($result === null) {
-                    continue;
-                }
-
-                $synced++;
-
-                if ($result === 'created') {
-                    $created++;
-                }
-
-                if ($result === 'updated') {
-                    $updated++;
-                }
+            if ($result === 'created') {
+                $created++;
             }
 
-            $offset += $pageCount;
-        } while ($pageCount === $limit && $pageCount > 0);
+            if ($result === 'updated') {
+                $updated++;
+            }
+        }
 
         return [
+            'offset' => $safeOffset,
+            'limit' => $safeLimit,
+            'page_count' => $pageCount,
             'synced' => $synced,
             'created' => $created,
             'updated' => $updated,
             'unchanged' => max($synced - $created - $updated, 0),
+            'has_more' => $pageCount === $safeLimit && $pageCount > 0,
+            'next_offset' => $safeOffset + $pageCount,
             'total_cached' => ExerciseMediaCache::query()->count(),
         ];
+    }
+
+    public function workoutxSyncStatus(): array
+    {
+        $status = Cache::get($this->workoutxSyncStatusCacheKey(), []);
+
+        return [
+            'state' => (string) data_get($status, 'state', 'idle'),
+            'started_at' => data_get($status, 'started_at'),
+            'finished_at' => data_get($status, 'finished_at'),
+            'message' => (string) data_get($status, 'message', ''),
+            'requested_by_user_id' => data_get($status, 'requested_by_user_id'),
+            'progress' => [
+                'synced' => (int) data_get($status, 'progress.synced', 0),
+                'created' => (int) data_get($status, 'progress.created', 0),
+                'updated' => (int) data_get($status, 'progress.updated', 0),
+                'unchanged' => (int) data_get($status, 'progress.unchanged', 0),
+                'next_offset' => (int) data_get($status, 'progress.next_offset', 0),
+                'total_cached' => (int) data_get($status, 'progress.total_cached', 0),
+            ],
+        ];
+    }
+
+    public function startWorkoutxSyncStatus(?int $requestedByUserId = null): void
+    {
+        Cache::forever($this->workoutxSyncStatusCacheKey(), [
+            'state' => 'queued',
+            'started_at' => now()->toIso8601String(),
+            'finished_at' => null,
+            'requested_by_user_id' => $requestedByUserId,
+            'message' => 'Sincronizacao enfileirada e aguardando processamento.',
+            'progress' => [
+                'synced' => 0,
+                'created' => 0,
+                'updated' => 0,
+                'unchanged' => 0,
+                'next_offset' => 0,
+                'total_cached' => ExerciseMediaCache::query()->count(),
+            ],
+        ]);
+    }
+
+    public function markWorkoutxSyncRunning(int $offset): void
+    {
+        $status = $this->workoutxSyncStatus();
+
+        Cache::forever($this->workoutxSyncStatusCacheKey(), [
+            'state' => 'running',
+            'started_at' => $status['started_at'] ?: now()->toIso8601String(),
+            'finished_at' => null,
+            'requested_by_user_id' => $status['requested_by_user_id'],
+            'message' => 'Sincronizacao em andamento com intervalo entre paginas para respeitar o limite da API.',
+            'progress' => array_merge($status['progress'], [
+                'next_offset' => max(0, $offset),
+            ]),
+        ]);
+    }
+
+    public function advanceWorkoutxSyncStatus(array $pageResult): array
+    {
+        $status = $this->workoutxSyncStatus();
+        $progress = $status['progress'];
+
+        $updatedProgress = [
+            'synced' => $progress['synced'] + (int) ($pageResult['synced'] ?? 0),
+            'created' => $progress['created'] + (int) ($pageResult['created'] ?? 0),
+            'updated' => $progress['updated'] + (int) ($pageResult['updated'] ?? 0),
+            'unchanged' => $progress['unchanged'] + (int) ($pageResult['unchanged'] ?? 0),
+            'next_offset' => (int) ($pageResult['next_offset'] ?? $progress['next_offset']),
+            'total_cached' => (int) ($pageResult['total_cached'] ?? $progress['total_cached']),
+        ];
+
+        Cache::forever($this->workoutxSyncStatusCacheKey(), [
+            'state' => 'running',
+            'started_at' => $status['started_at'] ?: now()->toIso8601String(),
+            'finished_at' => null,
+            'requested_by_user_id' => $status['requested_by_user_id'],
+            'message' => 'Sincronizacao em andamento com intervalo entre paginas para respeitar o limite da API.',
+            'progress' => $updatedProgress,
+        ]);
+
+        return $updatedProgress;
+    }
+
+    public function completeWorkoutxSyncStatus(array $progress): void
+    {
+        Cache::forever($this->workoutxSyncStatusCacheKey(), [
+            'state' => 'completed',
+            'started_at' => data_get($this->workoutxSyncStatus(), 'started_at', now()->toIso8601String()),
+            'finished_at' => now()->toIso8601String(),
+            'requested_by_user_id' => data_get($this->workoutxSyncStatus(), 'requested_by_user_id'),
+            'message' => sprintf(
+                'Sincronizacao concluida. %d processados, %d novos, %d atualizados, %d sem alteracao.',
+                (int) ($progress['synced'] ?? 0),
+                (int) ($progress['created'] ?? 0),
+                (int) ($progress['updated'] ?? 0),
+                (int) ($progress['unchanged'] ?? 0),
+            ),
+            'progress' => $progress,
+        ]);
+
+        $cacheKey = 'workoutx:cache_buster';
+
+        if (Cache::has($cacheKey)) {
+            Cache::increment($cacheKey);
+
+            return;
+        }
+
+        Cache::forever($cacheKey, 1);
+    }
+
+    public function workoutxGifSyncStatus(): array
+    {
+        $status = Cache::get($this->workoutxGifSyncStatusCacheKey(), []);
+
+        return [
+            'state' => (string) data_get($status, 'state', 'idle'),
+            'started_at' => data_get($status, 'started_at'),
+            'finished_at' => data_get($status, 'finished_at'),
+            'message' => (string) data_get($status, 'message', ''),
+            'requested_by_user_id' => data_get($status, 'requested_by_user_id'),
+            'progress' => [
+                'processed' => (int) data_get($status, 'progress.processed', 0),
+                'downloaded' => (int) data_get($status, 'progress.downloaded', 0),
+                'failed' => (int) data_get($status, 'progress.failed', 0),
+                'pending_local_file' => (int) data_get($status, 'progress.pending_local_file', 0),
+                'next_remote_exercise_id' => (string) data_get($status, 'progress.next_remote_exercise_id', ''),
+            ],
+        ];
+    }
+
+    public function startWorkoutxGifSyncStatus(?int $requestedByUserId = null): void
+    {
+        Cache::forever($this->workoutxGifSyncStatusCacheKey(), [
+            'state' => 'queued',
+            'started_at' => now()->toIso8601String(),
+            'finished_at' => null,
+            'requested_by_user_id' => $requestedByUserId,
+            'message' => 'Download dos GIFs pendentes enfileirado e aguardando processamento.',
+            'progress' => [
+                'processed' => 0,
+                'downloaded' => 0,
+                'failed' => 0,
+                'pending_local_file' => $this->pendingCatalogGifsQuery()->count(),
+                'next_remote_exercise_id' => '',
+            ],
+        ]);
+    }
+
+    public function markWorkoutxGifSyncRunning(?string $afterRemoteExerciseId = null): void
+    {
+        $status = $this->workoutxGifSyncStatus();
+
+        Cache::forever($this->workoutxGifSyncStatusCacheKey(), [
+            'state' => 'running',
+            'started_at' => $status['started_at'] ?: now()->toIso8601String(),
+            'finished_at' => null,
+            'requested_by_user_id' => $status['requested_by_user_id'],
+            'message' => 'Download dos GIFs pendentes em andamento.',
+            'progress' => array_merge($status['progress'], [
+                'next_remote_exercise_id' => trim((string) $afterRemoteExerciseId),
+                'pending_local_file' => $this->pendingCatalogGifsQuery()->count(),
+            ]),
+        ]);
+    }
+
+    public function advanceWorkoutxGifSyncStatus(array $batchResult): array
+    {
+        $status = $this->workoutxGifSyncStatus();
+        $progress = $status['progress'];
+
+        $updatedProgress = [
+            'processed' => $progress['processed'] + (int) ($batchResult['processed'] ?? 0),
+            'downloaded' => $progress['downloaded'] + (int) ($batchResult['downloaded'] ?? 0),
+            'failed' => $progress['failed'] + (int) ($batchResult['failed'] ?? 0),
+            'pending_local_file' => (int) ($batchResult['pending_local_file'] ?? $progress['pending_local_file']),
+            'next_remote_exercise_id' => (string) ($batchResult['next_remote_exercise_id'] ?? $progress['next_remote_exercise_id']),
+        ];
+
+        Cache::forever($this->workoutxGifSyncStatusCacheKey(), [
+            'state' => 'running',
+            'started_at' => $status['started_at'] ?: now()->toIso8601String(),
+            'finished_at' => null,
+            'requested_by_user_id' => $status['requested_by_user_id'],
+            'message' => 'Download dos GIFs pendentes em andamento.',
+            'progress' => $updatedProgress,
+        ]);
+
+        return $updatedProgress;
+    }
+
+    public function completeWorkoutxGifSyncStatus(array $progress): void
+    {
+        Cache::forever($this->workoutxGifSyncStatusCacheKey(), [
+            'state' => 'completed',
+            'started_at' => data_get($this->workoutxGifSyncStatus(), 'started_at', now()->toIso8601String()),
+            'finished_at' => now()->toIso8601String(),
+            'requested_by_user_id' => data_get($this->workoutxGifSyncStatus(), 'requested_by_user_id'),
+            'message' => sprintf(
+                'Download de GIFs concluido. %d processados, %d baixados, %d falhas, %d pendentes.',
+                (int) ($progress['processed'] ?? 0),
+                (int) ($progress['downloaded'] ?? 0),
+                (int) ($progress['failed'] ?? 0),
+                (int) ($progress['pending_local_file'] ?? 0),
+            ),
+            'progress' => $progress,
+        ]);
+    }
+
+    public function failWorkoutxGifSyncStatus(string $message): void
+    {
+        $status = $this->workoutxGifSyncStatus();
+
+        Cache::forever($this->workoutxGifSyncStatusCacheKey(), [
+            'state' => 'failed',
+            'started_at' => $status['started_at'] ?: now()->toIso8601String(),
+            'finished_at' => now()->toIso8601String(),
+            'requested_by_user_id' => $status['requested_by_user_id'],
+            'message' => $message,
+            'progress' => array_merge($status['progress'], [
+                'pending_local_file' => $this->pendingCatalogGifsQuery()->count(),
+            ]),
+        ]);
+    }
+
+    public function syncPendingCatalogGifs(?string $afterRemoteExerciseId = null, ?int $limit = null): array
+    {
+        $safeLimit = max(1, min((int) ($limit ?? $this->resolveCatalogRequestLimit()), 100));
+        $safeCursor = trim((string) $afterRemoteExerciseId);
+
+        $query = $this->pendingCatalogGifsQuery();
+
+        if ($safeCursor !== '') {
+            $query->where('remote_exercise_id', '>', $safeCursor);
+        }
+
+        $batch = $query
+            ->orderBy('remote_exercise_id')
+            ->limit($safeLimit)
+            ->get();
+
+        $processed = 0;
+        $downloaded = 0;
+        $failed = 0;
+        $lastRemoteExerciseId = $safeCursor;
+
+        foreach ($batch as $exercise) {
+            $processed++;
+            $lastRemoteExerciseId = (string) ($exercise->remote_exercise_id ?? $lastRemoteExerciseId);
+
+            if ($this->persistCatalogExerciseGif($exercise)) {
+                $downloaded++;
+                continue;
+            }
+
+            $failed++;
+        }
+
+        $hasMore = $batch->count() === $safeLimit
+            && $this->pendingCatalogGifsQuery()
+            ->where('remote_exercise_id', '>', $lastRemoteExerciseId)
+            ->exists();
+
+        return [
+            'processed' => $processed,
+            'downloaded' => $downloaded,
+            'failed' => $failed,
+            'pending_local_file' => $this->pendingCatalogGifsQuery()->count(),
+            'next_remote_exercise_id' => $lastRemoteExerciseId,
+            'has_more' => $hasMore,
+            'limit' => $safeLimit,
+        ];
+    }
+
+    public function persistCatalogExerciseGif(ExerciseMediaCache $exercise): bool
+    {
+        $workoutxName = trim((string) ($exercise->workoutx_name ?? ''));
+        $gifUrl = trim((string) ($exercise->remote_gif_url ?? ''));
+
+        if ($workoutxName === '' || $gifUrl === '') {
+            return false;
+        }
+
+        $media = $this->storeGifFromUrl($workoutxName, $gifUrl);
+
+        if ($media['path'] === '') {
+            return false;
+        }
+
+        if ($exercise->storage_path !== $media['path']) {
+            $exercise->storage_path = $media['path'];
+            $exercise->save();
+        }
+
+        return true;
+    }
+
+    public function failWorkoutxSyncStatus(string $message): void
+    {
+        $status = $this->workoutxSyncStatus();
+
+        Cache::forever($this->workoutxSyncStatusCacheKey(), [
+            'state' => 'failed',
+            'started_at' => $status['started_at'] ?: now()->toIso8601String(),
+            'finished_at' => now()->toIso8601String(),
+            'requested_by_user_id' => $status['requested_by_user_id'],
+            'message' => $message,
+            'progress' => $status['progress'],
+        ]);
     }
 
     private function resolveLocalGif(string $workoutxName, bool $isEnabled): array
@@ -445,7 +809,6 @@ class WorkoutMediaService
 
         $workoutxName = $this->normalizeWorkoutxName($name, $remoteExerciseId !== '' ? 'exercise-' . $remoteExerciseId : 'body-weight-exercise');
         $gifUrl = trim((string) data_get($exercise, 'gifUrl', ''));
-        $media = $gifUrl !== '' ? $this->storeGifFromUrl($workoutxName, $gifUrl) : ['path' => '', 'url' => ''];
 
         $cache = null;
 
@@ -466,7 +829,7 @@ class WorkoutMediaService
             'workoutx_name' => $workoutxName,
             'query_name' => $name !== '' ? $name : null,
             'remote_gif_url' => $gifUrl !== '' ? $gifUrl : null,
-            'storage_path' => $media['path'] !== '' ? $media['path'] : null,
+            'storage_path' => $cache?->storage_path,
             'payload' => $exercise,
         ];
 
@@ -517,6 +880,28 @@ class WorkoutMediaService
         }
 
         return null;
+    }
+
+    private function workoutxSyncStatusCacheKey(): string
+    {
+        return 'workoutx:catalog_sync_status';
+    }
+
+    private function workoutxGifSyncStatusCacheKey(): string
+    {
+        return 'workoutx:catalog_gif_sync_status';
+    }
+
+    private function pendingCatalogGifsQuery(): Builder
+    {
+        return ExerciseMediaCache::query()
+            ->whereNotNull('remote_exercise_id')
+            ->whereNotNull('remote_gif_url')
+            ->where('remote_gif_url', '!=', '')
+            ->where(function (Builder $query): void {
+                $query->whereNull('storage_path')
+                    ->orWhere('storage_path', '');
+            });
     }
 
     private function extractExerciseData(array $payload): ?array

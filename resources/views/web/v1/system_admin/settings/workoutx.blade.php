@@ -9,6 +9,13 @@
 @endsection
 
 @section('content')
+    @php
+        $syncStatus = $syncStatus ?? [];
+        $syncProgress = $syncStatus['progress'] ?? [];
+        $syncState = $syncStatus['state'] ?? 'idle';
+        $syncLocked = in_array($syncState, ['queued', 'running'], true);
+    @endphp
+
     <div class="card" style="max-width: 860px;">
         <h3>Integracao WorkoutX API</h3>
         <p>Configure a chave da API e os parametros basicos para buscar GIFs e dados dos exercicios direto da WorkoutX.</p>
@@ -40,12 +47,57 @@
                 </div>
             </div>
 
+            <div class="card" style="margin-bottom: 14px; background: #fff; border-style: dashed;">
+                <h3 style="margin-top: 0;">Status da fila de sincronizacao</h3>
+                <p style="margin-bottom: 8px;">
+                    @if ($syncState === 'queued')
+                        <span class="badge warning">Na fila</span>
+                    @elseif ($syncState === 'running')
+                        <span class="badge warning">Em andamento</span>
+                    @elseif ($syncState === 'completed')
+                        <span class="badge success">Concluida</span>
+                    @elseif ($syncState === 'failed')
+                        <span class="badge warning">Falhou</span>
+                    @else
+                        <span class="badge">Parada</span>
+                    @endif
+                </p>
+                <p style="margin-bottom: 8px; color: #475569;">{{ $syncStatus['message'] ?? 'Nenhuma sincronizacao em fila no momento.' }}</p>
+                <div class="form-grid">
+                    <div class="field">
+                        <label>Processados</label>
+                        <strong>{{ number_format((int) ($syncProgress['synced'] ?? 0), 0, ',', '.') }}</strong>
+                    </div>
+                    <div class="field">
+                        <label>Novos</label>
+                        <strong>{{ number_format((int) ($syncProgress['created'] ?? 0), 0, ',', '.') }}</strong>
+                    </div>
+                    <div class="field">
+                        <label>Atualizados</label>
+                        <strong>{{ number_format((int) ($syncProgress['updated'] ?? 0), 0, ',', '.') }}</strong>
+                    </div>
+                    <div class="field">
+                        <label>Sem alteracao</label>
+                        <strong>{{ number_format((int) ($syncProgress['unchanged'] ?? 0), 0, ',', '.') }}</strong>
+                    </div>
+                </div>
+            </div>
+
             <form method="POST" action="{{ route('system-admin.settings.workoutx.sync') }}">
                 @csrf
                 <div class="actions" style="justify-content: flex-start;">
-                    <button type="submit" class="btn btn-primary">Sincronizar catalogo completo</button>
+                    <button type="submit" class="btn btn-primary" @disabled($syncLocked)>
+                        @if ($syncLocked)
+                            Sincronizacao em andamento
+                        @else
+                            Sincronizar catalogo completo
+                        @endif
+                    </button>
                     <a class="btn btn-soft" href="{{ route('system-admin.settings.workoutx.audit') }}">Abrir auditoria</a>
                 </div>
+                @if ($syncLocked)
+                    <small style="display: block; margin-top: 10px; color: #64748b;">O botao fica bloqueado enquanto a fila estiver aguardando ou processando paginas.</small>
+                @endif
             </form>
         </div>
 
@@ -103,6 +155,12 @@
                     <small>Na free tier a documentacao informa maximo de 10 resultados por request.</small>
                 </div>
 
+                <div class="field">
+                    <label for="workoutx_sync_page_delay_seconds">Intervalo entre paginas da sincronizacao (segundos)</label>
+                    <input id="workoutx_sync_page_delay_seconds" name="workoutx_sync_page_delay_seconds" type="number" min="10" max="3600" value="{{ old('workoutx_sync_page_delay_seconds', $settings->get('workoutx.sync_page_delay_seconds', '120')) }}">
+                    <small>Controla o tempo de espera entre uma pagina sincronizada e a proxima na fila.</small>
+                </div>
+
                 <div class="field" style="grid-column: 1 / -1;">
                     <label for="workoutx_allow_fallback">Fallback opcional</label>
                     <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
@@ -121,7 +179,8 @@
                     <li>Auth alternativa: query param api-key</li>
                     <li>Endpoint base de exercicios: /exercises</li>
                     <li>Detalhe por exercicio: /exercises/exercise/:id</li>
-                    <li>Sincronizacao local: salva id, name, gifUrl e payload JSON</li>
+                    <li>Sincronizacao local: salva id, name, gifUrl, storage_path e payload JSON</li>
+                    <li>Fila paginada: processa uma pagina por vez com intervalo configuravel entre requests</li>
                 </ul>
             </div>
 

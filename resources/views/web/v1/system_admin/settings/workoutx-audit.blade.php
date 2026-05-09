@@ -14,6 +14,11 @@
         $rows = $audit['rows'] ?? [];
         $availableFocuses = $audit['available_focuses'] ?? [];
         $pagination = $audit['pagination'] ?? [];
+        $gifCatalogStats = $gifCatalogStats ?? [];
+        $gifSyncStatus = $gifSyncStatus ?? [];
+        $gifSyncProgress = $gifSyncStatus['progress'] ?? [];
+        $gifSyncState = $gifSyncStatus['state'] ?? 'idle';
+        $gifSyncLocked = in_array($gifSyncState, ['queued', 'running'], true);
         $query = request()->query();
     @endphp
 
@@ -34,6 +39,69 @@
                 <label>Pendentes de traducao</label>
                 <strong>{{ number_format((int) ($summary['pending_translation'] ?? 0), 0, ',', '.') }}</strong>
             </div>
+        </div>
+
+        <div class="card" style="margin-top: 16px; background: #fff; border-style: dashed;">
+            <h3 style="margin-top: 0;">Arquivos locais de GIF</h3>
+            <p style="margin-bottom: 10px;">Este job separado varre o remote_gif_url ja salvo no catalogo e grava o arquivo local no storage_path.</p>
+
+            <div class="form-grid" style="margin-bottom: 14px;">
+                <div class="field">
+                    <label>Com remote_gif_url</label>
+                    <strong>{{ number_format((int) ($gifCatalogStats['with_remote_gif_url'] ?? 0), 0, ',', '.') }}</strong>
+                </div>
+                <div class="field">
+                    <label>Salvos localmente</label>
+                    <strong>{{ number_format((int) ($gifCatalogStats['saved_local'] ?? 0), 0, ',', '.') }}</strong>
+                </div>
+                <div class="field">
+                    <label>Pendentes de arquivo local</label>
+                    <strong>{{ number_format((int) ($gifCatalogStats['pending_local_file'] ?? 0), 0, ',', '.') }}</strong>
+                </div>
+            </div>
+
+            <p style="margin-bottom: 8px;">
+                @if ($gifSyncState === 'queued')
+                    <span class="badge warning">Na fila</span>
+                @elseif ($gifSyncState === 'running')
+                    <span class="badge warning">Em andamento</span>
+                @elseif ($gifSyncState === 'completed')
+                    <span class="badge success">Concluida</span>
+                @elseif ($gifSyncState === 'failed')
+                    <span class="badge warning">Falhou</span>
+                @else
+                    <span class="badge">Parada</span>
+                @endif
+            </p>
+            <p style="margin-bottom: 8px; color: #475569;">{{ $gifSyncStatus['message'] ?? 'Nenhum download de GIF em fila no momento.' }}</p>
+
+            <div class="form-grid" style="margin-bottom: 14px;">
+                <div class="field">
+                    <label>Processados</label>
+                    <strong>{{ number_format((int) ($gifSyncProgress['processed'] ?? 0), 0, ',', '.') }}</strong>
+                </div>
+                <div class="field">
+                    <label>Baixados</label>
+                    <strong>{{ number_format((int) ($gifSyncProgress['downloaded'] ?? 0), 0, ',', '.') }}</strong>
+                </div>
+                <div class="field">
+                    <label>Falhas</label>
+                    <strong>{{ number_format((int) ($gifSyncProgress['failed'] ?? 0), 0, ',', '.') }}</strong>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('system-admin.settings.workoutx.audit.gifs-sync') }}">
+                @csrf
+                <div class="actions" style="justify-content: flex-start;">
+                    <button type="submit" class="btn btn-primary" @disabled($gifSyncLocked)>
+                        @if ($gifSyncLocked)
+                            Download de GIFs em andamento
+                        @else
+                            Baixar GIFs pendentes
+                        @endif
+                    </button>
+                </div>
+            </form>
         </div>
 
         <form method="GET" action="{{ route('system-admin.settings.workoutx.audit') }}" class="content-stack" style="margin-top: 16px;">

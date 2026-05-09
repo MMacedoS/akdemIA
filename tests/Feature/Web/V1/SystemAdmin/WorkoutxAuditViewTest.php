@@ -39,6 +39,7 @@ class WorkoutxAuditViewTest extends TestCase
             ->get(route('system-admin.settings.workoutx.audit'));
 
         $response->assertOk();
+        $response->assertSee('Baixar GIFs pendentes');
         $response->assertSee('Salvo local');
         $response->assertSee('exercises/barbell-bench-press.gif');
         $response->assertSee('storage/exercises/barbell-bench-press.gif');

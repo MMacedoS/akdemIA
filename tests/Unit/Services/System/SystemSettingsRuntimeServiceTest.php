@@ -80,4 +80,20 @@ class SystemSettingsRuntimeServiceTest extends TestCase
         $this->assertSame(2, config('workouts.credits.reactivate'));
         $this->assertSame(45, config('workouts.active_days'));
     }
+
+    public function test_apply_maps_workoutx_sync_delay_to_runtime_config(): void
+    {
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'workoutx.sync_page_delay_seconds',
+            'value' => '180',
+            'is_secret' => false,
+        ]);
+
+        config()->set('services.workoutx.sync_page_delay_seconds', 120);
+
+        app(SystemSettingsRuntimeService::class)->apply();
+
+        $this->assertSame(180, config('services.workoutx.sync_page_delay_seconds'));
+    }
 }

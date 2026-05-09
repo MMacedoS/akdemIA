@@ -361,15 +361,6 @@ class WorkoutMediaServiceTest extends TestCase
                     'gifUrl' => 'https://cdn.workoutx.test/cable-fly.gif',
                 ],
             ], 200),
-            'https://cdn.workoutx.test/barbell-bench-press.gif' => Http::response('gif-binary-1', 200, [
-                'Content-Type' => 'image/gif',
-            ]),
-            'https://cdn.workoutx.test/incline-dumbbell-press.gif' => Http::response('gif-binary-2', 200, [
-                'Content-Type' => 'image/gif',
-            ]),
-            'https://cdn.workoutx.test/cable-fly.gif' => Http::response('gif-binary-3', 200, [
-                'Content-Type' => 'image/gif',
-            ]),
         ]);
 
         $service = new WorkoutMediaService();
@@ -386,27 +377,86 @@ class WorkoutMediaServiceTest extends TestCase
             'remote_exercise_id' => '0025',
             'workoutx_name' => 'barbell-bench-press',
             'remote_gif_url' => 'https://cdn.workoutx.test/barbell-bench-press.gif',
-            'storage_path' => 'exercises/barbell-bench-press.gif',
         ]);
         $this->assertDatabaseHas('exercise_media_caches', [
             'remote_exercise_id' => '0026',
             'workoutx_name' => 'incline-dumbbell-press',
-            'storage_path' => 'exercises/incline-dumbbell-press.gif',
         ]);
         $this->assertDatabaseHas('exercise_media_caches', [
             'remote_exercise_id' => '0027',
             'workoutx_name' => 'cable-fly',
-            'storage_path' => 'exercises/cable-fly.gif',
+        ]);
+
+        $this->assertFalse(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
+        $this->assertFalse(Storage::disk('public')->exists('exercises/incline-dumbbell-press.gif'));
+        $this->assertFalse(Storage::disk('public')->exists('exercises/cable-fly.gif'));
+
+        Http::assertSentCount(2);
+        Http::assertSent(static function ($request) {
+            return $request->hasHeader('X-WorkoutX-Key', 'secret-from-settings');
+        });
+    }
+
+    public function test_sync_pending_catalog_gifs_downloads_pending_files_and_updates_storage_path(): void
+    {
+        $this->configureIsolatedPublicDisk();
+
+        ExerciseMediaCache::query()->create([
+            'remote_exercise_id' => '0025',
+            'workoutx_name' => 'barbell-bench-press',
+            'query_name' => 'Barbell Bench Press',
+            'remote_gif_url' => 'https://cdn.workoutx.test/barbell-bench-press.gif',
+            'payload' => [
+                'id' => '0025',
+                'name' => 'Barbell Bench Press',
+            ],
+        ]);
+
+        ExerciseMediaCache::query()->create([
+            'remote_exercise_id' => '0026',
+            'workoutx_name' => 'incline-dumbbell-press',
+            'query_name' => 'Incline Dumbbell Press',
+            'remote_gif_url' => 'https://cdn.workoutx.test/incline-dumbbell-press.gif',
+            'payload' => [
+                'id' => '0026',
+                'name' => 'Incline Dumbbell Press',
+            ],
+        ]);
+
+        config()->set('services.workoutx.request_timeout', 5);
+
+        Http::fake([
+            'https://cdn.workoutx.test/barbell-bench-press.gif' => Http::response('gif-binary-1', 200, [
+                'Content-Type' => 'image/gif',
+            ]),
+            'https://cdn.workoutx.test/incline-dumbbell-press.gif' => Http::response('gif-binary-2', 200, [
+                'Content-Type' => 'image/gif',
+            ]),
+        ]);
+
+        $service = new WorkoutMediaService();
+
+        $result = $service->syncPendingCatalogGifs(null, 10);
+
+        $this->assertSame(2, $result['processed']);
+        $this->assertSame(2, $result['downloaded']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertSame(0, $result['pending_local_file']);
+        $this->assertFalse($result['has_more']);
+
+        $this->assertDatabaseHas('exercise_media_caches', [
+            'remote_exercise_id' => '0025',
+            'storage_path' => 'exercises/barbell-bench-press.gif',
+        ]);
+        $this->assertDatabaseHas('exercise_media_caches', [
+            'remote_exercise_id' => '0026',
+            'storage_path' => 'exercises/incline-dumbbell-press.gif',
         ]);
 
         $this->assertTrue(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
         $this->assertTrue(Storage::disk('public')->exists('exercises/incline-dumbbell-press.gif'));
-        $this->assertTrue(Storage::disk('public')->exists('exercises/cable-fly.gif'));
 
-        Http::assertSentCount(5);
-        Http::assertSent(static function ($request) {
-            return $request->hasHeader('X-WorkoutX-Key', 'secret-from-settings');
-        });
+        Http::assertSentCount(2);
     }
 
     public function test_sync_exercise_catalog_requires_api_key(): void
@@ -421,5 +471,52 @@ class WorkoutMediaServiceTest extends TestCase
         $this->expectExceptionMessage('Defina a API Key da WorkoutX antes de sincronizar o catalogo.');
 
         $service->syncExerciseCatalog();
+    }
+
+    public function test_sync_exercise_catalog_page_returns_next_offset_and_has_more(): void
+    {
+        $this->configureIsolatedPublicDisk();
+
+        config()->set('services.workoutx.enabled', true);
+        config()->set('services.workoutx.api_base_url', 'https://api.workoutxapp.com/v1');
+        config()->set('services.workoutx.api_key', 'secret-from-settings');
+        config()->set('services.workoutx.auth_mode', 'header');
+        config()->set('services.workoutx.request_timeout', 5);
+
+        Http::fake([
+            'https://api.workoutxapp.com/v1/exercises?limit=2&offset=4' => Http::response([
+                [
+                    'id' => '0029',
+                    'name' => 'Lat Pulldown',
+                    'gifUrl' => 'https://cdn.workoutx.test/lat-pulldown.gif',
+                ],
+                [
+                    'id' => '0030',
+                    'name' => 'Seated Row',
+                    'gifUrl' => 'https://cdn.workoutx.test/seated-row.gif',
+                ],
+            ], 200),
+        ]);
+
+        $service = new WorkoutMediaService();
+
+        $result = $service->syncExerciseCatalogPage(4, 2);
+
+        $this->assertSame(4, $result['offset']);
+        $this->assertSame(2, $result['limit']);
+        $this->assertSame(2, $result['page_count']);
+        $this->assertSame(2, $result['synced']);
+        $this->assertTrue($result['has_more']);
+        $this->assertSame(6, $result['next_offset']);
+        $this->assertDatabaseHas('exercise_media_caches', [
+            'remote_exercise_id' => '0029',
+            'remote_gif_url' => 'https://cdn.workoutx.test/lat-pulldown.gif',
+        ]);
+        $this->assertDatabaseHas('exercise_media_caches', [
+            'remote_exercise_id' => '0030',
+            'remote_gif_url' => 'https://cdn.workoutx.test/seated-row.gif',
+        ]);
+        $this->assertFalse(Storage::disk('public')->exists('exercises/lat-pulldown.gif'));
+        $this->assertFalse(Storage::disk('public')->exists('exercises/seated-row.gif'));
     }
 }
