@@ -12,9 +12,11 @@ use App\Models\User;
 use App\Models\Workout\Workout;
 use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
 use App\Services\Credits\CreditService;
+use App\Services\Workouts\ExerciseCatalogService;
 use App\Services\Workouts\WorkoutLifecycleService;
 use App\Services\Workouts\WorkoutMediaService;
 use App\Services\Workouts\WorkoutRulesService;
+use Illuminate\Http\JsonResponse;
 use App\Support\FormPatterns;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,6 +28,7 @@ class StudentsController extends Controller
     public function __construct(
         private readonly TraineeStudentRepositoryContract $repository,
         private readonly CreditService $creditService,
+        private readonly ExerciseCatalogService $exerciseCatalogService,
         private readonly WorkoutMediaService $workoutMediaService,
         private readonly WorkoutRulesService $workoutRulesService,
         private readonly WorkoutLifecycleService $workoutLifecycleService,
@@ -270,6 +273,23 @@ class StudentsController extends Controller
             'student' => $student,
             'workout' => $this->hydrateWorkoutMedia($workout),
         ]);
+    }
+
+    public function searchWorkoutCatalog(Request $request, int $id): JsonResponse
+    {
+        [$tenant, $trainee] = $this->resolveContext($request);
+        $tenant = $this->requireWorkoutTenant($tenant);
+        $this->repository->findForTrainee($tenant, $trainee->id, $id);
+
+        $result = $this->exerciseCatalogService->listForInternalApi(
+            focus: $request->query('focus'),
+            search: $request->query('search'),
+            translationStatus: null,
+            limit: (int) $request->query('limit', 10),
+            offset: 0,
+        );
+
+        return response()->json($result);
     }
 
     public function regenerateWorkout(Request $request, int $id, int $workoutId): RedirectResponse

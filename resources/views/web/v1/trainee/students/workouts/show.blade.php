@@ -19,6 +19,7 @@
             'workout' => $workout,
             'editable' => true,
             'updateRoute' => route('trainee.students.workouts.board.update', [$student->id, $workout->id]),
+            'catalogSearchRoute' => route('trainee.students.workouts.catalog.search', $student->id),
             'regenerateRoute' => route('trainee.students.workouts.regenerate', [$student->id, $workout->id]),
             'reuseRoute' => route('trainee.students.workouts.reuse', [$student->id, $workout->id]),
             'activateRoute' => route('trainee.students.workouts.activate', [$student->id, $workout->id]),

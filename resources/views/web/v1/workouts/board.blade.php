@@ -218,6 +218,93 @@
         max-height: 65vh;
         object-fit: contain;
     }
+
+    .catalog-picker {
+        min-width: 280px;
+        flex: 1 1 360px;
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid #dbe3ef;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .catalog-picker input {
+        width: 100%;
+    }
+
+    .catalog-picker-selection {
+        min-height: 52px;
+        border: 1px dashed #c6d4e6;
+        border-radius: 14px;
+        background: #f8fafc;
+        padding: 10px 12px;
+        display: grid;
+        gap: 4px;
+    }
+
+    .catalog-picker-selection strong {
+        font-size: 14px;
+        color: #102033;
+    }
+
+    .catalog-picker-selection small {
+        color: #5f7188;
+    }
+
+    .catalog-picker-selection.empty {
+        display: flex;
+        align-items: center;
+        color: #6b7280;
+    }
+
+    .catalog-picker-results {
+        display: grid;
+        gap: 8px;
+        max-height: 240px;
+        overflow: auto;
+        padding-right: 2px;
+    }
+
+    .catalog-picker-results:empty {
+        display: none;
+    }
+
+    .catalog-picker-option {
+        width: 100%;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        background: #fff;
+        padding: 10px 12px;
+        text-align: left;
+        display: grid;
+        gap: 4px;
+        cursor: pointer;
+        transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .catalog-picker-option:hover,
+    .catalog-picker-option.active,
+    .catalog-picker-option:focus-visible {
+        border-color: #7aa2d8;
+        box-shadow: 0 10px 24px rgba(27, 67, 120, 0.08);
+        transform: translateY(-1px);
+        outline: none;
+    }
+
+    .catalog-picker-option strong {
+        font-size: 14px;
+        color: #102033;
+    }
+
+    .catalog-picker-option small {
+        color: #64748b;
+    }
+
+    .catalog-picker-status {
+        color: #5f7188;
+    }
 </style>
 
 <div class="card" id="plan-actions-root">
@@ -282,7 +369,12 @@
                     <select id="exercise-day-select" @disabled(! $isWorkoutActive)>
                         <option value="">Escolha o dia</option>
                     </select>
-                    <input id="exercise-name-input" type="text" placeholder="Nome do exercicio">
+                    <div class="catalog-picker">
+                        <input id="exercise-search-input" type="text" placeholder="Buscar exercicio no catalogo" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="exercise-results" aria-activedescendant="">
+                        <div id="exercise-selected-card" class="catalog-picker-selection empty">Nenhum exercicio selecionado.</div>
+                        <div id="exercise-results" class="catalog-picker-results" role="listbox"></div>
+                        <small id="exercise-search-status" class="catalog-picker-status">Digite pelo menos 2 letras para buscar no catalogo.</small>
+                    </div>
                     <input id="exercise-sets-input" type="number" min="1" max="10" value="3" placeholder="Series">
                     <input id="exercise-reps-input" type="text" value="10-12" placeholder="Reps">
                     <input id="exercise-rest-input" type="text" value="60s" placeholder="Descanso">
@@ -477,6 +569,7 @@
             const initialWeeklyPlan = @json($weeklyPlan, JSON_UNESCAPED_UNICODE);
             const weeklyPlan = Array.isArray(initialWeeklyPlan) ? initialWeeklyPlan : [];
             const isEditable = {{ $isWorkoutActive ? 'true' : 'false' }};
+            const catalogSearchRoute = @json($catalogSearchRoute ?? '');
 
             const columnsContainer = document.getElementById('manual-board-columns');
             const daySelect = document.getElementById('exercise-day-select');
@@ -486,7 +579,10 @@
             const newDayFocusInput = document.getElementById('new-day-focus');
             const addDayButton = document.getElementById('add-day-btn');
 
-            const exerciseNameInput = document.getElementById('exercise-name-input');
+            const exerciseSearchInput = document.getElementById('exercise-search-input');
+            const exerciseResults = document.getElementById('exercise-results');
+            const exerciseSelectedCard = document.getElementById('exercise-selected-card');
+            const exerciseSearchStatus = document.getElementById('exercise-search-status');
             const exerciseSetsInput = document.getElementById('exercise-sets-input');
             const exerciseRepsInput = document.getElementById('exercise-reps-input');
             const exerciseRestInput = document.getElementById('exercise-rest-input');
@@ -494,6 +590,262 @@
             const addExerciseButton = document.getElementById('add-exercise-btn');
 
             const boardForm = document.getElementById('manual-board-form');
+            let catalogSearchAbortController = null;
+            let selectedCatalogExercise = null;
+            let latestCatalogResults = [];
+            let highlightedCatalogIndex = -1;
+            let searchDebounceTimer = null;
+
+            function setResultsExpanded(isExpanded) {
+                if (!exerciseSearchInput) {
+                    return;
+                }
+
+                exerciseSearchInput.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            }
+
+            function updateHighlightedOption(scrollIntoView) {
+                if (!exerciseResults) {
+                    return;
+                }
+
+                const optionElements = Array.from(exerciseResults.querySelectorAll('.catalog-picker-option'));
+
+                optionElements.forEach(function (optionElement, index) {
+                    const isActive = index === highlightedCatalogIndex;
+                    optionElement.classList.toggle('active', isActive);
+
+                    if (isActive) {
+                        exerciseSearchInput?.setAttribute('aria-activedescendant', optionElement.id);
+
+                        if (scrollIntoView) {
+                            optionElement.scrollIntoView({ block: 'nearest' });
+                        }
+                    }
+                });
+
+                if (highlightedCatalogIndex < 0 || highlightedCatalogIndex >= optionElements.length) {
+                    exerciseSearchInput?.setAttribute('aria-activedescendant', '');
+                }
+            }
+
+            function resetCatalogResults() {
+                latestCatalogResults = [];
+                highlightedCatalogIndex = -1;
+                setResultsExpanded(false);
+                exerciseSearchInput?.setAttribute('aria-activedescendant', '');
+            }
+
+            function selectCatalogExercise(exercise) {
+                selectedCatalogExercise = exercise;
+                renderSelectedExercise(selectedCatalogExercise);
+
+                if (exerciseResults) {
+                    exerciseResults.innerHTML = '';
+                }
+
+                resetCatalogResults();
+
+                if (exerciseSearchStatus) {
+                    exerciseSearchStatus.textContent = 'Exercicio selecionado. Ajuste series, reps e descanso para adicionar.';
+                }
+            }
+
+            function renderSelectedExercise(exercise) {
+                if (!exerciseSelectedCard) {
+                    return;
+                }
+
+                if (!exercise) {
+                    exerciseSelectedCard.classList.add('empty');
+                    exerciseSelectedCard.innerHTML = 'Nenhum exercicio selecionado.';
+                    return;
+                }
+
+                exerciseSelectedCard.classList.remove('empty');
+                exerciseSelectedCard.innerHTML = '';
+
+                const title = document.createElement('strong');
+                title.textContent = String(exercise.name || 'Exercicio').trim();
+
+                const meta = document.createElement('small');
+                meta.textContent = [
+                    String(exercise.focus || '').trim(),
+                    String(exercise.equipment || '').trim(),
+                    String(exercise.workoutx_name || '').trim(),
+                ].filter(function (part) {
+                    return part !== '';
+                }).join(' | ');
+
+                exerciseSelectedCard.appendChild(title);
+
+                if (meta.textContent !== '') {
+                    exerciseSelectedCard.appendChild(meta);
+                }
+            }
+
+            function setExerciseOptions(items) {
+                if (!exerciseResults) {
+                    return;
+                }
+
+                exerciseResults.innerHTML = '';
+                latestCatalogResults = items.slice();
+                highlightedCatalogIndex = items.length > 0 ? 0 : -1;
+                setResultsExpanded(items.length > 0);
+
+                items.forEach(function (item) {
+                    const option = document.createElement('button');
+                    option.type = 'button';
+                    option.className = 'catalog-picker-option';
+
+                    const catalogExercise = {
+                        id: String(item.id || '').trim(),
+                        name: String(item.localized_name_pt_br || item.name || '').trim(),
+                        workoutx_name: String(item.workoutx_name || '').trim(),
+                        focus: String(item.focus || '').trim(),
+                        equipment: String(item.equipment || '').trim(),
+                    };
+
+                    option.id = 'exercise-result-option-' + catalogExercise.id + '-' + exerciseResults.childElementCount;
+                    option.setAttribute('role', 'option');
+                    option.setAttribute('aria-selected', 'false');
+
+                    const title = document.createElement('strong');
+                    title.textContent = catalogExercise.name || 'Exercicio';
+
+                    const meta = document.createElement('small');
+                    meta.textContent = [
+                        catalogExercise.focus,
+                        catalogExercise.equipment,
+                        catalogExercise.workoutx_name,
+                    ].filter(function (part) {
+                        return part !== '';
+                    }).join(' | ');
+
+                    option.appendChild(title);
+
+                    if (meta.textContent !== '') {
+                        option.appendChild(meta);
+                    }
+
+                    option.addEventListener('click', function () {
+                        selectCatalogExercise(catalogExercise);
+                    });
+
+                    exerciseResults.appendChild(option);
+                });
+
+                updateHighlightedOption(false);
+            }
+
+            async function searchCatalog(term) {
+                if (!exerciseResults || !exerciseSearchStatus || String(catalogSearchRoute || '').trim() === '') {
+                    return;
+                }
+
+                const trimmedTerm = String(term || '').trim();
+
+                if (trimmedTerm.length < 2) {
+                    selectedCatalogExercise = null;
+                    renderSelectedExercise(null);
+                    setExerciseOptions([]);
+                    resetCatalogResults();
+                    exerciseSearchStatus.textContent = 'Digite pelo menos 2 letras para buscar no catalogo.';
+                    return;
+                }
+
+                if (catalogSearchAbortController) {
+                    catalogSearchAbortController.abort();
+                }
+
+                catalogSearchAbortController = new AbortController();
+                exerciseSearchStatus.textContent = 'Buscando exercicios...';
+
+                try {
+                    const response = await fetch(catalogSearchRoute + '?search=' + encodeURIComponent(trimmedTerm) + '&limit=12', {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        signal: catalogSearchAbortController.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Falha ao buscar catalogo');
+                    }
+
+                    const payload = await response.json();
+                    const items = Array.isArray(payload.data) ? payload.data : [];
+
+                    setExerciseOptions(items);
+                    exerciseSearchStatus.textContent = items.length > 0
+                        ? items.length + ' exercicio(s) encontrado(s).'
+                        : 'Nenhum exercicio encontrado para esta busca.';
+                } catch (error) {
+                    if (error && error.name === 'AbortError') {
+                        return;
+                    }
+
+                    setExerciseOptions([]);
+                    resetCatalogResults();
+                    exerciseSearchStatus.textContent = 'Nao foi possivel buscar o catalogo agora.';
+                }
+            }
+
+            function scheduleCatalogSearch(term) {
+                if (searchDebounceTimer) {
+                    clearTimeout(searchDebounceTimer);
+                }
+
+                const trimmedTerm = String(term || '').trim();
+
+                if (trimmedTerm.length < 2) {
+                    searchCatalog(trimmedTerm);
+                    return;
+                }
+
+                if (exerciseSearchStatus) {
+                    exerciseSearchStatus.textContent = 'Digitando...';
+                }
+
+                searchDebounceTimer = setTimeout(function () {
+                    searchCatalog(trimmedTerm);
+                }, 220);
+            }
+
+            function moveHighlightedCatalogOption(direction) {
+                if (latestCatalogResults.length === 0) {
+                    return;
+                }
+
+                if (highlightedCatalogIndex < 0) {
+                    highlightedCatalogIndex = 0;
+                } else {
+                    highlightedCatalogIndex = (highlightedCatalogIndex + direction + latestCatalogResults.length) % latestCatalogResults.length;
+                }
+
+                updateHighlightedOption(true);
+            }
+
+            function selectHighlightedCatalogOption() {
+                if (highlightedCatalogIndex < 0 || highlightedCatalogIndex >= latestCatalogResults.length) {
+                    return;
+                }
+
+                const highlightedExercise = latestCatalogResults[highlightedCatalogIndex];
+                if (!highlightedExercise) {
+                    return;
+                }
+
+                selectCatalogExercise({
+                    id: String(highlightedExercise.id || '').trim(),
+                    name: String(highlightedExercise.localized_name_pt_br || highlightedExercise.name || '').trim(),
+                    workoutx_name: String(highlightedExercise.workoutx_name || '').trim(),
+                    focus: String(highlightedExercise.focus || '').trim(),
+                    equipment: String(highlightedExercise.equipment || '').trim(),
+                });
+            }
 
             function sanitizeExercise(exercise) {
                 const sets = Number(exercise.sets || 3);
@@ -517,6 +869,7 @@
                     rest: String(exercise.rest || '60s').trim(),
                     notes: String(exercise.notes || '').trim(),
                     steps: steps,
+                    remote_exercise_id: String(exercise.remote_exercise_id || '').trim(),
                     workoutx_name: String(exercise.workoutx_name || '').trim(),
                     exercise_media_path: String(exercise.exercise_media_path || '').trim(),
                     exercise_media_url: String(exercise.exercise_media_url || '').trim(),
@@ -802,7 +1155,7 @@
                         return;
                     }
 
-                    const name = String(exerciseNameInput.value || '').trim();
+                    const name = String(selectedCatalogExercise && selectedCatalogExercise.name ? selectedCatalogExercise.name : '').trim();
                     if (name === '') {
                         return;
                     }
@@ -815,7 +1168,8 @@
                         rest: String(exerciseRestInput.value || '60s'),
                         notes: '',
                         steps: [],
-                        workoutx_name: '',
+                        remote_exercise_id: String(selectedCatalogExercise && selectedCatalogExercise.id ? selectedCatalogExercise.id : '').trim(),
+                        workoutx_name: String(selectedCatalogExercise && selectedCatalogExercise.workoutx_name ? selectedCatalogExercise.workoutx_name : '').trim(),
                         exercise_media_path: '',
                         exercise_media_url: '',
                         illustration_svg: '',
@@ -823,7 +1177,17 @@
 
                     weeklyPlan[dayIndex].exercises.push(newExercise);
 
-                    exerciseNameInput.value = '';
+                    if (exerciseSearchInput) {
+                        exerciseSearchInput.value = '';
+                    }
+
+                    selectedCatalogExercise = null;
+                    renderSelectedExercise(null);
+                    setExerciseOptions([]);
+                    resetCatalogResults();
+                    if (exerciseSearchStatus) {
+                        exerciseSearchStatus.textContent = 'Digite pelo menos 2 letras para buscar no catalogo.';
+                    }
                     exerciseSetsInput.value = '3';
                     exerciseRepsInput.value = '10-12';
                     exerciseRestInput.value = '60s';
@@ -839,7 +1203,66 @@
                 });
             }
 
+            if (exerciseSearchInput) {
+                exerciseSearchInput.addEventListener('input', function (event) {
+                    scheduleCatalogSearch(event.target.value);
+                });
+
+                exerciseSearchInput.addEventListener('keydown', function (event) {
+                    if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        moveHighlightedCatalogOption(1);
+                        return;
+                    }
+
+                    if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        moveHighlightedCatalogOption(-1);
+                        return;
+                    }
+
+                    if (event.key === 'Enter' && latestCatalogResults.length > 0) {
+                        event.preventDefault();
+                        selectHighlightedCatalogOption();
+                        return;
+                    }
+
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        if (exerciseResults) {
+                            exerciseResults.innerHTML = '';
+                        }
+                        resetCatalogResults();
+                        if (exerciseSearchStatus) {
+                            exerciseSearchStatus.textContent = 'Busca fechada.';
+                        }
+                    }
+                });
+
+                exerciseSearchInput.addEventListener('focus', function () {
+                    if (latestCatalogResults.length > 0) {
+                        setResultsExpanded(true);
+                        updateHighlightedOption(false);
+                    }
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                const pickerRoot = event.target instanceof Node ? event.target.closest('.catalog-picker') : null;
+                if (pickerRoot) {
+                    return;
+                }
+
+                if (exerciseResults) {
+                    exerciseResults.innerHTML = '';
+                }
+
+                resetCatalogResults();
+            });
+
             renderBoard();
+            renderSelectedExercise(null);
+            setExerciseOptions([]);
         })();
     </script>
 @endif

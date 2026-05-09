@@ -110,6 +110,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/students/{id}', [TraineeStudentsController::class, 'show'])->name('students.show');
         Route::post('/students/{id}/workouts/generate', [TraineeStudentsController::class, 'generateWorkout'])->name('students.workouts.generate');
         Route::get('/students/{id}/workouts/{workoutId}', [TraineeStudentsController::class, 'showWorkout'])->name('students.workouts.show');
+        Route::get('/students/{id}/workouts/catalog/exercises', [TraineeStudentsController::class, 'searchWorkoutCatalog'])->name('students.workouts.catalog.search');
         Route::post('/students/{id}/workouts/{workoutId}/reuse', [TraineeStudentsController::class, 'reuseWorkout'])->name('students.workouts.reuse');
         Route::post('/students/{id}/workouts/{workoutId}/activate', [TraineeStudentsController::class, 'activateWorkout'])->name('students.workouts.activate');
         Route::post('/students/{id}/workouts/{workoutId}/inactivate', [TraineeStudentsController::class, 'inactivateWorkout'])->name('students.workouts.inactivate');
@@ -126,6 +127,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/students/{id}', [TrainerStudentsController::class, 'show'])->name('students.show');
         Route::post('/students/{id}/workouts/generate', [TrainerStudentsController::class, 'generateWorkout'])->name('students.workouts.generate');
         Route::get('/students/{id}/workouts/{workoutId}', [TrainerStudentsController::class, 'showWorkout'])->name('students.workouts.show');
+        Route::get('/students/{id}/workouts/catalog/exercises', [TrainerStudentsController::class, 'searchWorkoutCatalog'])->name('students.workouts.catalog.search');
         Route::post('/students/{id}/workouts/{workoutId}/reuse', [TrainerStudentsController::class, 'reuseWorkout'])->name('students.workouts.reuse');
         Route::post('/students/{id}/workouts/{workoutId}/activate', [TrainerStudentsController::class, 'activateWorkout'])->name('students.workouts.activate');
         Route::post('/students/{id}/workouts/{workoutId}/inactivate', [TrainerStudentsController::class, 'inactivateWorkout'])->name('students.workouts.inactivate');

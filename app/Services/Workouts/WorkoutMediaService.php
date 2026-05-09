@@ -28,9 +28,10 @@ class WorkoutMediaService
         }
 
         $isEnabled = $this->isEnabled();
+        $catalogLookup = $this->buildCatalogLookupContext($weeklyPlan);
 
         $normalizedPlan = collect($weeklyPlan)
-            ->map(function ($dayPlan) use ($isEnabled) {
+            ->map(function ($dayPlan) use ($isEnabled, $catalogLookup) {
                 if (! is_array($dayPlan)) {
                     return $dayPlan;
                 }
@@ -42,7 +43,7 @@ class WorkoutMediaService
                 }
 
                 data_set($dayPlan, 'exercises', collect($exercises)
-                    ->map(function ($exercise) use ($isEnabled) {
+                    ->map(function ($exercise) use ($isEnabled, $catalogLookup) {
                         if (! is_array($exercise)) {
                             return $exercise;
                         }
@@ -56,7 +57,7 @@ class WorkoutMediaService
 
                         data_set($exercise, 'steps', $steps);
 
-                        $catalogExercise = $this->resolveCatalogExerciseForPlanExercise($exercise);
+                        $catalogExercise = $this->resolveCatalogExerciseForPlanExercise($exercise, $catalogLookup);
 
                         $displayName = $this->resolveExerciseDisplayName($exercise, $catalogExercise);
 
@@ -103,6 +104,8 @@ class WorkoutMediaService
         }
 
         $isEnabled = $this->isEnabled();
+    $catalogLookup = $this->buildCatalogLookupContext($weeklyPlan);
+
         foreach ($weeklyPlan as $dayPlan) {
             $exercises = data_get($dayPlan, 'exercises', []);
 
@@ -126,7 +129,7 @@ class WorkoutMediaService
                 }
 
                 if ($isEnabled && trim((string) data_get($exercise, 'remote_exercise_id', '')) === '') {
-                    $catalogExercise = $this->resolveCatalogExerciseForPlanExercise($exercise);
+                    $catalogExercise = $this->resolveCatalogExerciseForPlanExercise($exercise, $catalogLookup);
 
                     if ($catalogExercise instanceof ExerciseMediaCache && trim((string) $catalogExercise->remote_exercise_id) !== '') {
                         return true;
@@ -1096,14 +1099,100 @@ class WorkoutMediaService
         return $this->normalizeWorkoutxName($value, $value);
     }
 
-    private function resolveCatalogExerciseForPlanExercise(array $exercise): ?ExerciseMediaCache
+    private function buildCatalogLookupContext(array $weeklyPlan): array
+    {
+        $remoteExerciseIds = [];
+        $workoutxNames = [];
+
+        foreach ($weeklyPlan as $dayPlan) {
+            $exercises = data_get($dayPlan, 'exercises', []);
+
+            if (! is_array($exercises)) {
+                continue;
+            }
+
+            foreach ($exercises as $exercise) {
+                if (! is_array($exercise)) {
+                    continue;
+                }
+
+                $remoteExerciseId = trim((string) data_get($exercise, 'remote_exercise_id', ''));
+                if ($remoteExerciseId !== '') {
+                    $remoteExerciseIds[] = $remoteExerciseId;
+                }
+
+                $workoutxName = $this->normalizeWorkoutxName(
+                    data_get($exercise, 'workoutx_name', data_get($exercise, 'workoutx_lookup.name', '')),
+                    trim((string) data_get($exercise, 'name', 'Exercicio')),
+                );
+
+                if ($workoutxName !== '') {
+                    $workoutxNames[] = $workoutxName;
+                }
+            }
+        }
+
+        if ($remoteExerciseIds === [] && $workoutxNames === []) {
+            return [
+                'by_remote_exercise_id' => [],
+                'by_workoutx_name' => [],
+            ];
+        }
+
+        $catalogExercises = ExerciseMediaCache::query()
+            ->where(function (Builder $query) use ($remoteExerciseIds, $workoutxNames): void {
+                if ($remoteExerciseIds !== []) {
+                    $query->whereIn('remote_exercise_id', array_values(array_unique($remoteExerciseIds)));
+                }
+
+                if ($workoutxNames !== []) {
+                    if ($remoteExerciseIds !== []) {
+                        $query->orWhereIn('workoutx_name', array_values(array_unique($workoutxNames)));
+                    } else {
+                        $query->whereIn('workoutx_name', array_values(array_unique($workoutxNames)));
+                    }
+                }
+            })
+            ->get();
+
+        $byRemoteExerciseId = [];
+        $byWorkoutxName = [];
+
+        foreach ($catalogExercises as $catalogExercise) {
+            if (! $catalogExercise instanceof ExerciseMediaCache) {
+                continue;
+            }
+
+            $remoteExerciseId = trim((string) $catalogExercise->remote_exercise_id);
+            if ($remoteExerciseId !== '') {
+                $byRemoteExerciseId[$remoteExerciseId] = $catalogExercise;
+            }
+
+            $workoutxName = trim((string) $catalogExercise->workoutx_name);
+            if ($workoutxName !== '') {
+                $byWorkoutxName[$workoutxName] = $catalogExercise;
+            }
+        }
+
+        return [
+            'by_remote_exercise_id' => $byRemoteExerciseId,
+            'by_workoutx_name' => $byWorkoutxName,
+        ];
+    }
+
+    private function resolveCatalogExerciseForPlanExercise(array $exercise, array $catalogLookup = []): ?ExerciseMediaCache
     {
         $remoteExerciseId = trim((string) data_get($exercise, 'remote_exercise_id', ''));
 
+        $catalogByRemoteExerciseId = is_array($catalogLookup['by_remote_exercise_id'] ?? null)
+            ? $catalogLookup['by_remote_exercise_id']
+            : [];
+        $catalogByWorkoutxName = is_array($catalogLookup['by_workoutx_name'] ?? null)
+            ? $catalogLookup['by_workoutx_name']
+            : [];
+
         if ($remoteExerciseId !== '') {
-            $cache = ExerciseMediaCache::query()
-                ->where('remote_exercise_id', $remoteExerciseId)
-                ->first();
+            $cache = $catalogByRemoteExerciseId[$remoteExerciseId] ?? null;
 
             if ($cache instanceof ExerciseMediaCache) {
                 return $cache;
@@ -1115,9 +1204,9 @@ class WorkoutMediaService
             trim((string) data_get($exercise, 'name', 'Exercicio')),
         );
 
-        return ExerciseMediaCache::query()
-            ->where('workoutx_name', $workoutxName)
-            ->first();
+        $cache = $catalogByWorkoutxName[$workoutxName] ?? null;
+
+        return $cache instanceof ExerciseMediaCache ? $cache : null;
     }
 
     private function resolveCachedMedia(ExerciseMediaCache $cache): array

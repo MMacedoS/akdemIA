@@ -63,17 +63,82 @@ class MercadoPagoService
     {
         $order = $this->getOrder($orderId);
 
-        if (! $this->isPixPaymentApproved($order)) {
+        return $this->syncApprovedPayment($order);
+    }
+
+    public function syncPaymentById(string $paymentId): bool
+    {
+        $payment = $this->getPayment($paymentId);
+
+        return $this->syncApprovedPayment($payment);
+    }
+
+    public function syncNotification(string $resourceType, string $resourceId, array $payload = []): bool
+    {
+        return match (strtolower(trim($resourceType))) {
+            'payment' => $this->syncPaymentById($resourceId),
+            'order' => $this->hasEmbeddedOrderData($payload, $resourceId)
+                ? $this->syncOrderPayload($payload)
+                : $this->syncOrderById($resourceId),
+            default => $this->syncOrderById($resourceId),
+        };
+    }
+
+    public function syncOrderPayload(array $payload): bool
+    {
+        return $this->syncApprovedPayment($this->normalizePixOrderResponse($payload));
+    }
+
+    public function getPayment(string $paymentId): array
+    {
+        $accessToken = trim($this->paymentConfigService->apiToken());
+
+        if ($accessToken === '') {
+            $accessToken = trim((string) config('services.mercadopago.token', ''));
+        }
+
+        if ($accessToken === '') {
+            throw new RuntimeException('Mercado Pago access token is missing.');
+        }
+
+        $baseUrl = rtrim($this->paymentConfigService->apiBaseUrl(), '/');
+
+        if ($baseUrl === '') {
+            $baseUrl = 'https://api.mercadopago.com';
+        }
+
+        $response = Http::acceptJson()
+            ->withToken($accessToken)
+            ->get($baseUrl . '/v1/payments/' . ltrim($paymentId, '/'));
+
+        if (! $response->successful()) {
+            $message = (string) data_get($response->json(), 'message', $response->body());
+
+            throw new RuntimeException($message);
+        }
+
+        $payload = $response->json();
+
+        if (! is_array($payload)) {
+            throw new RuntimeException('Invalid Mercado Pago payment response.');
+        }
+
+        return $this->normalizePixPaymentResponse($payload);
+    }
+
+    private function syncApprovedPayment(array $payment): bool
+    {
+        if (! $this->isPixPaymentApproved($payment)) {
             return false;
         }
 
-        $externalReference = trim((string) ($order['external_reference'] ?? ''));
+        $externalReference = trim((string) ($payment['external_reference'] ?? ''));
 
         if ($externalReference === '') {
             return false;
         }
 
-        return DB::transaction(function () use ($externalReference, $order): bool {
+        return DB::transaction(function () use ($externalReference, $payment): bool {
             $creditRequest = CreditRequest::query()
                 ->lockForUpdate()
                 ->where('payment_external_reference', $externalReference)
@@ -84,13 +149,13 @@ class MercadoPagoService
             }
 
             $creditRequest->fill([
-                'payment_provider_payment_id' => $this->stringOrNull($order['payment_id'] ?? null),
-                'payment_ticket_url' => $this->stringOrNull($order['ticket_url'] ?? null),
-                'payment_status' => $this->stringOrNull($order['payment_status'] ?? null),
-                'payment_status_detail' => $this->stringOrNull($order['payment_status_detail'] ?? null),
-                'payment_payload' => $order['raw'] ?? null,
-                'pix_payload' => (string) ($order['qr_code'] ?? $creditRequest->pix_payload),
-                'qr_code_url' => $this->buildQrCodeDataUri($order['qr_code_base64'] ?? null, $creditRequest->qr_code_url),
+                'payment_provider_payment_id' => $this->stringOrNull($payment['payment_id'] ?? null),
+                'payment_ticket_url' => $this->stringOrNull($payment['ticket_url'] ?? null),
+                'payment_status' => $this->stringOrNull($payment['payment_status'] ?? null),
+                'payment_status_detail' => $this->stringOrNull($payment['payment_status_detail'] ?? null),
+                'payment_payload' => $payment['raw'] ?? null,
+                'pix_payload' => (string) ($payment['qr_code'] ?? $creditRequest->pix_payload),
+                'qr_code_url' => $this->buildQrCodeDataUri($payment['qr_code_base64'] ?? null, $creditRequest->qr_code_url),
             ]);
 
             if ($creditRequest->status !== 'pending') {
@@ -216,7 +281,7 @@ class MercadoPagoService
             'status' => data_get($payload, 'status'),
             'status_detail' => data_get($payload, 'status_detail'),
             'payment_id' => data_get($payment, 'id'),
-            'payment_reference_id' => data_get($payment, 'reference_id'),
+            'payment_reference_id' => data_get($payment, 'reference_id') ?? data_get($payment, 'reference.id'),
             'payment_status' => data_get($payment, 'status'),
             'payment_status_detail' => data_get($payment, 'status_detail'),
             'ticket_url' => data_get($payment, 'payment_method.ticket_url'),
@@ -226,9 +291,42 @@ class MercadoPagoService
         ];
     }
 
+    private function normalizePixPaymentResponse(array $payload): array
+    {
+        return [
+            'order_id' => data_get($payload, 'order.id'),
+            'external_reference' => data_get($payload, 'external_reference'),
+            'status' => data_get($payload, 'status'),
+            'status_detail' => data_get($payload, 'status_detail'),
+            'payment_id' => data_get($payload, 'id'),
+            'payment_reference_id' => data_get($payload, 'order.id'),
+            'payment_status' => data_get($payload, 'status'),
+            'payment_status_detail' => data_get($payload, 'status_detail'),
+            'ticket_url' => data_get($payload, 'transaction_details.external_resource_url')
+                ?? data_get($payload, 'point_of_interaction.transaction_data.ticket_url'),
+            'qr_code' => data_get($payload, 'point_of_interaction.transaction_data.qr_code'),
+            'qr_code_base64' => data_get($payload, 'point_of_interaction.transaction_data.qr_code_base64'),
+            'raw' => $payload,
+        ];
+    }
+
     private function isPixPaymentApproved(array $order): bool
     {
-        return (string) ($order['payment_status'] ?? '') === 'approved';
+        $status = strtolower(trim((string) ($order['payment_status'] ?? $order['status'] ?? '')));
+        $statusDetail = strtolower(trim((string) ($order['payment_status_detail'] ?? $order['status_detail'] ?? '')));
+
+        return $status === 'approved'
+            || ($status === 'processed' && $statusDetail === 'accredited');
+    }
+
+    private function hasEmbeddedOrderData(array $payload, string $resourceId): bool
+    {
+        $payloadId = trim((string) ($payload['id'] ?? ''));
+
+        return $payloadId !== ''
+            && strcasecmp($payloadId, $resourceId) === 0
+            && is_array($payload['transactions'] ?? null)
+            && trim((string) ($payload['external_reference'] ?? '')) !== '';
     }
 
     private function stringOrNull(mixed $value): ?string
