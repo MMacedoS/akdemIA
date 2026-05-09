@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\Preferences\PreferencesController;
 use App\Http\Controllers\Api\V1\Profile\MeController;
 use App\Http\Controllers\Api\V1\Tenants\TenantController;
 use App\Http\Controllers\Api\V1\Workouts\ExerciseLookupController;
+use App\Http\Controllers\Api\V1\Workouts\InternalExerciseCatalogController;
 use App\Http\Controllers\Api\V1\Workouts\GenerateWorkoutController;
 use App\Http\Controllers\Api\V1\Workouts\WorkoutStatusController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,9 @@ Route::prefix('v1')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->name('api.auth.login');
         Route::post('select-tenant', [AuthController::class, 'selectTenant'])->name('api.auth.select-tenant');
     });
+
+    Route::get('internal/catalog/exercises', [InternalExerciseCatalogController::class, 'index'])
+        ->name('api.internal.catalog.exercises.index');
 
     Route::middleware(['tenant.auth', 'tenant.user'])->group(function () {
         Route::middleware(['subscription'])->group(function () {

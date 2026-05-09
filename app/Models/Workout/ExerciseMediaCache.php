@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
+    'remote_exercise_id',
+    'localized_name_pt_br',
     'workoutx_name',
     'query_name',
     'remote_gif_url',

@@ -5,15 +5,20 @@ namespace App\Http\Controllers\Web\V1\SystemAdmin;
 use App\Http\Controllers\Controller;
 use App\Repositories\Contracts\SystemAdmin\WorkoutxSettingsRepositoryContract;
 use App\Services\System\SystemAdminAuditLogger;
+use App\Services\Workouts\ExerciseCatalogService;
+use App\Services\Workouts\WorkoutMediaService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 class WorkoutxSettingsController extends Controller
 {
     public function __construct(
         private readonly WorkoutxSettingsRepositoryContract $workoutxSettingsRepository,
+        private readonly ExerciseCatalogService $exerciseCatalogService,
+        private readonly WorkoutMediaService $workoutMediaService,
         private readonly SystemAdminAuditLogger $auditLogger,
     ) {}
 
@@ -21,6 +26,7 @@ class WorkoutxSettingsController extends Controller
     {
         return view('web.v1.system_admin.settings.workoutx', [
             'settings' => $this->workoutxSettingsRepository->values(),
+            'catalogStats' => $this->workoutMediaService->catalogStats(),
         ]);
     }
 
@@ -55,6 +61,53 @@ class WorkoutxSettingsController extends Controller
 
         return redirect()->route('system-admin.settings.workoutx.edit')
             ->with('status', 'Configuracoes da WorkoutX atualizadas.');
+    }
+
+    public function sync(Request $request): RedirectResponse
+    {
+        try {
+            $result = $this->workoutMediaService->syncExerciseCatalog();
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()->route('system-admin.settings.workoutx.edit')
+                ->withErrors($exception->getMessage());
+        }
+
+        $this->bumpWorkoutxCacheBuster();
+
+        $this->auditLogger->log(
+            $request->user()?->id,
+            'workoutx_catalog',
+            'synced',
+            null,
+            null,
+            $result,
+        );
+
+        $status = sprintf(
+            'Catalogo WorkoutX sincronizado. %d processados, %d novos, %d atualizados, %d sem alteracao.',
+            $result['synced'],
+            $result['created'],
+            $result['updated'],
+            $result['unchanged'],
+        );
+
+        return redirect()->route('system-admin.settings.workoutx.edit')
+            ->with('status', $status);
+    }
+
+    public function audit(Request $request): View
+    {
+        return view('web.v1.system_admin.settings.workoutx-audit', [
+            'audit' => $this->exerciseCatalogService->auditCatalog(
+                $request->query('focus'),
+                $request->query('search'),
+                $request->query('translation_status'),
+                (int) $request->query('limit', 25),
+                (int) $request->query('page', 1),
+            ),
+        ]);
     }
 
     private function bumpWorkoutxCacheBuster(): void

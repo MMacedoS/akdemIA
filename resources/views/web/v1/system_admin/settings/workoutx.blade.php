@@ -4,6 +4,7 @@
 @section('headerTitle', 'Settings WorkoutX')
 
 @section('headerAction')
+    <a class="btn btn-soft" href="{{ route('system-admin.settings.workoutx.audit') }}">Auditar catalogo</a>
     <a class="btn btn-soft" href="{{ route('system-admin.dashboard') }}">Voltar ao dashboard</a>
 @endsection
 
@@ -11,6 +12,42 @@
     <div class="card" style="max-width: 860px;">
         <h3>Integracao WorkoutX API</h3>
         <p>Configure a chave da API e os parametros basicos para buscar GIFs e dados dos exercicios direto da WorkoutX.</p>
+
+        <div class="card" style="margin-top: 16px; background: #fafafa; border-style: dashed;">
+            <h3 style="margin-top: 0;">Catalogo local de exercicios</h3>
+            <p style="margin-bottom: 10px;">A sincronizacao consulta todo o endpoint /exercises da WorkoutX, faz upsert pelo id remoto e atualiza name, gifUrl e payload completo na sua base.</p>
+
+            <div class="form-grid" style="margin-bottom: 14px;">
+                <div class="field">
+                    <label>Total salvo</label>
+                    <strong>{{ number_format((int) ($catalogStats['total'] ?? 0), 0, ',', '.') }}</strong>
+                </div>
+
+                <div class="field">
+                    <label>Com id remoto</label>
+                    <strong>{{ number_format((int) ($catalogStats['with_remote_id'] ?? 0), 0, ',', '.') }}</strong>
+                </div>
+
+                <div class="field" style="grid-column: 1 / -1;">
+                    <label>Ultima atualizacao local</label>
+                    <strong>
+                        @if (! empty($catalogStats['last_synced_at']))
+                            {{ \Illuminate\Support\Carbon::parse($catalogStats['last_synced_at'])->format('d/m/Y H:i') }}
+                        @else
+                            Nao sincronizado ainda
+                        @endif
+                    </strong>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('system-admin.settings.workoutx.sync') }}">
+                @csrf
+                <div class="actions" style="justify-content: flex-start;">
+                    <button type="submit" class="btn btn-primary">Sincronizar catalogo completo</button>
+                    <a class="btn btn-soft" href="{{ route('system-admin.settings.workoutx.audit') }}">Abrir auditoria</a>
+                </div>
+            </form>
+        </div>
 
         <form method="POST" action="{{ route('system-admin.settings.workoutx.update') }}" class="content-stack" style="margin-top: 12px;">
             @csrf
@@ -84,6 +121,7 @@
                     <li>Auth alternativa: query param api-key</li>
                     <li>Endpoint base de exercicios: /exercises</li>
                     <li>Detalhe por exercicio: /exercises/exercise/:id</li>
+                    <li>Sincronizacao local: salva id, name, gifUrl e payload JSON</li>
                 </ul>
             </div>
 

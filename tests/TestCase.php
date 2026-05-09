@@ -13,22 +13,22 @@ abstract class TestCase extends BaseTestCase
 {
     public function mockCreateUserTotal(array $overrides = []): User
     {
-        $user = User::factory()->make([
+        $user = User::factory()->create(array_merge([
             'birth_date' => '1990-01-01',
             'gender' => 'female',
             'height' => 165,
             'weight' => 60,
             'goal' => 'hipertrofia',
-        ]);
+        ], $overrides));
 
-        PhysicalData::Factory()->make([
+        PhysicalData::query()->create([
             'user_id' => $user->id,
-            'tenant_id' => null,
             'activity_level' => 'active',
             'imc' => 22.0,
+            'body_fat_percentage' => 18.5,
         ]);
 
-        Preference::Factory()->make([
+        Preference::query()->create([
             'user_id' => $user->id,
             'preferred_foods' => ['chicken', 'rice', 'broccoli'],
             'disliked_foods' => ['fish', 'tofu'],
@@ -37,12 +37,12 @@ abstract class TestCase extends BaseTestCase
             'training_frequency' => 5,
         ]);
 
-        MedicalData::Factory()->make([
+        MedicalData::query()->create([
             'user_id' => $user->id,
-            'tenant_id' => null,
-            'blood_pressure' => 'normal',
-            'heart_rate' => 70,
-            'medical_conditions' => ['none'],
+            'injuries' => 'Nenhuma',
+            'diseases' => 'Nenhuma',
+            'medications' => 'Nenhuma',
+            'restrictions' => 'Nenhuma',
         ]);
 
         return $user;

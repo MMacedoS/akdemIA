@@ -217,7 +217,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/settings/email', [SystemAdminEmailSettingsController::class, 'update'])->name('settings.email.update');
 
         Route::get('/settings/workoutx', [SystemAdminWorkoutxSettingsController::class, 'edit'])->name('settings.workoutx.edit');
+        Route::get('/settings/workoutx/audit', [SystemAdminWorkoutxSettingsController::class, 'audit'])->name('settings.workoutx.audit');
         Route::put('/settings/workoutx', [SystemAdminWorkoutxSettingsController::class, 'update'])->name('settings.workoutx.update');
+        Route::post('/settings/workoutx/sync', [SystemAdminWorkoutxSettingsController::class, 'sync'])->name('settings.workoutx.sync');
 
         Route::get('/landing', [SystemAdminSystemLandingController::class, 'edit'])->name('landing.edit');
         Route::put('/landing', [SystemAdminSystemLandingController::class, 'update'])->name('landing.update');

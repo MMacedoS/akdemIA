@@ -121,7 +121,7 @@ validate_env() {
   [[ -n "${DB_ROOT_PASSWORD:-}" ]] || fail "DB_ROOT_PASSWORD nao definido no .env"
 
   if [[ "${DB_CONNECTION}" == "mysql" && "${DB_USERNAME}" == "root" ]]; then
-    fail "MySQL oficial nao aceita DB_USERNAME=root via MYSQL_USER. Defina um usuario de aplicacao, por exemplo DB_USERNAME=akademia, e mantenha a senha de root em DB_ROOT_PASSWORD."
+    log "Aviso: DB_USERNAME=root nao e o cenario recomendado. O script vai tentar reparar o acesso usando a conta root existente."
   fi
 
   if [[ "${DB_USERNAME}" == "root" && "${DB_PASSWORD}" != "${DB_ROOT_PASSWORD}" ]]; then
@@ -132,7 +132,25 @@ validate_env() {
 clear_local_artifacts() {
   log "Limpando caches locais para evitar erro de provider e cache stale"
   rm -f bootstrap/cache/*.php || true
-  rm -f storage/framework/cache/data/* || true
+  find storage/framework/cache/data -mindepth 1 ! -name '.gitignore' -delete 2>/dev/null || true
+  find storage/framework/views -mindepth 1 ! -name '.gitignore' -delete 2>/dev/null || true
+}
+
+clear_container_runtime_cache() {
+  log "Limpando caches persistidos nos volumes do container"
+  $DC exec -T "$APP_SERVICE" sh -lc '
+    mkdir -p \
+      bootstrap/cache \
+      storage/framework/cache/data \
+      storage/framework/sessions \
+      storage/framework/views \
+      storage/logs \
+      storage/tmp
+
+    find bootstrap/cache -maxdepth 1 -type f \( -name "*.php" -o -name "*.json" \) -delete 2>/dev/null || true
+    find storage/framework/cache/data -mindepth 1 ! -name ".gitignore" -delete 2>/dev/null || true
+    find storage/framework/views -mindepth 1 ! -name ".gitignore" -delete 2>/dev/null || true
+  '
 }
 
 set_permissions() {
@@ -240,6 +258,7 @@ repair_db_access() {
 
 run_laravel_tasks() {
   log "Rodando migracoes e otimizacao"
+  clear_container_runtime_cache
   $DC exec -T "$APP_SERVICE" php artisan optimize:clear || true
   $DC exec -T "$APP_SERVICE" php artisan key:generate --force || true
 

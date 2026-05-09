@@ -525,6 +525,7 @@ class StudentsController extends Controller
                     'rest' => trim((string) ($exercise['rest'] ?? '60s')),
                     'notes' => $notes,
                     'steps' => $steps,
+                    'remote_exercise_id' => trim((string) ($exercise['remote_exercise_id'] ?? '')),
                     'workoutx_name' => $this->workoutMediaService->normalizeWorkoutxName(
                         $exercise['workoutx_name'] ?? data_get($exercise, 'workoutx_lookup.name'),
                         $name,

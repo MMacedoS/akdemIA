@@ -2,6 +2,7 @@
 
 namespace App\Services\AI;
 
+use App\Models\Workout\ExerciseMediaCache;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -88,6 +89,10 @@ class ValidationService
             ]);
         }
 
+        $localCatalogAvailable = ExerciseMediaCache::query()
+            ->whereNotNull('remote_exercise_id')
+            ->exists();
+
         foreach ($data['weekly_plan'] as $dayPlan) {
             if (! is_array($dayPlan)) {
                 continue;
@@ -171,8 +176,31 @@ class ValidationService
 
                 $notes = (string) ($exercise['notes'] ?? 'Execute com controle.');
                 $steps = $this->normalizeSteps($exercise['steps'] ?? null, $name, $notes);
+                $remoteExerciseId = trim((string) ($exercise['remote_exercise_id'] ?? ''));
+
+                if ($localCatalogAvailable && $remoteExerciseId === '') {
+                    throw ValidationException::withMessages([
+                        'workout' => 'Each exercise must contain remote_exercise_id from the local catalog.',
+                    ]);
+                }
+
+                $catalogExercise = null;
+
+                if ($remoteExerciseId !== '') {
+                    $catalogExercise = ExerciseMediaCache::query()
+                        ->where('remote_exercise_id', $remoteExerciseId)
+                        ->first();
+
+                    if ($catalogExercise === null) {
+                        throw ValidationException::withMessages([
+                            'workout' => 'Exercise remote_exercise_id not found in local catalog: ' . $remoteExerciseId,
+                        ]);
+                    }
+                }
+
                 $workoutxName = $this->normalizeWorkoutxName(
-                    $exercise['workoutx_name'] ?? data_get($exercise, 'workoutx_lookup.name'),
+                    $catalogExercise?->workoutx_name
+                        ?? ($exercise['workoutx_name'] ?? data_get($exercise, 'workoutx_lookup.name')),
                     $name,
                 );
 
@@ -184,6 +212,7 @@ class ValidationService
                     'rest' => $rest,
                     'notes' => $notes,
                     'steps' => $steps,
+                    'remote_exercise_id' => $remoteExerciseId,
                     'workoutx_name' => $workoutxName,
                     'exercise_media_path' => trim((string) ($exercise['exercise_media_path'] ?? '')),
                     'exercise_media_url' => trim((string) ($exercise['exercise_media_url'] ?? '')),

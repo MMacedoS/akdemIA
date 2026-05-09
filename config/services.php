@@ -79,4 +79,10 @@ return [
         'allow_fallback' => (bool) env('WORKOUTX_ALLOW_FALLBACK', false),
     ],
 
+    'internal_catalog' => [
+        'api_key' => env('INTERNAL_CATALOG_API_KEY'),
+        'ai_bucket_limit' => (int) env('INTERNAL_CATALOG_AI_BUCKET_LIMIT', 12),
+        'endpoint_limit' => (int) env('INTERNAL_CATALOG_ENDPOINT_LIMIT', 100),
+    ],
+
 ];

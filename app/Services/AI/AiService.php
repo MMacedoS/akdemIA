@@ -6,13 +6,18 @@ use App\Models\AI\AiLog;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
 use App\Models\Workout\Workout;
+use App\Services\Workouts\ExerciseCatalogService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 class AiService
 {
-    public const WORKOUT_PROMPT_VERSION = '2026-05-04-workoutx-name';
+    public const WORKOUT_PROMPT_VERSION = '2026-05-09-workoutx-local-catalog';
+
+    public function __construct(
+        private readonly ?ExerciseCatalogService $exerciseCatalogService = null,
+    ) {}
 
     public function generateWorkout(
         User $user,
@@ -164,6 +169,7 @@ class AiService
             . "- Cada exercicio deve conter um array steps com 2 a 5 passos curtos e objetivos\n"
             . "- Cada exercicio deve conter workoutx_name para busca exata na WorkoutX API\n"
             . "- workoutx_name deve estar em INGLES e corresponder ao nome do exercicio na base da WorkoutX\n"
+            . "- O campo name deve SEMPRE ser salvo em pt-BR para exibicao ao usuario final\n"
             . "- O cardio deve ser de baixo a moderado impacto, compativel com o perfil do usuario\n\n"
             . "# =========================\n"
             . "# REGRAS DE ESTRUTURA DO TREINO (OBRIGATORIAS)\n"
@@ -187,6 +193,7 @@ class AiService
             . (string) ($input['restrictions'] ?? 'Nenhuma') . "\n\n"
             . "Lesoes:\n"
             . (string) ($input['injuries'] ?? 'Nenhuma') . "\n\n"
+            . $this->buildWorkoutCatalogSection()
             . "# =========================\n"
             . "# REGRA DE QUANTIDADE DE DIAS (OBRIGATORIA)\n"
             . "# =========================\n\n"
@@ -209,6 +216,7 @@ class AiService
             . "          \"rest\": \"60s\",\n"
             . "          \"notes\": \"Controle o movimento\",\n"
             . "          \"steps\": [\"Posicione os pes na largura dos ombros\", \"Flexione joelhos e quadril mantendo o tronco firme\", \"Retorne empurrando o chao com os pes\"],\n"
+            . "          \"remote_exercise_id\": \"0043\",\n"
             . "          \"workoutx_name\": \"barbell squat\"\n"
             . "        },\n"
             . "        {\n"
@@ -219,6 +227,7 @@ class AiService
             . "          \"rest\": \"0s\",\n"
             . "          \"notes\": \"Cardio leve a moderado\",\n"
             . "          \"steps\": [\"Inicie com passada confortavel\", \"Mantenha postura ereta e respiracao ritmada\", \"Ajuste a inclinacao sem perder estabilidade\"],\n"
+            . "          \"remote_exercise_id\": \"1160\",\n"
             . "          \"workoutx_name\": \"incline treadmill walk\"\n"
             . "        }\n"
             . "      ]\n"
@@ -231,6 +240,8 @@ class AiService
             . "- Cada dia tem exatamente 4 com category=specific e 1 com category=cardio?\n"
             . "- O focus do dia e unico e nao mistura grupos?\n"
             . "- Dia de pernas contem somente exercicios de pernas + 1 cardio?\n"
+            . "- Cada exercicio possui remote_exercise_id real do catalogo local?\n"
+            . "- Todos os campos name estao em pt-BR para salvar no banco e exibir ao usuario?\n"
             . "- Todos os exercicios possuem workoutx_name em ingles para busca?\n"
             . "- Todos os exercicios possuem steps validos?\n"
             . "Se alguma resposta for NAO, corrija antes de enviar o JSON final.";
@@ -253,6 +264,34 @@ class AiService
         }
 
         return $prompt;
+    }
+
+    private function buildWorkoutCatalogSection(): string
+    {
+        $snapshot = $this->exerciseCatalogService()->buildAiCatalogSnapshot();
+        $catalog = $snapshot['catalog'] ?? [];
+        $bucketLimit = (int) ($snapshot['bucket_limit'] ?? 12);
+
+        if (! is_array($catalog) || $catalog === []) {
+            return "# =========================\n"
+                . "# CATALOGO LOCAL DE EXERCICIOS\n"
+                . "# =========================\n\n"
+                . "Catalogo local ainda nao sincronizado. Se remote_exercise_id nao estiver disponivel, monte o treino com workoutx_name coerente para busca posterior.\n\n";
+        }
+
+        return "# =========================\n"
+            . "# CATALOGO LOCAL ENXUTO POR FOCO MUSCULAR (OBRIGATORIO)\n"
+            . "# =========================\n\n"
+            . "Abaixo esta um catalogo reduzido por foco muscular, limitado a {$bucketLimit} exercicios por grupo para reduzir erro e tokens.\n"
+            . "Use SOMENTE exercicios presentes neste catalogo local. Nao invente remote_exercise_id, workoutx_name, target ou equipment.\n"
+            . "Para os 4 exercicios especificos, escolha itens do grupo de foco coerente com o focus do dia. Para o cardio, escolha itens do grupo cardio.\n"
+            . "Cada exercicio da resposta final deve trazer remote_exercise_id e workoutx_name exatamente como aparecem abaixo. O campo name deve ficar em pt-BR. Quando localized_name_pt_br estiver preenchido, use exatamente esse valor. Quando estiver vazio, traduza para pt-BR antes de responder.\n\n"
+            . json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n\n";
+    }
+
+    private function exerciseCatalogService(): ExerciseCatalogService
+    {
+        return $this->exerciseCatalogService ?? new ExerciseCatalogService();
     }
 
     private function buildTrainingFrequencyInstruction(array $input): string

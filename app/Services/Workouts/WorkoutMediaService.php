@@ -5,9 +5,11 @@ namespace App\Services\Workouts;
 use App\Models\Workout\ExerciseMediaCache;
 use App\Support\Workout\ExerciseAssetBuilder;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class WorkoutMediaService
 {
@@ -52,14 +54,25 @@ class WorkoutMediaService
 
                         data_set($exercise, 'steps', $steps);
 
-                        $workoutxName = $this->normalizeWorkoutxName(
-                            data_get($exercise, 'workoutx_name', data_get($exercise, 'workoutx_lookup.name', '')),
-                            $name,
-                        );
+                        $catalogExercise = $this->resolveCatalogExerciseForPlanExercise($exercise);
 
+                        $displayName = $this->resolveExerciseDisplayName($exercise, $catalogExercise);
+
+                        $workoutxName = $catalogExercise?->workoutx_name
+                            ?: $this->normalizeWorkoutxName(
+                                data_get($exercise, 'workoutx_name', data_get($exercise, 'workoutx_lookup.name', '')),
+                                $name,
+                            );
+
+                        $remoteExerciseId = trim((string) ($catalogExercise?->remote_exercise_id ?: data_get($exercise, 'remote_exercise_id', '')));
+
+                        data_set($exercise, 'name', $displayName);
                         data_set($exercise, 'workoutx_name', $workoutxName);
+                        data_set($exercise, 'remote_exercise_id', $remoteExerciseId);
 
-                        $media = $this->resolveLocalGif($workoutxName, $isEnabled);
+                        $media = $catalogExercise instanceof ExerciseMediaCache
+                            ? $this->resolveCachedMedia($catalogExercise)
+                            : $this->resolveLocalGif($workoutxName, $isEnabled);
 
                         data_set($exercise, 'exercise_media_path', $media['path']);
                         data_set($exercise, 'exercise_media_url', $media['url']);
@@ -108,6 +121,14 @@ class WorkoutMediaService
                 $workoutxName = trim((string) data_get($exercise, 'workoutx_name', data_get($exercise, 'workoutx_lookup.name', '')));
                 if ($workoutxName === '') {
                     return true;
+                }
+
+                if ($isEnabled && trim((string) data_get($exercise, 'remote_exercise_id', '')) === '') {
+                    $catalogExercise = $this->resolveCatalogExerciseForPlanExercise($exercise);
+
+                    if ($catalogExercise instanceof ExerciseMediaCache && trim((string) $catalogExercise->remote_exercise_id) !== '') {
+                        return true;
+                    }
                 }
 
                 if (! $isEnabled) {
@@ -215,6 +236,7 @@ class WorkoutMediaService
                 'workoutx_name' => $workoutxName,
             ],
             [
+                'remote_exercise_id' => trim((string) data_get($exercise, 'id', '')) ?: null,
                 'query_name' => $queryName,
                 'remote_gif_url' => $gifUrl !== '' ? $gifUrl : null,
                 'storage_path' => $media['path'] !== '' ? $media['path'] : null,
@@ -223,6 +245,82 @@ class WorkoutMediaService
         );
 
         return $this->buildLookupResponse($cache, false, $media);
+    }
+
+    public function catalogStats(): array
+    {
+        return [
+            'total' => ExerciseMediaCache::query()->count(),
+            'with_remote_id' => ExerciseMediaCache::query()->whereNotNull('remote_exercise_id')->count(),
+            'last_synced_at' => ExerciseMediaCache::query()->max('updated_at'),
+        ];
+    }
+
+    public function syncExerciseCatalog(): array
+    {
+        if (! $this->isEnabled()) {
+            throw new RuntimeException('Ative a integracao WorkoutX antes de sincronizar o catalogo.');
+        }
+
+        if ($this->workoutxApiBaseUrl() === '') {
+            throw new RuntimeException('Defina a API Base URL da WorkoutX antes de sincronizar o catalogo.');
+        }
+
+        if ($this->workoutxApiKey() === '') {
+            throw new RuntimeException('Defina a API Key da WorkoutX antes de sincronizar o catalogo.');
+        }
+
+        $limit = $this->resolveCatalogRequestLimit();
+        $offset = 0;
+        $synced = 0;
+        $created = 0;
+        $updated = 0;
+
+        do {
+            $payload = $this->requestWorkoutxJson('/exercises', [
+                'limit' => $limit,
+                'offset' => $offset,
+            ]);
+
+            if (! is_array($payload)) {
+                if ($synced === 0) {
+                    throw new RuntimeException('Nao foi possivel consultar o catalogo da WorkoutX. Confira a configuracao e tente novamente.');
+                }
+
+                throw new RuntimeException("A sincronizacao foi interrompida apos {$synced} exercicios processados.");
+            }
+
+            $exercises = $this->extractExerciseCollection($payload);
+            $pageCount = count($exercises);
+
+            foreach ($exercises as $exercise) {
+                $result = $this->upsertCatalogExercise($exercise);
+
+                if ($result === null) {
+                    continue;
+                }
+
+                $synced++;
+
+                if ($result === 'created') {
+                    $created++;
+                }
+
+                if ($result === 'updated') {
+                    $updated++;
+                }
+            }
+
+            $offset += $pageCount;
+        } while ($pageCount === $limit && $pageCount > 0);
+
+        return [
+            'synced' => $synced,
+            'created' => $created,
+            'updated' => $updated,
+            'unchanged' => max($synced - $created - $updated, 0),
+            'total_cached' => ExerciseMediaCache::query()->count(),
+        ];
     }
 
     private function resolveLocalGif(string $workoutxName, bool $isEnabled): array
@@ -278,37 +376,21 @@ class WorkoutMediaService
 
     private function fetchExercisePayload(string $workoutxName): ?array
     {
-        $apiBaseUrl = rtrim((string) config('services.workoutx.api_base_url', ''), '/');
-        $apiKey = trim((string) config('services.workoutx.api_key', ''));
+        return $this->requestWorkoutxJson('/exercises/name/' . rawurlencode($workoutxName));
+    }
 
-        if ($apiBaseUrl === '') {
+    private function requestWorkoutxJson(string $path, array $query = []): ?array
+    {
+        if ($this->workoutxApiBaseUrl() === '') {
             return null;
         }
 
-        $requestTimeout = (int) config('services.workoutx.request_timeout', 20);
-        $authMode = (string) config('services.workoutx.auth_mode', 'header');
-
         try {
-            $request = Http::connectTimeout($requestTimeout)
-                ->timeout($requestTimeout)
-                ->acceptJson();
-
-            if ($apiKey !== '') {
-                if ($authMode === 'query') {
-                    $request = $request->withQueryParameters([
-                        'api-key' => $apiKey,
-                    ]);
-                } else {
-                    $request = $request->withHeaders([
-                        'X-WorkoutX-Key' => $apiKey,
-                    ]);
-                }
-            }
-
-            $response = $request->get($apiBaseUrl . '/exercises/name/' . rawurlencode($workoutxName));
+            $response = $this->workoutxRequest()->get($this->workoutxUrl($path), $query);
         } catch (ConnectionException $exception) {
             Log::warning('WorkoutX request timed out or failed to connect.', [
-                'workoutx_name' => $workoutxName,
+                'path' => $path,
+                'query' => $query,
                 'error' => $exception->getMessage(),
             ]);
 
@@ -317,7 +399,8 @@ class WorkoutMediaService
 
         if (! $response->successful()) {
             Log::warning('WorkoutX request returned a non-success status.', [
-                'workoutx_name' => $workoutxName,
+                'path' => $path,
+                'query' => $query,
                 'status' => $response->status(),
             ]);
 
@@ -326,11 +409,80 @@ class WorkoutMediaService
 
         $payload = $response->json();
 
-        if (! is_array($payload)) {
+        return is_array($payload) ? $payload : null;
+    }
+
+    private function extractExerciseCollection(array $payload): array
+    {
+        $candidates = [
+            data_get($payload, 'data'),
+            $payload,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (! is_array($candidate)) {
+                continue;
+            }
+
+            if (! array_is_list($candidate)) {
+                continue;
+            }
+
+            return array_values(array_filter($candidate, static fn($item) => is_array($item)));
+        }
+
+        return [];
+    }
+
+    private function upsertCatalogExercise(array $exercise): ?string
+    {
+        $remoteExerciseId = trim((string) data_get($exercise, 'id', ''));
+        $name = trim((string) data_get($exercise, 'name', ''));
+
+        if ($remoteExerciseId === '' && $name === '') {
             return null;
         }
 
-        return $payload;
+        $workoutxName = $this->normalizeWorkoutxName($name, $remoteExerciseId !== '' ? 'exercise-' . $remoteExerciseId : 'body-weight-exercise');
+        $gifUrl = trim((string) data_get($exercise, 'gifUrl', ''));
+
+        $cache = null;
+
+        if ($remoteExerciseId !== '') {
+            $cache = ExerciseMediaCache::query()
+                ->where('remote_exercise_id', $remoteExerciseId)
+                ->first();
+        }
+
+        if (! $cache instanceof ExerciseMediaCache) {
+            $cache = ExerciseMediaCache::query()
+                ->where('workoutx_name', $workoutxName)
+                ->first();
+        }
+
+        $attributes = [
+            'remote_exercise_id' => $remoteExerciseId !== '' ? $remoteExerciseId : null,
+            'workoutx_name' => $workoutxName,
+            'query_name' => $name !== '' ? $name : null,
+            'remote_gif_url' => $gifUrl !== '' ? $gifUrl : null,
+            'payload' => $exercise,
+        ];
+
+        if ($cache instanceof ExerciseMediaCache) {
+            $cache->fill($attributes);
+
+            if (! $cache->isDirty()) {
+                return 'unchanged';
+            }
+
+            $cache->save();
+
+            return 'updated';
+        }
+
+        ExerciseMediaCache::query()->create($attributes);
+
+        return 'created';
     }
 
     private function extractGifUrl(array $payload): ?string
@@ -369,6 +521,7 @@ class WorkoutMediaService
     {
         $candidates = [
             data_get($payload, 'data.0'),
+            $this->extractExerciseCollection($payload)[0] ?? null,
             data_get($payload, 'exercise'),
             data_get($payload, 'data.exercise'),
             data_get($payload, '0'),
@@ -447,10 +600,137 @@ class WorkoutMediaService
             'found' => is_array($exercise) && $exercise !== [],
             'cached' => $cached,
             'query' => (string) ($cache->query_name ?: $cache->workoutx_name),
+            'remote_exercise_id' => (string) ($cache->remote_exercise_id ?? ''),
+            'localized_name_pt_br' => (string) ($cache->localized_name_pt_br ?? ''),
             'workoutx_name' => (string) $cache->workoutx_name,
             'exercise' => $exercise,
             'media' => $media,
         ];
+    }
+
+    private function resolveExerciseDisplayName(array $exercise, ?ExerciseMediaCache $catalogExercise): string
+    {
+        $incomingName = trim((string) data_get($exercise, 'name', ''));
+
+        if (! $catalogExercise instanceof ExerciseMediaCache) {
+            return $incomingName !== '' ? $incomingName : 'Exercicio';
+        }
+
+        $localizedName = trim((string) ($catalogExercise->localized_name_pt_br ?? ''));
+
+        if ($localizedName !== '') {
+            return $localizedName;
+        }
+
+        if ($this->shouldPersistLocalizedExerciseName($incomingName, $catalogExercise)) {
+            $catalogExercise->localized_name_pt_br = $incomingName;
+            $catalogExercise->save();
+
+            return $incomingName;
+        }
+
+        return $incomingName !== '' ? $incomingName : $this->fallbackExerciseDisplayName($catalogExercise);
+    }
+
+    private function shouldPersistLocalizedExerciseName(string $incomingName, ExerciseMediaCache $catalogExercise): bool
+    {
+        if ($incomingName === '') {
+            return false;
+        }
+
+        $officialNames = array_filter([
+            trim((string) ($catalogExercise->query_name ?? '')),
+            trim((string) ($catalogExercise->workoutx_name ?? '')),
+            trim((string) data_get($catalogExercise->payload, 'name', '')),
+        ]);
+
+        foreach ($officialNames as $officialName) {
+            if ($this->normalizeComparableName($incomingName) === $this->normalizeComparableName($officialName)) {
+                return false;
+            }
+        }
+
+        if (preg_match('/[áàâãéêíóôõúç]/iu', $incomingName) === 1) {
+            return true;
+        }
+
+        $normalized = mb_strtolower($incomingName);
+        $ptBrHints = [
+            'agachamento',
+            'supino',
+            'remada',
+            'puxada',
+            'caminhada',
+            'corrida',
+            'prancha',
+            'elevacao',
+            'elevacao',
+            'desenvolvimento',
+            'flexao',
+            'abdominal',
+            'rosca',
+            'crucifixo',
+            'triceps',
+            'biceps',
+            'panturrilha',
+            'levantamento',
+            'afundo',
+            'passada',
+            'esteira',
+            'bicicleta',
+            'ombro',
+            'costas',
+            'peito',
+            'pernas',
+        ];
+
+        foreach ($ptBrHints as $hint) {
+            if (str_contains($normalized, $hint)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function fallbackExerciseDisplayName(ExerciseMediaCache $catalogExercise): string
+    {
+        $payloadName = trim((string) data_get($catalogExercise->payload, 'name', ''));
+
+        if ($payloadName !== '') {
+            return $payloadName;
+        }
+
+        return trim((string) ($catalogExercise->query_name ?: $catalogExercise->workoutx_name ?: 'Exercicio'));
+    }
+
+    private function normalizeComparableName(string $value): string
+    {
+        return $this->normalizeWorkoutxName($value, $value);
+    }
+
+    private function resolveCatalogExerciseForPlanExercise(array $exercise): ?ExerciseMediaCache
+    {
+        $remoteExerciseId = trim((string) data_get($exercise, 'remote_exercise_id', ''));
+
+        if ($remoteExerciseId !== '') {
+            $cache = ExerciseMediaCache::query()
+                ->where('remote_exercise_id', $remoteExerciseId)
+                ->first();
+
+            if ($cache instanceof ExerciseMediaCache) {
+                return $cache;
+            }
+        }
+
+        $workoutxName = $this->normalizeWorkoutxName(
+            data_get($exercise, 'workoutx_name', data_get($exercise, 'workoutx_lookup.name', '')),
+            trim((string) data_get($exercise, 'name', 'Exercicio')),
+        );
+
+        return ExerciseMediaCache::query()
+            ->where('workoutx_name', $workoutxName)
+            ->first();
     }
 
     private function resolveCachedMedia(ExerciseMediaCache $cache): array
@@ -474,6 +754,53 @@ class WorkoutMediaService
         }
 
         return $this->storeGifFromUrl((string) $cache->workoutx_name, $gifUrl);
+    }
+
+    private function workoutxRequest(): PendingRequest
+    {
+        $requestTimeout = (int) config('services.workoutx.request_timeout', 20);
+        $apiKey = $this->workoutxApiKey();
+        $authMode = (string) config('services.workoutx.auth_mode', 'header');
+
+        $request = Http::connectTimeout($requestTimeout)
+            ->timeout($requestTimeout)
+            ->acceptJson();
+
+        if ($apiKey === '') {
+            return $request;
+        }
+
+        if ($authMode === 'query') {
+            return $request->withQueryParameters([
+                'api-key' => $apiKey,
+            ]);
+        }
+
+        return $request->withHeaders([
+            'X-WorkoutX-Key' => $apiKey,
+        ]);
+    }
+
+    private function workoutxApiBaseUrl(): string
+    {
+        return rtrim((string) config('services.workoutx.api_base_url', ''), '/');
+    }
+
+    private function workoutxApiKey(): string
+    {
+        return trim((string) config('services.workoutx.api_key', ''));
+    }
+
+    private function workoutxUrl(string $path): string
+    {
+        return $this->workoutxApiBaseUrl() . '/' . ltrim($path, '/');
+    }
+
+    private function resolveCatalogRequestLimit(): int
+    {
+        $configured = (int) config('services.workoutx.default_limit', 10);
+
+        return max(1, min($configured, 100));
     }
 
     private function isEnabled(): bool

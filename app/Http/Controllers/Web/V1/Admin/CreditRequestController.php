@@ -57,7 +57,6 @@ class CreditRequestController extends Controller
 
         $payment = $this->mercadoPagoService->createPixPayment([
             'amount' => $creditsRequested,
-            'description' => 'Compra de créditos',
             'email' => $user->email,
             'external_reference' => $externalReference,
         ]);

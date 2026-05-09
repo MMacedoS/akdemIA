@@ -40,7 +40,6 @@ class MercadoPagoServiceTest extends TestCase
 
         $payload = app(MercadoPagoService::class)->createPixPayment([
             'amount' => 20,
-            'description' => 'Compra de creditos',
             'email' => 'buyer@example.com',
             'external_reference' => 'credits-trainee-123',
         ]);
