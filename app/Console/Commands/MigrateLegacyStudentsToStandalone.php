@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 #[Signature('students:migrate-standalone')]
-#[Description('Migrates legacy students from tenant_user to standalone trainer linkage.')] 
+#[Description('Migrates legacy students from tenant_user to standalone trainer linkage.')]
 class MigrateLegacyStudentsToStandalone extends Command
 {
     public function handle(

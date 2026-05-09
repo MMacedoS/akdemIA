@@ -89,7 +89,7 @@ class WebStandaloneStudentPanelsTest extends TestCase
     {
         Queue::fake();
 
-        [$tenant, , $trainer] = $this->createTenantContext();
+        [$tenant,, $trainer] = $this->createTenantContext();
 
         $student = User::factory()->create([
             'name' => 'Aluno Trainer',
