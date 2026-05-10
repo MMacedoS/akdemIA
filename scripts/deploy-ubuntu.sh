@@ -10,6 +10,10 @@ SCHEDULER_SERVICE="scheduler"
 NGINX_SERVICE="nginx"
 DB_SERVICE="db"
 PHPMYADMIN_SERVICE="phpmyadmin"
+APP_IMAGE="akdemia-app:latest"
+NGINX_IMAGE="akdemia-nginx:latest"
+DEPLOY_MODE="${DEPLOY_MODE:-fast}"
+BUILD_NO_CACHE="${BUILD_NO_CACHE:-false}"
 
 log() {
   printf "\n[%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -22,6 +26,66 @@ fail() {
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
+}
+
+usage() {
+  cat <<'EOF'
+Uso: bash scripts/deploy-ubuntu.sh [--fast] [--full] [--no-cache]
+
+Opcoes:
+  --fast      Faz deploy rapido sem rebuild se as imagens ja existirem.
+  --full      Reinstala dependencias e rebuilda as imagens antes de subir.
+  --no-cache  Quando usado com --full, faz build sem cache.
+  --help      Exibe esta ajuda.
+
+Variaveis opcionais:
+  DEPLOY_MODE=fast|full
+  BUILD_NO_CACHE=true|false
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --fast)
+        DEPLOY_MODE="fast"
+        ;;
+      --full|--build)
+        DEPLOY_MODE="full"
+        ;;
+      --no-cache)
+        BUILD_NO_CACHE="true"
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      *)
+        fail "Opcao invalida: $1"
+        ;;
+    esac
+
+    shift
+  done
+}
+
+image_exists() {
+  local image="$1"
+
+  $DOCKER image inspect "$image" >/dev/null 2>&1
+}
+
+should_run_full_build() {
+  if [[ "$DEPLOY_MODE" == "full" ]]; then
+    return 0
+  fi
+
+  if ! image_exists "$APP_IMAGE" || ! image_exists "$NGINX_IMAGE"; then
+    log "Imagens locais nao encontradas. Fazendo build completo nesta execucao."
+    return 0
+  fi
+
+  return 1
 }
 
 ENV_LOADED="false"
@@ -50,6 +114,29 @@ fi
 
 DC="$DOCKER compose"
 HEALTH_WAIT_SECONDS="120"
+
+runtime_mount_type() {
+  local destination="$1"
+  local container_id=""
+  local inspect_format=""
+
+  container_id="$($DC ps -q "$APP_SERVICE" 2>/dev/null || true)"
+  [[ -n "$container_id" ]] || fail "Container ${APP_SERVICE} ainda nao esta disponivel para inspecao de mounts."
+
+  inspect_format="{{range .Mounts}}{{if eq .Destination \"${destination}\"}}{{.Type}}{{end}}{{end}}"
+
+  $DOCKER inspect "$container_id" \
+    --format "$inspect_format" \
+    | tr -d '[:space:]'
+}
+
+is_bind_runtime_mount() {
+  local destination="$1"
+  local mount_type=""
+
+  mount_type="$(runtime_mount_type "$destination")"
+  [[ "$mount_type" == "bind" ]]
+}
 
 install_docker_if_needed() {
   if command_exists docker && $DOCKER info >/dev/null 2>&1 && $DC version >/dev/null 2>&1; then
@@ -137,6 +224,11 @@ clear_local_artifacts() {
 }
 
 clear_container_runtime_cache() {
+  if is_bind_runtime_mount "/var/www/storage" && is_bind_runtime_mount "/var/www/bootstrap/cache"; then
+    log "Runtime usa bind mount; limpeza local ja reflete no container. Pulando limpeza redundante via exec."
+    return 0
+  fi
+
   log "Limpando caches persistidos nos volumes do container"
   $DC exec -T "$APP_SERVICE" sh -lc '
     mkdir -p \
@@ -179,8 +271,19 @@ install_php_js_dependencies() {
 }
 
 build_and_up() {
-  log "Subindo stack Docker"
-  $DC build --pull --no-cache
+  if should_run_full_build; then
+    local build_args=(build --pull)
+
+    if [[ "$BUILD_NO_CACHE" == "true" ]]; then
+      build_args+=(--no-cache)
+    fi
+
+    log "Subindo stack Docker com build completo"
+    $DC "${build_args[@]}"
+  else
+    log "Subindo stack Docker sem rebuild de imagens"
+  fi
+
   $DC up -d "$DB_SERVICE" redis
 
   wait_for_service_health "$DB_SERVICE"
@@ -291,7 +394,7 @@ ensure_runtime_services() {
 }
 
 show_summary() {
-  log "Deploy concluido. Status dos containers:"
+  log "Deploy concluido em modo ${DEPLOY_MODE}. Status dos containers:"
   $DC ps
 
   log "Ultimas linhas de log do app:"
@@ -320,14 +423,28 @@ EOF
 }
 
 main() {
+  parse_args "$@"
   install_docker_if_needed
   prepare_env
   load_env
   validate_env
   clear_local_artifacts
   set_permissions
-  install_php_js_dependencies
+
+  if should_run_full_build; then
+    install_php_js_dependencies
+  else
+    log "Pulando install de dependencias e build de assets no modo rapido"
+  fi
+
   build_and_up
+
+  if is_bind_runtime_mount "/var/www/storage" && is_bind_runtime_mount "/var/www/bootstrap/cache"; then
+    log "Detectado bind mount para storage e bootstrap/cache no runtime do app."
+  else
+    log "Detectado volume Docker ou montagem mista no runtime do app."
+  fi
+
   run_laravel_tasks
   ensure_runtime_services
   show_summary

@@ -13,7 +13,9 @@ use App\Http\Controllers\Web\V1\SystemAdmin\AuthController as SystemAdminAuthCon
 use App\Http\Controllers\Web\V1\SystemAdmin\SystemLandingController as SystemAdminSystemLandingController;
 use App\Http\Controllers\Web\V1\SystemAdmin\CreditOverviewController as SystemAdminCreditOverviewController;
 use App\Http\Controllers\Web\V1\SystemAdmin\EmailSettingsController as SystemAdminEmailSettingsController;
+use App\Http\Controllers\Web\V1\SystemAdmin\LegalSettingsController as SystemAdminLegalSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\PaymentSettingsController as SystemAdminPaymentSettingsController;
+use App\Http\Controllers\Web\LegalDocumentController as WebLegalDocumentController;
 use App\Http\Controllers\Web\V1\SystemAdmin\WorkoutRulesSettingsController as SystemAdminWorkoutRulesSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\WorkoutxSettingsController as SystemAdminWorkoutxSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\TraineeManagementController as SystemAdminTraineeManagementController;
@@ -38,8 +40,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', SystemLandingController::class)->name('home');
 Route::get('/pro/{slug}', [PublicLandingController::class, 'user'])->name('landing.user');
-Route::view('/termos-de-uso', 'legal.terms')->name('legal.terms');
-Route::view('/politica-de-privacidade', 'legal.privacy')->name('legal.privacy');
+Route::get('/termos-de-uso', [WebLegalDocumentController::class, 'terms'])->name('legal.terms');
+Route::get('/politica-de-privacidade', [WebLegalDocumentController::class, 'privacy'])->name('legal.privacy');
 
 $configuredLandingDomain = env('APP_LANDING_ROOT_DOMAIN');
 $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
@@ -217,6 +219,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/settings/payment', [SystemAdminPaymentSettingsController::class, 'edit'])->name('settings.payment.edit');
         Route::put('/settings/payment', [SystemAdminPaymentSettingsController::class, 'update'])->name('settings.payment.update');
+
+        Route::get('/settings/legal', [SystemAdminLegalSettingsController::class, 'edit'])->name('settings.legal.edit');
+        Route::put('/settings/legal', [SystemAdminLegalSettingsController::class, 'update'])->name('settings.legal.update');
 
         Route::get('/settings/email', [SystemAdminEmailSettingsController::class, 'edit'])->name('settings.email.edit');
         Route::put('/settings/email', [SystemAdminEmailSettingsController::class, 'update'])->name('settings.email.update');

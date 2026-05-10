@@ -79,6 +79,14 @@
                     <span class="nav-go">&gt;</span>
                 </a>
 
+                <a class="nav-link" href="{{ route('system-admin.settings.legal.edit') }}">
+                    <span class="nav-link-left">
+                        <span class="nav-icon">LG</span>
+                        <span class="nav-label">Documentos legais</span>
+                    </span>
+                    <span class="nav-go">&gt;</span>
+                </a>
+
                 <a class="nav-link" href="{{ route('system-admin.settings.email.edit') }}">
                     <span class="nav-link-left">
                         <span class="nav-icon">EM</span>

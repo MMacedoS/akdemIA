@@ -15,7 +15,7 @@ class ApiStudentStandaloneAuthTest extends TestCase
 
     public function test_student_can_register_via_api_and_is_linked_to_platform_trainer_without_tenant(): void
     {
-        $response = $this->postJson('/api/v1/auth/register/student', [
+        $response = $this->postJson('/api/v1/auth/register', [
             'name' => 'Aluno App',
             'email' => 'aluno@app.test',
             'password' => 'password123',
@@ -50,7 +50,7 @@ class ApiStudentStandaloneAuthTest extends TestCase
 
     public function test_student_registration_via_api_requires_policy_acceptance(): void
     {
-        $response = $this->postJson('/api/v1/auth/register/student', [
+        $response = $this->postJson('/api/v1/auth/register', [
             'name' => 'Aluno App',
             'email' => 'aluno@app.test',
             'password' => 'password123',
@@ -59,6 +59,20 @@ class ApiStudentStandaloneAuthTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['terms_of_use', 'privacy_policy']);
+    }
+
+    public function test_auth_options_lists_public_student_mobile_endpoints(): void
+    {
+        $response = $this->getJson('/api/v1/auth/options');
+
+        $response->assertOk()
+            ->assertJsonPath('audience', 'student-mobile')
+            ->assertJsonPath('public_endpoints.0.endpoint', '/api/v1/auth/register')
+            ->assertJsonPath('public_endpoints.1.endpoint', '/api/v1/auth/login')
+            ->assertJsonPath('public_endpoints.2.endpoint', '/termos-de-uso')
+            ->assertJsonPath('public_endpoints.3.endpoint', '/politica-de-privacidade')
+            ->assertJsonPath('authenticated_endpoints.0.endpoint', '/api/v1/auth/accept-policies')
+            ->assertJsonPath('authenticated_endpoints.1.endpoint', '/api/v1/me');
     }
 
     public function test_student_can_login_without_tenant_and_change_trainer(): void

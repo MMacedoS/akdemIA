@@ -17,11 +17,6 @@ class MercadoPagoWebhookController extends Controller
 
     public function __invoke(Request $request): JsonResponse
     {
-        \Log::info('Received MercadoPago webhook', [
-            'headers' => $request->headers->all(),
-            'query' => $request->query->all(),
-            'body' => $request->getContent(),
-        ]);
         if (! $this->hasValidWebhookSignature($request)) {
             return response()->json([
                 'message' => 'Invalid webhook secret.',
@@ -149,6 +144,8 @@ class MercadoPagoWebhookController extends Controller
         $candidates = [
             $request->query('data.id'),
             $request->query('id'),
+            $request->input('data.id'),
+            $request->input('id'),
         ];
 
         foreach ($candidates as $candidate) {

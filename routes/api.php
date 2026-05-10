@@ -23,6 +23,7 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('auth')->group(function () {
         Route::get('options', [AuthController::class, 'options'])->name('api.auth.options');
+        Route::post('register', [AuthController::class, 'registerStudent'])->name('api.auth.register');
         Route::post('register/student', [AuthController::class, 'registerStudent'])->name('api.auth.register-student');
         Route::post('login', [AuthController::class, 'login'])->name('api.auth.login');
         Route::post('select-tenant', [AuthController::class, 'selectTenant'])->name('api.auth.select-tenant');

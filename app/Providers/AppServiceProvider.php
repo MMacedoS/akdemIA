@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Tenant\Tenant;
 use App\Repositories\Contracts\SystemAdmin\EmailSettingsRepositoryContract;
+use App\Repositories\Contracts\SystemAdmin\LegalSettingsRepositoryContract;
 use App\Repositories\Contracts\SystemAdmin\PaymentSettingsRepositoryContract;
 use App\Repositories\Contracts\SystemAdmin\WorkoutRulesSettingsRepositoryContract;
 use App\Repositories\Contracts\SystemAdmin\WorkoutxSettingsRepositoryContract;
@@ -14,6 +15,7 @@ use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
 use App\Observers\Tenant\TenantObserver;
 use App\Repositories\Contracts\Tenant\TenantRepositoryContract;
 use App\Repositories\Entities\SystemAdmin\EmailSettingsRepository;
+use App\Repositories\Entities\SystemAdmin\LegalSettingsRepository;
 use App\Repositories\Entities\SystemAdmin\PaymentSettingsRepository;
 use App\Repositories\Entities\SystemAdmin\WorkoutRulesSettingsRepository;
 use App\Repositories\Entities\SystemAdmin\WorkoutxSettingsRepository;
@@ -46,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TraineeManagementRepositoryContract::class, TraineeManagementRepository::class);
         $this->app->bind(PaymentSettingsRepositoryContract::class, PaymentSettingsRepository::class);
         $this->app->bind(EmailSettingsRepositoryContract::class, EmailSettingsRepository::class);
+        $this->app->bind(LegalSettingsRepositoryContract::class, LegalSettingsRepository::class);
         $this->app->bind(WorkoutRulesSettingsRepositoryContract::class, WorkoutRulesSettingsRepository::class);
         $this->app->bind(WorkoutxSettingsRepositoryContract::class, WorkoutxSettingsRepository::class);
         $this->app->singleton(PaymentConfigService::class);

@@ -288,6 +288,10 @@ class WorkoutMediaServiceTest extends TestCase
             'storage_path' => 'exercises/barbell-bench-press.gif',
         ]);
         $this->assertTrue(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
+        Http::assertSent(static function ($request): bool {
+            return $request->url() === 'https://cdn.workoutx.test/barbell-bench-press.gif'
+                && $request->hasHeader('X-WorkoutX-Key', 'secret-from-settings');
+        });
     }
 
     public function test_lookup_exercise_by_name_reuses_cached_record_without_new_http_calls(): void

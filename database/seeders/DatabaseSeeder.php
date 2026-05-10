@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PlanSeeder::class,
             TenantUserSeeder::class,
+            LegalDocumentSeeder::class,
         ]);
     }
 }

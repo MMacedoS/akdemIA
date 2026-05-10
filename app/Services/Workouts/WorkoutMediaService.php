@@ -104,7 +104,7 @@ class WorkoutMediaService
         }
 
         $isEnabled = $this->isEnabled();
-    $catalogLookup = $this->buildCatalogLookupContext($weeklyPlan);
+        $catalogLookup = $this->buildCatalogLookupContext($weeklyPlan);
 
         foreach ($weeklyPlan as $dayPlan) {
             $exercises = data_get($dayPlan, 'exercises', []);
@@ -929,11 +929,9 @@ class WorkoutMediaService
 
     private function downloadGif(string $gifUrl): ?string
     {
-        $requestTimeout = (int) config('services.workoutx.request_timeout', 20);
-
         try {
-            $response = Http::connectTimeout($requestTimeout)
-                ->timeout($requestTimeout)
+            $response = $this->workoutxRequest()
+                ->accept('image/gif, application/octet-stream, */*')
                 ->get($gifUrl);
         } catch (ConnectionException $exception) {
             Log::warning('WorkoutX GIF download timed out or failed to connect.', [

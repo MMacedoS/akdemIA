@@ -46,7 +46,87 @@ class AuthController extends Controller
     public function options(): JsonResponse
     {
         return response()->json([
+            'audience' => 'student-mobile',
             'legal' => $this->legalDocuments(),
+            'public_endpoints' => [
+                [
+                    'name' => 'register',
+                    'description' => 'Cadastro publico de estudante para uso no app.',
+                    'endpoint' => '/api/v1/auth/register',
+                    'method' => 'POST',
+                    'auth_required' => false,
+                    'body' => [
+                        'name' => 'Aluno App',
+                        'email' => 'aluno@example.com',
+                        'password' => 'password123',
+                        'password_confirmation' => 'password123',
+                        'terms_of_use' => true,
+                        'privacy_policy' => true,
+                    ],
+                ],
+                [
+                    'name' => 'login',
+                    'description' => 'Login principal do app. Para estudante standalone, retorna token final sem selecao de tenant.',
+                    'endpoint' => '/api/v1/auth/login',
+                    'method' => 'POST',
+                    'auth_required' => false,
+                    'body' => [
+                        'email' => 'aluno@example.com',
+                        'password' => 'password123',
+                    ],
+                ],
+                [
+                    'name' => 'terms',
+                    'description' => 'Termos de uso atuais em pagina web publica.',
+                    'endpoint' => '/termos-de-uso',
+                    'method' => 'GET',
+                    'auth_required' => false,
+                ],
+                [
+                    'name' => 'privacy_policy',
+                    'description' => 'Politica de privacidade atual em pagina web publica.',
+                    'endpoint' => '/politica-de-privacidade',
+                    'method' => 'GET',
+                    'auth_required' => false,
+                ],
+            ],
+            'authenticated_endpoints' => [
+                [
+                    'name' => 'accept_policies',
+                    'description' => 'Registra o aceite atual de termos e politica depois do login.',
+                    'endpoint' => '/api/v1/auth/accept-policies',
+                    'method' => 'POST',
+                    'auth_required' => true,
+                    'body' => [
+                        'terms_of_use' => true,
+                        'privacy_policy' => true,
+                    ],
+                ],
+                [
+                    'name' => 'me',
+                    'description' => 'Retorna o perfil autenticado do estudante.',
+                    'endpoint' => '/api/v1/me',
+                    'method' => 'GET',
+                    'auth_required' => true,
+                ],
+                [
+                    'name' => 'student_trainers',
+                    'description' => 'Lista treinadores disponiveis para o estudante.',
+                    'endpoint' => '/api/v1/me/trainers',
+                    'method' => 'GET',
+                    'auth_required' => true,
+                ],
+                [
+                    'name' => 'change_trainer',
+                    'description' => 'Troca o treinador vinculado do estudante.',
+                    'endpoint' => '/api/v1/me/trainer',
+                    'method' => 'PUT',
+                    'auth_required' => true,
+                    'body' => [
+                        'trainee_user_id' => 1,
+                    ],
+                ],
+            ],
             'scenarios' => [
                 [
                     'name' => 'subdomain_login',

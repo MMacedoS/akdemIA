@@ -12,6 +12,87 @@ class MercadoPagoWebhookControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_webhook_accepts_official_signature_when_data_id_is_only_in_body(): void
+    {
+        config()->set('services.payment.api_token', 'test-token');
+        config()->set('services.payment.api_base_url', 'https://api.mercadopago.com');
+        config()->set('services.mercadopago.webhook_secret', 'shared-secret');
+
+        $user = User::factory()->create([
+            'profile_type' => 'trainee',
+            'credits_balance' => 0,
+        ]);
+
+        $creditRequest = CreditRequest::query()->create([
+            'requester_user_id' => $user->id,
+            'target_user_id' => $user->id,
+            'tenant_id' => null,
+            'credits_requested' => 5,
+            'pix_key' => 'mercadopago',
+            'pix_payload' => 'pix-code',
+            'qr_code_url' => 'data:image/jpeg;base64,old-image',
+            'payment_external_reference' => 'credits-trainee-5908b436-0a75-480a-81a0-a60667370203',
+            'payment_provider_payment_id' => null,
+            'payment_ticket_url' => null,
+            'payment_status' => 'pending',
+            'payment_status_detail' => 'waiting_transfer',
+            'payment_payload' => null,
+            'status' => 'pending',
+            'note' => null,
+        ]);
+
+        Http::fake([
+            'https://api.mercadopago.com/v1/payments/ORD01KR79YSQN0PXR0J9ZRKA04G9C' => Http::response([
+                'id' => 'ORD01KR79YSQN0PXR0J9ZRKA04G9C',
+                'external_reference' => 'credits-trainee-5908b436-0a75-480a-81a0-a60667370203',
+                'status' => 'approved',
+                'status_detail' => 'accredited',
+                'point_of_interaction' => [
+                    'transaction_data' => [
+                        'ticket_url' => 'https://example.test/payment-ticket',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $timestamp = '1704908010';
+        $requestId = 'request-payment-body-only';
+        $signature = hash_hmac(
+            'sha256',
+            'id:ord01kr79ysqn0pxr0j9zrka04g9c;request-id:' . $requestId . ';ts:' . $timestamp . ';',
+            'shared-secret',
+        );
+
+        $response = $this->withHeaders([
+            'x-signature' => 'ts=' . $timestamp . ',v1=' . $signature,
+            'x-request-id' => $requestId,
+        ])->postJson(route('api.billing.mercadopago.webhook'), [
+            'action' => 'payment.updated',
+            'api_version' => 'v1',
+            'data' => [
+                'id' => 'ORD01KR79YSQN0PXR0J9ZRKA04G9C',
+            ],
+            'date_created' => '2021-11-01T02:02:02Z',
+            'id' => '123456',
+            'live_mode' => false,
+            'type' => 'payment',
+            'user_id' => 185011228,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'received' => true,
+                'processed' => true,
+            ]);
+
+        $creditRequest->refresh();
+        $user->refresh();
+
+        $this->assertSame('approved', $creditRequest->status);
+        $this->assertSame('ORD01KR79YSQN0PXR0J9ZRKA04G9C', $creditRequest->payment_provider_payment_id);
+        $this->assertSame(5, $user->credits_balance);
+    }
+
     public function test_webhook_accepts_official_signature_for_order_notifications_with_embedded_payload(): void
     {
         config()->set('services.mercadopago.webhook_secret', 'shared-secret');

@@ -127,6 +127,7 @@ Descricao por area:
 - `routes/web.php`: fluxo web principal.
 - `routes/api.php`: API REST em `/api/v1`.
 - `scripts/deploy-ubuntu.sh`: fluxo de deploy de producao.
+- `scripts/docker-volume-backup.sh`: backup e restore dos volumes nomeados do Docker em producao.
 - `scripts/deploy-local-docker.sh`: fluxo local baseado em Docker.
 
 ## Modulos Principais
@@ -256,6 +257,7 @@ npm run format:check
 ## Deploy e Documentacao Relacionada
 
 - O deploy de producao usa `scripts/deploy-ubuntu.sh`.
+- O backup e restore do `storage` em producao usa `scripts/docker-volume-backup.sh`.
 - O ambiente local usa `docker-compose.local.yml` e `scripts/deploy-local-docker.sh`.
 - Documentos adicionais estao em `docs/`.
 
