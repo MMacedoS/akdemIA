@@ -1079,6 +1079,180 @@
       }
     },
     {
+      "name": "20A - Student Current Workout (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Retorno do treino atual possui contrato esperado', function () {",
+              "    pm.expect(data).to.have.property('data');",
+              "    if (data.data !== null) {",
+              "      pm.expect(data.data).to.have.property('id');",
+              "      pm.expect(data.data).to.have.property('status');",
+              "      pm.expect(data.data).to.have.property('workout_plan');",
+              "    }",
+              "  });",
+              "",
+              "  if (data.data && data.data.id) {",
+              "    pm.collectionVariables.set('workout_id', String(data.data.id));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/students/workout",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "workout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "20B - Student Workouts List (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Listagem de treinos do aluno possui contrato esperado', function () {",
+              "    pm.expect(data).to.have.property('current_workout');",
+              "    pm.expect(data).to.have.property('data').that.is.an('array');",
+              "  });",
+              "",
+              "  if (data.current_workout && data.current_workout.id) {",
+              "    pm.collectionVariables.set('workout_id', String(data.current_workout.id));",
+              "  } else if (Array.isArray(data.data) && data.data.length > 0 && data.data[0].id) {",
+              "    pm.collectionVariables.set('workout_id', String(data.data[0].id));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/students/workouts",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "workouts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "20C - Student Workout Generate (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([202, 401, 402, 403, 409, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 202) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Geracao do fluxo estudante iniciou', function () {",
+              "    pm.expect(data).to.have.property('message', 'Geracao do treino iniciada.');",
+              "    pm.expect(data).to.have.property('credits_balance');",
+              "    pm.expect(data).to.have.property('data').that.is.an('object');",
+              "    pm.expect(data.data).to.have.property('id');",
+              "    pm.expect(data.data).to.have.property('status', 'processing');",
+              "  });",
+              "  pm.collectionVariables.set('workout_id', String(data.data.id));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/students/workout/generate",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "workout",
+            "generate"
+          ]
+        }
+      }
+    },
+    {
       "name": "20 - Workout Generate (POST)",
       "event": [
         {

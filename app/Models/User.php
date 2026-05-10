@@ -195,6 +195,25 @@ class User extends Authenticatable
         return $this->hasMany(TenantStudentTraineeLink::class, 'student_user_id');
     }
 
+    public function assignedTraineeLink(?Tenant $tenant = null): ?TenantStudentTraineeLink
+    {
+        $query = $this->assignedTraineeLinks()
+            ->with('trainee:id,name,email');
+
+        if ($tenant instanceof Tenant) {
+            $query->where('tenant_id', $tenant->id);
+        } else {
+            $query->whereNull('tenant_id');
+        }
+
+        return $query->latest('id')->first();
+    }
+
+    public function assignedTrainee(?Tenant $tenant = null): ?User
+    {
+        return $this->assignedTraineeLink($tenant)?->trainee;
+    }
+
     public function sendPasswordResetNotification($token): void
     {
         try {

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\MedicalData\MedicalDataController;
 use App\Http\Controllers\Api\V1\PhysicalData\PhysicalDataController;
 use App\Http\Controllers\Api\V1\Preferences\PreferencesController;
 use App\Http\Controllers\Api\V1\Profile\MeController;
+use App\Http\Controllers\Api\V1\Students\WorkoutController as StudentWorkoutController;
 use App\Http\Controllers\Api\V1\Tenants\TenantController;
 use App\Http\Controllers\Api\V1\Workouts\ExerciseLookupController;
 use App\Http\Controllers\Api\V1\Workouts\InternalExerciseCatalogController;
@@ -59,6 +60,12 @@ Route::prefix('v1')->group(function () {
                 Route::get('preferences', [PreferencesController::class, 'show'])->name('api.preferences.show');
                 Route::post('preferences', [PreferencesController::class, 'store'])->name('api.preferences.store');
                 Route::put('preferences', [PreferencesController::class, 'update'])->name('api.preferences.update');
+
+                Route::prefix('students')->middleware(['role:student'])->group(function () {
+                    Route::get('workout', [StudentWorkoutController::class, 'show'])->name('api.students.workout.show');
+                    Route::get('workouts', [StudentWorkoutController::class, 'index'])->name('api.students.workouts.index');
+                    Route::post('workout/generate', [StudentWorkoutController::class, 'store'])->name('api.students.workout.generate');
+                });
 
                 Route::post('workouts/generate', [GenerateWorkoutController::class, 'store'])->name('api.workouts.generate');
                 Route::get('workouts/status/{id}', [WorkoutStatusController::class, 'show'])->name('api.workouts.status.show');

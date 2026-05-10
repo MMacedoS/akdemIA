@@ -17,6 +17,7 @@ class StudentTrainerTransformer
             'id' => $trainee->id,
             'name' => $trainee->name,
             'email' => $trainee->email,
+            'avatar_url' => $trainee->avatar_url,
             'is_current' => $isCurrent,
             'landing_url' => $this->resolveLandingUrl($trainee),
         ];
@@ -27,10 +28,13 @@ class StudentTrainerTransformer
      */
     public function transformAssigned(User $trainee): array
     {
+        $trainee->loadMissing('publicProfile:user_id,slug,is_published');
+
         return [
             'id' => $trainee->id,
             'name' => $trainee->name,
             'email' => $trainee->email,
+            'avatar_url' => $trainee->avatar_url,
             'landing_url' => $this->resolveLandingUrl($trainee),
         ];
     }
@@ -43,6 +47,14 @@ class StudentTrainerTransformer
             return null;
         }
 
-        return route('landing.user', ['slug' => $profile->slug]);
+        $slug = trim((string) $profile->slug);
+        $scheme = parse_url((string) config('app.url'), PHP_URL_SCHEME) ?: 'https';
+        $rootDomain = landing_root_domain();
+
+        if (is_string($rootDomain) && $rootDomain !== '') {
+            return $scheme . '://' . $slug . '.' . $rootDomain;
+        }
+
+        return route('landing.user', ['slug' => $slug], true);
     }
 }

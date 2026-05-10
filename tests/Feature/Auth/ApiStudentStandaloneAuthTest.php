@@ -3,6 +3,9 @@
 namespace Tests\Feature\Auth;
 
 use App\Enums\Role;
+use App\Models\MedicalData\MedicalData;
+use App\Models\PhysicalData\PhysicalData;
+use App\Models\Preferences\Preference;
 use App\Models\Tenant\TenantStudentTraineeLink;
 use App\Models\User;
 use App\Services\Tenant\PlatformTenantService;
@@ -119,7 +122,9 @@ class ApiStudentStandaloneAuthTest extends TestCase
 
         $this->getJson('/api/v1/me', [
             'Authorization' => 'Bearer ' . $token,
-        ])->assertOk()->assertJsonPath('tenant_id', null);
+        ])->assertOk()
+            ->assertJsonPath('tenant_id', null)
+            ->assertJsonPath('assigned_trainer.id', $platformTrainee->id);
 
         $this->putJson('/api/v1/me/trainer', [
             'trainee_user_id' => $replacementTrainee->id,
@@ -127,11 +132,82 @@ class ApiStudentStandaloneAuthTest extends TestCase
             'Authorization' => 'Bearer ' . $token,
         ])->assertOk()->assertJsonPath('assigned_trainer.id', $replacementTrainee->id);
 
+        $this->getJson('/api/v1/me', [
+            'Authorization' => 'Bearer ' . $token,
+        ])->assertOk()
+            ->assertJsonPath('tenant_id', null)
+            ->assertJsonPath('assigned_trainer.id', $replacementTrainee->id);
+
         $this->assertDatabaseHas('tenant_student_trainee_links', [
             'tenant_id' => null,
             'student_user_id' => $student->id,
             'trainee_user_id' => $replacementTrainee->id,
         ]);
+    }
+
+    public function test_me_endpoint_returns_physical_medical_and_preferences_data(): void
+    {
+        $platformTrainee = User::factory()->create([
+            'name' => PlatformTenantService::PLATFORM_TRAINEE_NAME,
+            'email' => 'plataforma-profile@trainer.test',
+            'profile_type' => Role::TRAINER->value,
+            'is_active' => true,
+        ]);
+
+        $student = User::factory()->create([
+            'name' => 'Aluno Perfil Completo',
+            'email' => 'perfil-completo@app.test',
+            'profile_type' => Role::STUDENT->value,
+            'is_active' => true,
+        ]);
+
+        PhysicalData::query()->create([
+            'user_id' => $student->id,
+            'body_fat_percentage' => 12.5,
+            'activity_level' => 'moderate',
+            'imc' => 24.3,
+        ]);
+
+        MedicalData::query()->create([
+            'user_id' => $student->id,
+            'injuries' => 'joelho',
+            'diseases' => 'nenhuma',
+            'medications' => 'nenhum',
+            'restrictions' => 'agachamento profundo',
+        ]);
+
+        Preference::query()->create([
+            'user_id' => $student->id,
+            'preferred_foods' => ['frango', 'arroz'],
+            'disliked_foods' => ['figado'],
+            'drinks' => ['agua', 'cafe'],
+            'available_hours' => ['06:00', '19:00'],
+            'training_frequency' => 4,
+        ]);
+
+        TenantStudentTraineeLink::query()->create([
+            'tenant_id' => null,
+            'student_user_id' => $student->id,
+            'trainee_user_id' => $platformTrainee->id,
+            'linked_by_user_id' => $platformTrainee->id,
+            'note' => null,
+        ]);
+
+        $loginResponse = $this->postJson('/api/v1/auth/login', [
+            'email' => $student->email,
+            'password' => 'password',
+        ]);
+
+        $token = (string) $loginResponse->json('token');
+
+        $this->getJson('/api/v1/me', [
+            'Authorization' => 'Bearer ' . $token,
+        ])->assertOk()
+            ->assertJsonPath('physical_data.activity_level', 'moderate')
+            ->assertJsonPath('physical_data.body_fat_percentage', '12.50')
+            ->assertJsonPath('medical_data.injuries', 'joelho')
+            ->assertJsonPath('preferences.training_frequency', 4)
+            ->assertJsonPath('preferences.preferred_foods.0', 'frango');
     }
 
     public function test_api_usage_is_blocked_until_required_policies_are_accepted(): void
