@@ -2,7 +2,7 @@
   "info": {
     "name": "akademia - auth v1",
     "_postman_id": "3fdccfe5-53c4-4545-85eb-3f56f664eb6b",
-    "description": "Collection para testar fluxo completo da API v1 multi-tenant: auth, perfil, dados fisicos/medicos, preferencias, geracao de treino assincrona e status.",
+    "description": "Collection para testar o fluxo atual da API v1 multi-tenant: auth, aceite de politicas, perfil, treinador do aluno, dados fisicos/medicos, preferencias, geracao de treino assincrona, lookup de exercicios e endpoints admin.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -12,11 +12,11 @@
     },
     {
       "key": "app_host",
-      "value": "localhost"
+      "value": "akademia.localhost"
     },
     {
       "key": "tenant_host",
-      "value": "academia-centro.localhost"
+      "value": "plataforma.akademia.localhost"
     },
     {
       "key": "email",
@@ -43,12 +43,12 @@
       "value": ""
     },
     {
-      "key": "plan_id",
+      "key": "trainee_user_id",
       "value": "1"
     },
     {
-      "key": "payment_method_id",
-      "value": "pm_card_visa"
+      "key": "exercise_name",
+      "value": "supino"
     }
   ],
   "item": [
@@ -77,7 +77,74 @@
       }
     },
     {
-      "name": "02 - Login (Sem Subdominio)",
+      "name": "02 - Register Student",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "  let data = null;",
+              "  try {",
+              "    data = pm.response.json();",
+              "  } catch (e) {",
+              "    pm.test('Resposta deve ser JSON valido', function () {",
+              "      throw new Error('Resposta nao e JSON. Host atual: ' + pm.request.headers.get('Host') + '. Body: ' + pm.response.text());",
+              "    });",
+              "  }",
+              "  if (!data) {",
+              "    return;",
+              "  }",
+              "",
+              "  pm.test('Cadastro retorna estudante standalone autenticado', function () {",
+              "    pm.expect(data).to.have.property('authenticated', true);",
+              "    pm.expect(data).to.have.property('profile', 'student');",
+              "    pm.expect(data).to.have.property('requiresTenantSelection', false);",
+              "    pm.expect(data).to.have.property('token').that.is.a('string').and.not.empty;",
+              "    pm.expect(data).to.have.nested.property('policies.accepted', true);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Aluno App {{$timestamp}}\",\n  \"email\": \"aluno+{{$timestamp}}@akademia.test\",\n  \"password\": \"{{password}}\",\n  \"password_confirmation\": \"{{password}}\",\n  \"terms_of_use\": true,\n  \"privacy_policy\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/register",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 - Login (Sem Subdominio)",
       "event": [
         {
           "listen": "test",
@@ -101,10 +168,16 @@
               "    return;",
               "  }",
               "",
-              "  pm.test('Retorno sem subdominio exige selecao de tenant', function () {",
-              "    pm.expect(data).to.have.property('requiresTenantSelection', true);",
-              "    pm.expect(data).to.have.property('selectionToken').that.is.a('string').and.not.empty;",
-              "    pm.expect(data).to.have.property('tenants').that.is.an('array').and.not.empty;",
+              "  pm.test('Retorno sem subdominio respeita o fluxo atual de autenticacao', function () {",
+              "    pm.expect(data).to.have.property('policies').that.is.an('object');",
+              "    if (data.requiresTenantSelection === true) {",
+              "      pm.expect(data).to.have.property('selectionToken').that.is.a('string').and.not.empty;",
+              "      pm.expect(data).to.have.property('tenants').that.is.an('array').and.not.empty;",
+              "      return;",
+              "    }",
+              "",
+              "    pm.expect(data).to.have.property('authenticated', true);",
+              "    pm.expect(data).to.have.property('token').that.is.a('string').and.not.empty;",
               "  });",
               "",
               "  if (data.selectionToken) {",
@@ -114,7 +187,14 @@
               "  if (Array.isArray(data.tenants) && data.tenants.length > 0 && data.tenants[0].id) {",
               "    pm.collectionVariables.set('tenant_id', String(data.tenants[0].id));",
               "    if (data.tenants[0].slug) {",
-              "      pm.collectionVariables.set('tenant_host', data.tenants[0].slug + '.localhost');",
+              "      pm.collectionVariables.set('tenant_host', data.tenants[0].slug + '.' + pm.collectionVariables.get('app_host'));",
+              "    }",
+              "  }",
+              "",
+              "  if (data.tenant && data.tenant.id) {",
+              "    pm.collectionVariables.set('tenant_id', String(data.tenant.id));",
+              "    if (data.tenant.slug) {",
+              "      pm.collectionVariables.set('tenant_host', data.tenant.slug + '.' + pm.collectionVariables.get('app_host'));",
               "    }",
               "  }",
               "",
@@ -157,7 +237,7 @@
       }
     },
     {
-      "name": "03 - Login (Com Subdominio)",
+      "name": "04 - Login (Com Subdominio)",
       "event": [
         {
           "listen": "test",
@@ -185,9 +265,16 @@
               "    pm.expect(data).to.have.property('tenant').that.is.an('object');",
               "    pm.expect(data.tenant).to.have.property('id');",
               "    pm.expect(data.tenant).to.have.property('slug');",
+              "    pm.expect(data).to.have.property('policies').that.is.an('object');",
               "  });",
               "  if (data.token) {",
               "    pm.collectionVariables.set('token', data.token);",
+              "  }",
+              "  if (data.tenant && data.tenant.id) {",
+              "    pm.collectionVariables.set('tenant_id', String(data.tenant.id));",
+              "    if (data.tenant.slug) {",
+              "      pm.collectionVariables.set('tenant_host', data.tenant.slug + '.' + pm.collectionVariables.get('app_host'));",
+              "    }",
               "  }",
               "}"
             ]
@@ -225,7 +312,7 @@
       }
     },
     {
-      "name": "04 - Select Tenant",
+      "name": "05 - Select Tenant",
       "event": [
         {
           "listen": "test",
@@ -253,9 +340,13 @@
               "    pm.expect(data).to.have.property('tenant').that.is.an('object');",
               "    pm.expect(data.tenant).to.have.property('id');",
               "    pm.expect(String(data.tenant.id)).to.eql(pm.collectionVariables.get('tenant_id'));",
+              "    pm.expect(data).to.have.property('policies').that.is.an('object');",
               "  });",
               "  if (data.token) {",
               "    pm.collectionVariables.set('token', data.token);",
+              "  }",
+              "  if (data.tenant && data.tenant.slug) {",
+              "    pm.collectionVariables.set('tenant_host', data.tenant.slug + '.' + pm.collectionVariables.get('app_host'));",
               "  }",
               "}"
             ]
@@ -293,7 +384,7 @@
       }
     },
     {
-      "name": "05 - Me (GET)",
+      "name": "06 - Accept Policies",
       "event": [
         {
           "listen": "test",
@@ -301,7 +392,64 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 503]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 403, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Aceite de politicas registrado', function () {",
+              "    pm.expect(data).to.have.property('message');",
+              "    pm.expect(data).to.have.nested.property('policies.accepted', true);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"terms_of_use\": true,\n  \"privacy_policy\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/accept-policies",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "accept-policies"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 - Me (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403, 503]).to.include(pm.response.code);",
               "});",
               "",
               "if (pm.response.code === 200) {",
@@ -342,7 +490,7 @@
       }
     },
     {
-      "name": "06 - Me (PUT)",
+      "name": "08 - Me (PUT)",
       "event": [
         {
           "listen": "test",
@@ -350,7 +498,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 422, 503]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403, 422, 503]).to.include(pm.response.code);",
               "});",
               "",
               "if (pm.response.code === 200) {",
@@ -399,7 +547,7 @@
       }
     },
     {
-      "name": "07 - Physical Data (POST)",
+      "name": "09 - Me Trainers (GET)",
       "event": [
         {
           "listen": "test",
@@ -407,7 +555,131 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Lista de treinadores retorna paginacao e filtros', function () {",
+              "    pm.expect(data).to.have.property('assigned_trainer_id');",
+              "    pm.expect(data).to.have.property('filters').that.is.an('object');",
+              "    pm.expect(data).to.have.property('data').that.is.an('array');",
+              "    pm.expect(data).to.have.property('meta').that.is.an('object');",
+              "  });",
+              "",
+              "  if (Array.isArray(data.data) && data.data.length > 0 && data.data[0].id) {",
+              "    pm.collectionVariables.set('trainee_user_id', String(data.data[0].id));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/me/trainers?search=&per_page=5",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me",
+            "trainers"
+          ],
+          "query": [
+            {
+              "key": "search",
+              "value": ""
+            },
+            {
+              "key": "per_page",
+              "value": "5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 - Me Trainer (PUT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Treinador do aluno atualizado', function () {",
+              "    pm.expect(data).to.have.property('message');",
+              "    pm.expect(data).to.have.property('assigned_trainer').that.is.an('object');",
+              "    pm.expect(data.assigned_trainer).to.have.property('id');",
+              "  });",
+              "}",
+              ""
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"trainee_user_id\": {{trainee_user_id}}\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/me/trainer",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me",
+            "trainer"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11 - Physical Data (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 401, 402, 403, 422]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -447,7 +719,7 @@
       }
     },
     {
-      "name": "08 - Physical Data (GET)",
+      "name": "12 - Physical Data (GET)",
       "event": [
         {
           "listen": "test",
@@ -455,7 +727,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403, 404]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -487,7 +759,7 @@
       }
     },
     {
-      "name": "09 - Physical Data (PUT)",
+      "name": "13 - Physical Data (PUT)",
       "event": [
         {
           "listen": "test",
@@ -495,7 +767,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 404, 422]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403, 404, 422]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -535,7 +807,7 @@
       }
     },
     {
-      "name": "10 - Medical Data (POST)",
+      "name": "14 - Medical Data (POST)",
       "event": [
         {
           "listen": "test",
@@ -543,7 +815,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
+              "  pm.expect([201, 401, 402, 403, 422]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -583,7 +855,7 @@
       }
     },
     {
-      "name": "11 - Medical Data (GET)",
+      "name": "15 - Medical Data (GET)",
       "event": [
         {
           "listen": "test",
@@ -591,7 +863,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403, 404]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -623,7 +895,7 @@
       }
     },
     {
-      "name": "12 - Medical Data (PUT)",
+      "name": "16 - Medical Data (PUT)",
       "event": [
         {
           "listen": "test",
@@ -631,7 +903,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 404, 422]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403, 404, 422]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -671,7 +943,7 @@
       }
     },
     {
-      "name": "13 - Preferences (POST)",
+      "name": "17 - Preferences (POST)",
       "event": [
         {
           "listen": "test",
@@ -679,7 +951,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
+              "  pm.expect([201, 401, 402, 403, 422]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -719,7 +991,7 @@
       }
     },
     {
-      "name": "14 - Preferences (GET)",
+      "name": "18 - Preferences (GET)",
       "event": [
         {
           "listen": "test",
@@ -727,7 +999,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403, 404]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -759,7 +1031,7 @@
       }
     },
     {
-      "name": "15 - Preferences (PUT)",
+      "name": "19 - Preferences (PUT)",
       "event": [
         {
           "listen": "test",
@@ -767,7 +1039,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 404, 422]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403, 404, 422]).to.include(pm.response.code);",
               "});"
             ]
           }
@@ -807,7 +1079,7 @@
       }
     },
     {
-      "name": "16 - Workout Generate (POST)",
+      "name": "20 - Workout Generate (POST)",
       "event": [
         {
           "listen": "test",
@@ -815,7 +1087,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([202, 401, 403]).to.include(pm.response.code);",
+              "  pm.expect([202, 401, 402, 403, 409, 422]).to.include(pm.response.code);",
               "});",
               "",
               "if (pm.response.code === 202) {",
@@ -823,6 +1095,7 @@
               "  pm.test('Geracao iniciada com id', function () {",
               "    pm.expect(data).to.have.property('status', 'processing');",
               "    pm.expect(data).to.have.property('id');",
+              "    pm.expect(data).to.have.property('credits_balance');",
               "  });",
               "  pm.collectionVariables.set('workout_id', String(data.id));",
               "}"
@@ -865,7 +1138,7 @@
       }
     },
     {
-      "name": "17 - Workout Status (GET)",
+      "name": "21 - Workout Status (GET)",
       "event": [
         {
           "listen": "test",
@@ -873,13 +1146,14 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "  pm.expect([200, 401, 402, 403, 404]).to.include(pm.response.code);",
               "});",
               "",
               "if (pm.response.code === 200) {",
               "  const data = pm.response.json();",
               "  pm.test('Retorno possui status valido', function () {",
               "    pm.expect(['processing', 'done', 'error']).to.include(data.status);",
+              "    pm.expect(data).to.have.property('request_status');",
               "  });",
               "  pm.test('Retorno traz result quando done', function () {",
               "    if (data.status === 'done') {",
@@ -922,7 +1196,7 @@
       }
     },
     {
-      "name": "18 - Admin AI Logs (GET)",
+      "name": "22 - Workout Exercise Lookup (GET)",
       "event": [
         {
           "listen": "test",
@@ -930,8 +1204,123 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403]).to.include(pm.response.code);",
-              "});"
+              "  pm.expect([200, 401, 402, 403, 404, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Lookup de exercicio retorna contrato esperado', function () {",
+              "    pm.expect(data).to.have.property('found', true);",
+              "    pm.expect(data).to.have.property('query');",
+              "    pm.expect(data).to.have.property('workoutx_name');",
+              "    pm.expect(data).to.have.property('exercise');",
+              "    pm.expect(data).to.have.property('media').that.is.an('object');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/workouts/exercises/name/{{exercise_name}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workouts",
+            "exercises",
+            "name",
+            "{{exercise_name}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "23 - Admin Dashboard (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Dashboard admin possui campos esperados', function () {",
+              "    pm.expect(data).to.have.property('data').that.is.an('object');",
+              "    pm.expect(data.data).to.have.property('total_students');",
+              "    pm.expect(data.data).to.have.property('total_trainers');",
+              "    pm.expect(data.data).to.have.property('ai_usage');",
+              "    pm.expect(data.data).to.have.property('ai_limit');",
+              "    pm.expect(data.data).to.have.property('credits_balance');",
+              "    pm.expect(data.data).to.have.property('current_plan');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/dashboard",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "dashboard"
+          ]
+        }
+      }
+    },
+    {
+      "name": "24 - Admin AI Logs (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Logs de IA retornam em data', function () {",
+              "    pm.expect(data).to.have.property('data').that.is.an('array');",
+              "  });",
+              "}"
             ]
           }
         }
@@ -963,7 +1352,7 @@
       }
     },
     {
-      "name": "19 - Admin Usage (GET)",
+      "name": "25 - Admin Usage (GET)",
       "event": [
         {
           "listen": "test",
@@ -981,6 +1370,7 @@
               "    pm.expect(data).to.have.property('ai_usage');",
               "    pm.expect(data).to.have.property('ai_limit');",
               "    pm.expect(data).to.have.property('ai_consumed_percentage');",
+              "    pm.expect(data).to.have.property('credits_balance');",
               "    pm.expect(data).to.have.property('students_used');",
               "    pm.expect(data).to.have.property('students_limit');",
               "  });",
@@ -1011,104 +1401,6 @@
             "v1",
             "admin",
             "usage"
-          ]
-        }
-      }
-    },
-    {
-      "name": "20 - Billing Subscription (POST)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status code esperado', function () {",
-              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Host",
-            "value": "{{tenant_host}}"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"plan_id\": {{plan_id}},\n  \"payment_method_id\": \"{{payment_method_id}}\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/billing/subscriptions",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "billing",
-            "subscriptions"
-          ]
-        }
-      }
-    },
-    {
-      "name": "21 - Admin Upgrade Plan (POST)",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status code esperado', function () {",
-              "  pm.expect([200, 401, 403, 422]).to.include(pm.response.code);",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Host",
-            "value": "{{tenant_host}}"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"plan_id\": {{plan_id}}\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/v1/admin/upgrade-plan",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "admin",
-            "upgrade-plan"
           ]
         }
       }

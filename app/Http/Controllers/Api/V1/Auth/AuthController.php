@@ -12,6 +12,7 @@ use App\Services\Tenant\PlatformTenantService;
 use App\Services\Tenant\Auth\TenantAuthService;
 use App\Services\Tenant\TenantManager;
 use App\Support\FormPatterns;
+use App\Transformers\Profile\StudentTrainerTransformer;
 use App\Transformers\Tenant\TenantTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ class AuthController extends Controller
         private readonly TenantAuthService $tenantAuthService,
         private readonly TenantManager $tenantManager,
         private readonly TenantTransformer $tenantTransformer,
+        private readonly StudentTrainerTransformer $studentTrainerTransformer,
         private readonly TraineeStudentRepositoryContract $traineeStudentRepository,
         private readonly PlatformTenantService $platformTenantService,
     ) {}
@@ -330,11 +332,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
             ],
-            'assigned_trainer' => $assignedTrainee === null ? null : [
-                'id' => $assignedTrainee->id,
-                'name' => $assignedTrainee->name,
-                'email' => $assignedTrainee->email,
-            ],
+            'assigned_trainer' => $assignedTrainee === null ? null : $this->studentTrainerTransformer->transformAssigned($assignedTrainee),
         ], $status);
     }
 

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\V1\Profile;
 
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
+use App\Transformers\Profile\StudentTrainerTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -12,6 +14,7 @@ class StudentTrainerController extends Controller
 {
     public function __construct(
         private readonly TraineeStudentRepositoryContract $traineeStudentRepository,
+        private readonly StudentTrainerTransformer $studentTrainerTransformer,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -40,12 +43,10 @@ class StudentTrainerController extends Controller
                 'search' => $search !== '' ? $search : null,
                 'per_page' => $perPage,
             ],
-            'data' => collect($trainees->items())->map(fn($trainee) => [
-                'id' => $trainee->id,
-                'name' => $trainee->name,
-                'email' => $trainee->email,
-                'is_current' => $assignedTrainee?->id === $trainee->id,
-            ])->values(),
+            'data' => collect($trainees->items())->map(fn(User $trainee) => $this->studentTrainerTransformer->transform(
+                $trainee,
+                $assignedTrainee?->id === $trainee->id,
+            ))->values(),
             'meta' => [
                 'current_page' => $trainees->currentPage(),
                 'per_page' => $trainees->perPage(),
@@ -80,11 +81,7 @@ class StudentTrainerController extends Controller
 
         return response()->json([
             'message' => 'Trainer atualizado com sucesso.',
-            'assigned_trainer' => $assignedTrainee === null ? null : [
-                'id' => $assignedTrainee->id,
-                'name' => $assignedTrainee->name,
-                'email' => $assignedTrainee->email,
-            ],
+            'assigned_trainer' => $assignedTrainee === null ? null : $this->studentTrainerTransformer->transformAssigned($assignedTrainee),
         ]);
     }
 }
