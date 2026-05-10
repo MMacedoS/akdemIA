@@ -22,3 +22,29 @@ if (! function_exists('format_date_br')) {
         return FormPatterns::formatDate($value, $format) ?? $fallback;
     }
 }
+
+if (! function_exists('landing_root_domain')) {
+    function landing_root_domain(): ?string
+    {
+        $configured = trim((string) config('app.landing_root_domain', ''));
+
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        if (! is_string($appHost) || $appHost === '' || $appHost === 'localhost' || filter_var($appHost, FILTER_VALIDATE_IP)) {
+            return null;
+        }
+
+        return $appHost;
+    }
+}
+
+if (! function_exists('reserved_public_subdomains')) {
+    function reserved_public_subdomains(): array
+    {
+        return ['www', 'api'];
+    }
+}

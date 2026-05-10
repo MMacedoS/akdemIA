@@ -170,13 +170,23 @@
 		background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, #f3f9fc 100%);
 		border-right: 1px solid #d6e3ec;
 		padding: 24px 16px;
+		display: flex;
+		flex-direction: column;
 		position: sticky;
 		top: 0;
 		height: 100vh;
 		overflow-x: hidden;
+		overflow-y: hidden;
+		backdrop-filter: blur(18px);
+	}
+
+	.panel-layout .sidebar-nav {
+		flex: 1;
+		min-height: 0;
+		overflow-x: hidden;
 		overflow-y: auto;
 		scrollbar-gutter: stable;
-		backdrop-filter: blur(18px);
+		padding-bottom: 12px;
 	}
 
 	.panel-layout .sidebar::before {
@@ -959,9 +969,13 @@
 			z-index: 100;
 			transform: translateX(-105%);
 			transition: transform .22s ease;
-			overflow-y: auto;
+			overflow: hidden;
 			border-radius: 0 18px 18px 0;
 			box-shadow: 0 16px 34px rgba(26, 21, 53, 0.18);
+		}
+
+		.panel-layout .sidebar-nav {
+			padding-bottom: 72px;
 		}
 
 		.panel-layout .nav-logout {

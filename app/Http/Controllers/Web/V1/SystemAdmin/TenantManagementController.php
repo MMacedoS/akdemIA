@@ -156,10 +156,15 @@ class TenantManagementController extends Controller
     {
         $appUrl = rtrim((string) config('app.url'), '/');
         $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?: 'https';
-        $rootDomain = env('APP_LANDING_ROOT_DOMAIN');
+        $configuredLandingDomain = env('APP_LANDING_ROOT_DOMAIN');
+        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
 
-        if (is_string($rootDomain) && trim($rootDomain) !== '') {
-            return $scheme . '://' . Str::lower($slug) . '.' . trim($rootDomain);
+        $rootDomain = is_string($configuredLandingDomain) && trim($configuredLandingDomain) !== ''
+            ? trim($configuredLandingDomain)
+            : ((is_string($appHost) && $appHost !== '' && $appHost !== 'localhost') ? $appHost : null);
+
+        if ($rootDomain !== null) {
+            return $scheme . '://' . Str::lower($slug) . '.' . $rootDomain;
         }
 
         return $appUrl;

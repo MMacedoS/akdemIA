@@ -46,6 +46,7 @@ Route::get('/politica-de-privacidade', [WebLegalDocumentController::class, 'priv
 
 $configuredLandingDomain = env('APP_LANDING_ROOT_DOMAIN');
 $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+
 $landingRootDomain = is_string($configuredLandingDomain) && $configuredLandingDomain !== ''
     ? $configuredLandingDomain
     : ((is_string($appHost) && $appHost !== '' && $appHost !== 'localhost') ? $appHost : 'academai.com.br');

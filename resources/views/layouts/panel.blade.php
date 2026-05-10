@@ -110,17 +110,19 @@
                 };
             @endphp
 
-            <div class="nav-section">Navegacao</div>
-            <div class="nav-list">
-                @foreach ($navigationItems as $navigationItem)
-                    <a href="{{ route($navigationItem['route']) }}" class="nav-link {{ request()->routeIs($navigationItem['active']) ? 'active' : '' }}">
-                        <span class="nav-link-left">
-                            <span class="nav-icon">{{ $navigationItem['icon'] }}</span>
-                            <span class="nav-label">{{ $navigationItem['label'] }}</span>
-                        </span>
-                        <span class="nav-go">&gt;</span>
-                    </a>
-                @endforeach
+            <div class="sidebar-nav">
+                <div class="nav-section">Navegacao</div>
+                <div class="nav-list">
+                    @foreach ($navigationItems as $navigationItem)
+                        <a href="{{ route($navigationItem['route']) }}" class="nav-link {{ request()->routeIs($navigationItem['active']) ? 'active' : '' }}">
+                            <span class="nav-link-left">
+                                <span class="nav-icon">{{ $navigationItem['icon'] }}</span>
+                                <span class="nav-label">{{ $navigationItem['label'] }}</span>
+                            </span>
+                            <span class="nav-go">&gt;</span>
+                        </a>
+                    @endforeach
+                </div>
             </div>
 
             <div class="nav-logout">

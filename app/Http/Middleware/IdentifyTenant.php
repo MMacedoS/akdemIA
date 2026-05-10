@@ -130,7 +130,12 @@ class IdentifyTenant
             return null;
         }
 
-        $rootHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+        $configuredLandingDomain = env('APP_LANDING_ROOT_DOMAIN');
+        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        $rootHost = is_string($configuredLandingDomain) && $configuredLandingDomain !== ''
+            ? $configuredLandingDomain
+            : ((is_string($appHost) && $appHost !== '' && $appHost !== 'localhost') ? $appHost : null);
 
         if (! is_string($rootHost) || $rootHost === '') {
             return null;
@@ -149,7 +154,7 @@ class IdentifyTenant
 
         $candidate = $hostParts[0] ?? null;
 
-        if ($candidate === null || $candidate === 'www') {
+        if ($candidate === null || in_array($candidate, ['www', 'api'], true)) {
             return null;
         }
 
