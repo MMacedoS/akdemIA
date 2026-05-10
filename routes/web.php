@@ -14,6 +14,7 @@ use App\Http\Controllers\Web\V1\SystemAdmin\SystemLandingController as SystemAdm
 use App\Http\Controllers\Web\V1\SystemAdmin\CreditOverviewController as SystemAdminCreditOverviewController;
 use App\Http\Controllers\Web\V1\SystemAdmin\EmailSettingsController as SystemAdminEmailSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\LegalSettingsController as SystemAdminLegalSettingsController;
+use App\Http\Controllers\Web\V1\SystemAdmin\LogViewerController as SystemAdminLogViewerController;
 use App\Http\Controllers\Web\V1\SystemAdmin\PaymentSettingsController as SystemAdminPaymentSettingsController;
 use App\Http\Controllers\Web\LegalDocumentController as WebLegalDocumentController;
 use App\Http\Controllers\Web\V1\SystemAdmin\WorkoutRulesSettingsController as SystemAdminWorkoutRulesSettingsController;
@@ -225,6 +226,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/settings/email', [SystemAdminEmailSettingsController::class, 'edit'])->name('settings.email.edit');
         Route::put('/settings/email', [SystemAdminEmailSettingsController::class, 'update'])->name('settings.email.update');
+
+        Route::get('/settings/logs', [SystemAdminLogViewerController::class, 'index'])->name('settings.logs.index');
+        Route::post('/settings/logs/clear', [SystemAdminLogViewerController::class, 'clear'])->name('settings.logs.clear');
 
         Route::get('/settings/workouts', [SystemAdminWorkoutRulesSettingsController::class, 'edit'])->name('settings.workouts.edit');
         Route::put('/settings/workouts', [SystemAdminWorkoutRulesSettingsController::class, 'update'])->name('settings.workouts.update');

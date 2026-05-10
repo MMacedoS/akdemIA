@@ -95,6 +95,14 @@
                     <span class="nav-go">&gt;</span>
                 </a>
 
+                <a class="nav-link" href="{{ route('system-admin.settings.logs.index') }}">
+                    <span class="nav-link-left">
+                        <span class="nav-icon">LG</span>
+                        <span class="nav-label">Logs Laravel</span>
+                    </span>
+                    <span class="nav-go">&gt;</span>
+                </a>
+
                 <a class="nav-link" href="{{ route('system-admin.settings.workouts.edit') }}">
                     <span class="nav-link-left">
                         <span class="nav-icon">TR</span>
