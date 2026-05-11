@@ -22,6 +22,7 @@ class MeTransformer
             'tenant_id' => $tenant instanceof Tenant ? $tenant->id : null,
             'name' => $user->name,
             'email' => $user->email,
+            'credits_balance' => (int) $user->credits_balance,
             'phone' => $user->phone,
             'avatar_url' => $user->avatar_url,
             'birth_date' => $user->birth_date?->toDateString(),

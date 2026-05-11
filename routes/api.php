@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Admin\EmailCommunicationController;
 use App\Http\Controllers\Api\V1\Admin\UsageController;
 use App\Http\Controllers\Api\V1\Admin\UserManagementController;
 use App\Http\Controllers\Api\V1\Billing\MercadoPagoWebhookController;
+use App\Http\Controllers\Api\V1\Credits\CreditRequestController;
 use App\Http\Controllers\Api\V1\MedicalData\MedicalDataController;
 use App\Http\Controllers\Api\V1\PhysicalData\PhysicalDataController;
 use App\Http\Controllers\Api\V1\Preferences\PreferencesController;
@@ -38,6 +39,12 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/accept-policies', [AuthController::class, 'acceptPolicies'])->name('api.auth.accept-policies');
         Route::get('workouts/exercises/media/{workoutxName}', [ExerciseMediaController::class, 'show'])
             ->name('api.workouts.exercises.media.show');
+
+        Route::prefix('credits/requests')->group(function () {
+            Route::get('/', [CreditRequestController::class, 'index'])->name('api.credits.requests.index');
+            Route::post('/', [CreditRequestController::class, 'store'])->name('api.credits.requests.store');
+            Route::get('{id}', [CreditRequestController::class, 'show'])->name('api.credits.requests.show');
+        });
 
         Route::middleware(['policies.accepted'])->group(function () {
             Route::middleware(['subscription'])->group(function () {
