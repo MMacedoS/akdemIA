@@ -29,6 +29,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 #[Fillable([
     'name',
     'email',
+    'phone',
     'password',
     'birth_date',
     'gender',

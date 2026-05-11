@@ -39,4 +39,13 @@ class MedicalDataService
 
         return $medicalData;
     }
+
+    public function upsertByUser(User $user, array $data): MedicalData
+    {
+        if ($user->medicalData()->exists()) {
+            return $this->updateByUser($user, $data) ?? $this->createByUser($user, $data);
+        }
+
+        return $this->createByUser($user, $data);
+    }
 }

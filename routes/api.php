@@ -39,6 +39,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['policies.accepted'])->group(function () {
             Route::middleware(['subscription'])->group(function () {
                 Route::get('me', [MeController::class, 'show'])->name('api.me.show');
+                Route::post('me', [MeController::class, 'update'])->name('api.me.store');
                 Route::put('me', [MeController::class, 'update'])->name('api.me.update');
                 Route::get('me/trainers', ['App\\Http\\Controllers\\Api\\V1\\Profile\\StudentTrainerController', 'index'])->middleware(['role:student'])->name('api.me.trainers.index');
                 Route::put('me/trainer', ['App\\Http\\Controllers\\Api\\V1\\Profile\\StudentTrainerController', 'update'])->middleware(['role:student'])->name('api.me.trainer.update');

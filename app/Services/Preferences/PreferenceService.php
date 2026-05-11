@@ -39,4 +39,13 @@ class PreferenceService
 
         return $preference;
     }
+
+    public function upsertByUser(User $user, array $data): Preference
+    {
+        if ($user->preference()->exists()) {
+            return $this->updateByUser($user, $data) ?? $this->createByUser($user, $data);
+        }
+
+        return $this->createByUser($user, $data);
+    }
 }

@@ -42,6 +42,15 @@ class PhysicalDataService
         return $physicalData;
     }
 
+    public function upsertByUser(User $user, array $data): PhysicalData
+    {
+        if ($user->physicalData()->exists()) {
+            return $this->updateByUser($user, $data) ?? $this->createByUser($user, $data);
+        }
+
+        return $this->createByUser($user, $data);
+    }
+
     private function calculateImc(User $user): float
     {
         $height = is_numeric($user->height) ? (float) $user->height : 0.0;

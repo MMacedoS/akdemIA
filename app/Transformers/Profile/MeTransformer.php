@@ -22,6 +22,7 @@ class MeTransformer
             'tenant_id' => $tenant instanceof Tenant ? $tenant->id : null,
             'name' => $user->name,
             'email' => $user->email,
+            'phone' => $user->phone,
             'avatar_url' => $user->avatar_url,
             'birth_date' => $user->birth_date?->toDateString(),
             'gender' => $user->gender,
@@ -30,7 +31,7 @@ class MeTransformer
             'goal' => $user->goal,
             'physical_data' => $this->transformRelation($user->physicalData),
             'medical_data' => $this->transformRelation($user->medicalData),
-            'preferences' => $this->transformRelation($user->preference),
+            'preferences' => $this->transformPreferences($user),
         ];
 
         if ($user->profileType() !== Role::STUDENT) {
@@ -51,5 +52,19 @@ class MeTransformer
         }
 
         return $model->attributesToArray();
+    }
+
+    private function transformPreferences(User $user): ?array
+    {
+        $preferences = $this->transformRelation($user->preference);
+
+        if ($preferences === null) {
+            return null;
+        }
+
+        $preferences['workout_days'] = $preferences['training_frequency'] ?? null;
+        $preferences['focus_areas'] = $user->goal;
+
+        return $preferences;
     }
 }

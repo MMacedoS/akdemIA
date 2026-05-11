@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'drinks',
     'available_hours',
     'training_frequency',
+    'notifications_enabled',
 ])]
 class Preference extends Model
 {
@@ -27,6 +28,7 @@ class Preference extends Model
             'disliked_foods' => 'array',
             'drinks' => 'array',
             'available_hours' => 'array',
+            'notifications_enabled' => 'boolean',
         ];
     }
 

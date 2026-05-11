@@ -51,8 +51,7 @@ class MeController extends Controller
             ], 403);
         }
 
-        $user->fill($request->validated());
-        $user->save();
+        $user = $this->studentProfileService->updateProfile($user, $request->validated());
 
         return response()->json($this->studentProfileService->profilePayload($user, $tenant));
     }

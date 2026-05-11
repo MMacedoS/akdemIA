@@ -210,6 +210,123 @@ class ApiStudentStandaloneAuthTest extends TestCase
             ->assertJsonPath('preferences.preferred_foods.0', 'frango');
     }
 
+    public function test_me_endpoint_can_upsert_profile_with_mobile_payload(): void
+    {
+        $platformTrainee = User::factory()->create([
+            'name' => PlatformTenantService::PLATFORM_TRAINEE_NAME,
+            'email' => 'plataforma-mobile-payload@trainer.test',
+            'profile_type' => Role::TRAINER->value,
+            'is_active' => true,
+        ]);
+
+        $student = User::factory()->create([
+            'name' => 'Aluno Mobile',
+            'email' => 'aluno-mobile@app.test',
+            'profile_type' => Role::STUDENT->value,
+            'is_active' => true,
+        ]);
+
+        TenantStudentTraineeLink::query()->create([
+            'tenant_id' => null,
+            'student_user_id' => $student->id,
+            'trainee_user_id' => $platformTrainee->id,
+            'linked_by_user_id' => $platformTrainee->id,
+            'note' => null,
+        ]);
+
+        $loginResponse = $this->postJson('/api/v1/auth/login', [
+            'email' => $student->email,
+            'password' => 'password',
+        ]);
+
+        $token = (string) $loginResponse->json('token');
+
+        $payload = [
+            'name' => 'Contato Plataforma',
+            'email' => 'plataforma@academai.com.br',
+            'phone' => '11999999999',
+            'birth_date' => '1994-06-17',
+            'gender' => 'male',
+            'height' => '1.70',
+            'weight' => '82.00',
+            'physical_data' => [
+                'body_fat_percentage' => '20.00',
+                'activity_level' => 'high',
+                'imc' => '28.40',
+            ],
+            'medical_data' => [
+                'injuries' => '',
+                'restrictions' => 'Hipertensao | Doenca cardiovascular',
+                'medications' => 'Losartana',
+            ],
+            'preferences' => [
+                'workout_days' => '4x por semana',
+                'focus_areas' => 'Hipertrofia',
+                'notifications_enabled' => true,
+            ],
+        ];
+
+        $this->postJson('/api/v1/me', $payload, [
+            'Authorization' => 'Bearer ' . $token,
+        ])->assertOk()
+            ->assertJsonPath('name', 'Contato Plataforma')
+            ->assertJsonPath('email', 'plataforma@academai.com.br')
+            ->assertJsonPath('phone', '(11) 99999-9999')
+            ->assertJsonPath('goal', 'Hipertrofia')
+            ->assertJsonPath('physical_data.activity_level', 'high')
+            ->assertJsonPath('physical_data.imc', '28.37')
+            ->assertJsonPath('medical_data.restrictions', 'Hipertensao | Doenca cardiovascular')
+            ->assertJsonPath('preferences.training_frequency', '4x por semana')
+            ->assertJsonPath('preferences.workout_days', '4x por semana')
+            ->assertJsonPath('preferences.focus_areas', 'Hipertrofia')
+            ->assertJsonPath('preferences.notifications_enabled', true);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $student->id,
+            'name' => 'Contato Plataforma',
+            'email' => 'plataforma@academai.com.br',
+            'phone' => '(11) 99999-9999',
+            'goal' => 'Hipertrofia',
+        ]);
+
+        $this->assertDatabaseHas('physical_data', [
+            'user_id' => $student->id,
+            'body_fat_percentage' => '20.00',
+            'activity_level' => 'high',
+            'imc' => '28.37',
+        ]);
+
+        $this->assertDatabaseHas('medical_data', [
+            'user_id' => $student->id,
+            'injuries' => null,
+            'medications' => 'Losartana',
+            'restrictions' => 'Hipertensao | Doenca cardiovascular',
+        ]);
+
+        $this->assertDatabaseHas('preferences', [
+            'user_id' => $student->id,
+            'training_frequency' => '4x por semana',
+            'notifications_enabled' => true,
+        ]);
+
+        $this->putJson('/api/v1/me', [
+            'preferences' => [
+                'workout_days' => '5x por semana',
+                'notifications_enabled' => false,
+            ],
+        ], [
+            'Authorization' => 'Bearer ' . $token,
+        ])->assertOk()
+            ->assertJsonPath('preferences.training_frequency', '5x por semana')
+            ->assertJsonPath('preferences.notifications_enabled', false);
+
+        $this->assertDatabaseHas('preferences', [
+            'user_id' => $student->id,
+            'training_frequency' => '5x por semana',
+            'notifications_enabled' => false,
+        ]);
+    }
+
     public function test_api_usage_is_blocked_until_required_policies_are_accepted(): void
     {
         $platformTrainee = User::factory()->create([
