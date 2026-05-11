@@ -8,15 +8,15 @@
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@600;700&display=swap');
 
         .content-stack {
-            --sq-bg: #f2eee6;
-            --sq-paper: #fbf9f4;
-            --sq-sand: #e8e1d3;
-            --sq-ink: #22211f;
-            --sq-muted: #6d665c;
-            --sq-accent: #6f8f80;
-            --sq-accent-strong: #4a695b;
-            --sq-line: #d8cfbf;
-            --sq-focus: rgba(111, 143, 128, 0.22);
+            --sq-bg: #eef1ea;
+            --sq-paper: #fbfaf5;
+            --sq-sand: #e4ddcf;
+            --sq-ink: #1f241f;
+            --sq-muted: #5f655d;
+            --sq-accent: #688b7d;
+            --sq-accent-strong: #365247;
+            --sq-line: #d3d8cb;
+            --sq-focus: rgba(104, 139, 125, 0.2);
             font-family: 'Manrope', 'Segoe UI', sans-serif;
             display: grid;
             gap: 24px;
@@ -24,20 +24,136 @@
 
         .content-stack > .card {
             border: 1px solid var(--sq-line);
-            background: linear-gradient(180deg, var(--sq-paper) 0%, #f7f3ea 100%);
-            border-radius: 20px;
-            box-shadow: 0 14px 36px rgba(49, 42, 32, 0.08);
-            padding: 22px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, #f7f3ea 100%);
+            border-radius: 28px;
+            box-shadow: 0 18px 46px rgba(40, 36, 28, 0.08);
+            padding: 28px;
         }
 
         .content-stack > .card > h3 {
             font-family: 'Cormorant Garamond', serif;
-            font-size: clamp(36px, 3vw, 48px);
-            line-height: .95;
+            font-size: clamp(38px, 3vw, 52px);
+            line-height: .92;
             color: var(--sq-ink);
             margin: 0 0 8px;
-            text-align: center;
+            text-align: left;
             letter-spacing: -.02em;
+        }
+
+        .landing-hero-card {
+            position: relative;
+            overflow: hidden;
+            padding: 34px;
+            border-radius: 34px;
+            background:
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.55), transparent 22%),
+                linear-gradient(135deg, #183027 0%, #6e9182 55%, #d8dfd3 100%);
+            color: #f7f7f2;
+        }
+
+        .landing-hero-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 40%, rgba(255, 255, 255, 0.04));
+            pointer-events: none;
+        }
+
+        .landing-hero-grid {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr);
+            gap: 24px;
+            align-items: end;
+        }
+
+        .landing-hero-copy {
+            display: grid;
+            gap: 16px;
+        }
+
+        .landing-eyebrow {
+            margin: 0;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .18em;
+            color: rgba(247, 247, 242, 0.82);
+        }
+
+        .landing-hero-copy h3 {
+            margin: 0;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(48px, 5vw, 74px);
+            line-height: .9;
+            letter-spacing: -.03em;
+        }
+
+        .landing-hero-copy p {
+            margin: 0;
+            max-width: 58ch;
+            color: rgba(247, 247, 242, 0.9);
+            line-height: 1.8;
+        }
+
+        .landing-hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 6px;
+        }
+
+        .landing-stat {
+            padding: 14px 16px;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        .landing-stat strong {
+            display: block;
+            font-size: 28px;
+            font-family: 'Cormorant Garamond', serif;
+            line-height: .95;
+        }
+
+        .landing-stat span,
+        .landing-hero-side p,
+        .section-subtitle,
+        .preview-meta,
+        .editor-note,
+        .collection-item p,
+        .collection-item span {
+            color: rgba(247, 247, 242, 0.84);
+            line-height: 1.7;
+        }
+
+        .landing-hero-side {
+            display: grid;
+            gap: 14px;
+        }
+
+        .hero-note-card {
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(12, 24, 20, 0.22);
+            padding: 18px;
+        }
+
+        .hero-note-card strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .16em;
+        }
+
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+            gap: 24px;
+            align-items: start;
         }
 
         .landing-form-shell {
@@ -47,18 +163,19 @@
 
         .landing-form-section {
             border: 1px solid var(--sq-line);
-            border-radius: 18px;
+            border-radius: 22px;
             padding: 20px;
             background: #fff;
             display: grid;
             gap: 16px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
         }
 
         .landing-form-section h4 {
             margin: 0;
-            font-size: 28px;
+            font-size: 30px;
             color: var(--sq-ink);
-            text-align: center;
+            text-align: left;
             font-family: 'Cormorant Garamond', serif;
             font-weight: 700;
             letter-spacing: -.01em;
@@ -108,19 +225,21 @@
 
         .landing-field .field-control {
             border: 1px solid var(--sq-line);
-            border-radius: 14px;
-            padding: 12px 13px;
+            border-radius: 16px;
+            padding: 13px 14px;
             font-size: 14px;
             background: #fffdfa;
             width: 100%;
             color: var(--sq-ink);
             font-family: 'Manrope', 'Segoe UI', sans-serif;
+            transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
         }
 
         .landing-field .field-control:focus {
             outline: none;
             border-color: var(--sq-accent);
             box-shadow: 0 0 0 3px var(--sq-focus);
+            transform: translateY(-1px);
         }
 
         .landing-check {
@@ -144,53 +263,101 @@
 
         .live-preview-card {
             border: 1px solid var(--sq-line);
-            border-radius: 18px;
+            border-radius: 28px;
             overflow: hidden;
             background: #fffdfa;
+            box-shadow: 0 18px 42px rgba(40, 36, 28, 0.08);
+            position: sticky;
+            top: 24px;
         }
 
         .live-preview-hero {
-            padding: 26px;
-            background: linear-gradient(135deg, #2f3c35 0%, #6f8f80 100%);
-            color: #f8f7f2;
+            --preview-bg: #203128;
+            --preview-surface: #355144;
+            --preview-text: #f8f7f2;
+            --preview-muted: rgba(248, 247, 242, 0.84);
+            --preview-button-bg: #f2e8d8;
+            --preview-button-text: #1f241f;
+            padding: 28px;
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 22%),
+                linear-gradient(135deg, var(--preview-bg) 0%, var(--preview-surface) 100%);
+            color: var(--preview-text);
             display: grid;
             gap: 12px;
-            text-align: center;
+            text-align: left;
         }
 
         .live-preview-hero h4 {
             margin: 0;
-            font-size: 30px;
-            line-height: 1;
+            font-size: clamp(34px, 3vw, 46px);
+            line-height: .95;
             font-family: 'Cormorant Garamond', serif;
             font-weight: 700;
         }
 
         .live-preview-hero p {
             margin: 0;
-            color: rgba(248, 247, 242, 0.92);
+            color: var(--preview-muted);
+        }
+
+        .preview-pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .preview-pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--preview-text);
+            font-size: 11px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        .preview-cta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: fit-content;
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 999px;
+            background: var(--preview-button-bg);
+            color: var(--preview-button-text);
+            font-size: 12px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            font-weight: 800;
         }
 
         .live-preview-media {
-            padding: 14px;
+            padding: 16px;
             display: grid;
             gap: 10px;
-            border-top: 1px solid #edeaf8;
+            border-top: 1px solid rgba(31, 36, 31, 0.08);
         }
 
         .live-preview-body {
-            padding: 18px;
+            padding: 20px;
             display: grid;
             gap: 18px;
             border-top: 1px solid var(--sq-line);
-            background: #f5f0e5;
+            background: linear-gradient(180deg, #f8f5ed 0%, #f2eee4 100%);
         }
 
         .live-preview-section h5 {
             margin: 0 0 12px;
             font-size: 24px;
             color: var(--sq-ink);
-            text-align: center;
+            text-align: left;
             font-family: 'Cormorant Garamond', serif;
             letter-spacing: -.01em;
             line-height: .96;
@@ -205,7 +372,7 @@
         .live-preview-gallery-item {
             border: 1px solid var(--sq-line);
             background: #fffdfa;
-            border-radius: 10px;
+            border-radius: 14px;
             padding: 8px;
             display: grid;
             gap: 6px;
@@ -232,12 +399,12 @@
 
         .live-preview-post {
             border: 1px solid var(--sq-line);
-            border-radius: 10px;
+            border-radius: 16px;
             background: #fffdfa;
-            padding: 10px;
+            padding: 14px;
             display: grid;
             gap: 4px;
-            text-align: center;
+            text-align: left;
         }
 
         .live-preview-post h6 {
@@ -284,6 +451,7 @@
             background: linear-gradient(120deg, var(--sq-accent-strong), var(--sq-accent));
             border-color: var(--sq-accent-strong);
             color: #f9f8f4;
+            box-shadow: 0 12px 24px rgba(53, 82, 71, 0.18);
         }
 
         .btn.btn-soft {
@@ -333,14 +501,133 @@
 
         .post-editor-meta {
             color: var(--sq-muted);
-            font-size: 12px;
+            border-radius: 22px;
         }
-
+            padding: 22px;
         .post-status-chip {
             display: inline-flex;
             align-items: center;
+
+        .section-subtitle {
+            margin: -2px 0 0;
+            color: var(--sq-muted);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .editor-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .editor-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .editor-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 36px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: #edf2ef;
+            border: 1px solid #d2d8d4;
+            color: var(--sq-accent-strong);
+            font-size: 11px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        .preview-shell {
+            display: grid;
+            gap: 16px;
+        }
+
+        .preview-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .preview-meta-card {
+            border: 1px solid var(--sq-line);
+            border-radius: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7f5ee 100%);
+            padding: 14px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .preview-meta-card strong {
+            color: var(--sq-ink);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+        }
+
+        .preview-meta-card span {
+            color: var(--sq-muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .collection-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .collection-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 0;
+            border-top: 1px solid rgba(31, 36, 31, 0.08);
+        }
+
+        .collection-item:first-of-type {
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        .collection-item strong {
+            display: block;
+            color: var(--sq-ink);
+            margin-bottom: 4px;
+        }
+
+        .collection-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .form-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
             gap: 6px;
             border-radius: 999px;
+            .landing-hero-grid,
+            .workspace-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .landing-hero-stats,
+            .preview-meta-grid {
+                grid-template-columns: 1fr;
+            }
+
             padding: 6px 10px;
             font-size: 12px;
             font-weight: 800;
@@ -375,15 +662,59 @@
             <div class="flash-success">{{ session('compression_status') }}</div>
         @endif
 
-        <div class="card">
-            <h3>Configuracoes da landing</h3>
-            <p style="margin-top:-4px;color:#6b7280;">Voce pode enviar arquivo ou informar URL externa. Limites: imagem ate 3MB, video ate 25MB.</p>
-            <form id="landing-config-form" method="POST" action="{{ route('my-landing.update') }}" class="form-shell js-upload-form landing-form-shell" enctype="multipart/form-data">
-                @csrf
-                @method('PUT')
-                <section class="landing-form-section">
-                    <h4>Dados principais</h4>
-                    <div class="landing-form-grid">
+        <div class="card landing-hero-card">
+            <div class="landing-hero-grid">
+                <div class="landing-hero-copy">
+                    <p class="landing-eyebrow">Studio de marca para sua landing</p>
+                    <h3>Transforme a pagina em uma vitrine mais premium, clara e confiavel.</h3>
+                    <p>Este editor agora esta organizado para funcionar como uma mesa de direcao visual: mensagem, oferta, prova visual e contato em um fluxo mais profissional.</p>
+                    <div class="landing-hero-stats">
+                        <div class="landing-stat">
+                            <strong>01</strong>
+                            <span>Defina headline, bio e posicionamento.</span>
+                        </div>
+                        <div class="landing-stat">
+                            <strong>02</strong>
+                            <span>Monte a oferta com servicos e midias.</span>
+                        </div>
+                        <div class="landing-stat">
+                            <strong>03</strong>
+                            <span>Valide tudo no preview antes de publicar.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="landing-hero-side">
+                    <div class="hero-note-card">
+                        <strong>Direcao</strong>
+                        <p>Mais hierarquia tipografica, melhor contraste, melhor uso do espaco e preview com mais fidelidade visual.</p>
+                    </div>
+                    <div class="hero-note-card">
+                        <strong>Foco</strong>
+                        <p>Uma landing que pareca produto premium, e nao apenas um formulario publicado.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="workspace-grid">
+            <div class="card">
+                <div class="editor-toolbar">
+                    <div>
+                        <h3>Configuracoes da landing</h3>
+                        <p class="section-subtitle">Voce pode enviar arquivo ou informar URL externa. Limites: imagem ate 3MB, video ate 25MB.</p>
+                    </div>
+                    <div class="editor-badges">
+                        <span class="editor-badge">Mensagem</span>
+                        <span class="editor-badge">Oferta</span>
+                        <span class="editor-badge">Conversao</span>
+                    </div>
+                </div>
+                <form id="landing-config-form" method="POST" action="{{ route('my-landing.update') }}" class="form-shell js-upload-form landing-form-shell" enctype="multipart/form-data">
+                    @csrf
+                    @method('PUT')
+                    <section class="landing-form-section">
+                        <h4>Dados principais</h4>
+                        <div class="landing-form-grid">
                         <div class="landing-field">
                             <label class="landing-label" data-icon="SLUG">Slug publico</label>
                             <input class="field-control" name="slug" value="{{ old('slug', $profile?->slug) }}" required>
@@ -523,92 +854,119 @@
                     </div>
                 </section>
                 <div id="hero-video-preview" style="display:none;margin-bottom:12px;"></div>
-                <label class="landing-check"><input type="checkbox" name="is_published" value="1" {{ old('is_published', $profile?->is_published) ? 'checked' : '' }}> Publicar landing</label>
-                <div class="js-upload-progress" style="display:none;margin:12px 0;">
-                    <div style="height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;">
-                        <div class="js-upload-progress-bar" style="height:10px;width:0;background:#2563eb;transition:width .2s ease;"></div>
+                    <div class="form-actions">
+                        <label class="landing-check"><input type="checkbox" name="is_published" value="1" {{ old('is_published', $profile?->is_published) ? 'checked' : '' }}> Publicar landing</label>
+                        <span class="editor-note">Revise headline, imagem principal e contatos antes de publicar.</span>
                     </div>
-                    <small class="js-upload-progress-text" style="color:#4b5563;">Preparando upload...</small>
-                </div>
-                <button type="submit" class="btn btn-primary">Salvar landing</button>
-            </form>
-        </div>
-
-        <div class="card">
-            <h3>Preview da landing</h3>
-            <p style="margin-top:-4px;color:#6b7280;">Pre-visualizacao ao vivo de como a sua landing vai aparecer para visitantes.</p>
-            @php
-                $previewMedia = collect($mediaAssets)->take(6);
-                $previewPosts = collect($posts)->take(3);
-            @endphp
-            <div class="live-preview-card" id="landing-live-preview">
-                <div class="live-preview-hero">
-                    <p id="preview-slug">/{{ old('slug', $profile?->slug) ?: 'seu-slug' }}</p>
-                    <h4 id="preview-headline">{{ old('headline', $profile?->headline) ?: 'Sua headline aparecera aqui' }}</h4>
-                    <p id="preview-bio">{{ old('bio', $profile?->bio) ?: 'Sua bio sera exibida neste bloco.' }}</p>
-                    <p id="preview-skills">{{ old('skills', $profile?->skills) ?: 'Suas habilidades serao mostradas aqui.' }}</p>
-                </div>
-                <div class="live-preview-media">
-                    <div id="preview-image-wrap" style="display:none;"></div>
-                    <div id="preview-video-wrap" style="display:none;"></div>
-                </div>
-                <div class="live-preview-body">
-                    <section class="live-preview-section">
-                        <h5 id="preview-service-section-title">{{ old('service_section_title', $profile?->service_section_title) ?: 'Atendimento, conteudo e video' }}</h5>
-                        <div class="live-preview-posts">
-                            <article class="live-preview-post">
-                                <h6 id="preview-service-one-title">{{ old('service_one_title', $profile?->service_one_title) ?: 'Mentoria Individual' }}</h6>
-                                <p id="preview-service-one-description">{{ old('service_one_description', $profile?->service_one_description) ?: 'Acompanhamento direto para acelerar sua evolucao com um plano claro, pratico e adaptado a sua rotina.' }}</p>
-                            </article>
-                            <article class="live-preview-post">
-                                <h6 id="preview-service-two-title">{{ old('service_two_title', $profile?->service_two_title) ?: 'Posts Semanais' }}</h6>
-                                <p id="preview-service-two-description">{{ old('service_two_description', $profile?->service_two_description) ?: 'Publicacoes praticas com orientacoes, estudos de caso e direcionamentos para aplicar no dia a dia.' }}</p>
-                            </article>
-                            <article class="live-preview-post">
-                                <h6 id="preview-service-three-title">{{ old('service_three_title', $profile?->service_three_title) ?: 'Conteudos em Video' }}</h6>
-                                <p id="preview-service-three-description">{{ old('service_three_description', $profile?->service_three_description) ?: 'Videos objetivos com explicacoes diretas para transformar teoria em acao com consistencia.' }}</p>
-                            </article>
+                    <div class="js-upload-progress" style="display:none;margin:12px 0;">
+                        <div style="height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;">
+                            <div class="js-upload-progress-bar" style="height:10px;width:0;background:#2563eb;transition:width .2s ease;"></div>
                         </div>
-                    </section>
+                        <small class="js-upload-progress-text" style="color:#4b5563;">Preparando upload...</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar landing</button>
+                </form>
+            </div>
 
-                    <section class="live-preview-section">
-                        <h5>Galeria</h5>
-                        <div class="live-preview-gallery">
-                            @forelse ($previewMedia as $previewItem)
-                                <article class="live-preview-gallery-item">
-                                    <strong>{{ strtoupper((string) $previewItem->media_type) }}</strong>
-                                    <span>{{ $previewItem->title ?: 'Midia sem titulo' }}</span>
-                                </article>
-                            @empty
-                                <article class="live-preview-gallery-item" style="grid-column: 1 / -1;">
-                                    <span>Sem itens de galeria. Adicione fotos ou videos para aparecer aqui.</span>
-                                </article>
-                            @endforelse
-                        </div>
-                    </section>
+            <div class="preview-shell">
+                <div class="preview-meta-grid">
+                    <article class="preview-meta-card">
+                        <strong>Preview</strong>
+                        <span>Atualiza em tempo real conforme voce edita.</span>
+                    </article>
+                    <article class="preview-meta-card">
+                        <strong>Tema</strong>
+                        <span>O card respeita a paleta escolhida para a landing.</span>
+                    </article>
+                    <article class="preview-meta-card">
+                        <strong>Objetivo</strong>
+                        <span>Checar impacto visual antes de publicar.</span>
+                    </article>
+                </div>
 
-                    <section class="live-preview-section">
-                        <h5>Posts</h5>
-                        <div class="live-preview-posts">
-                            @forelse ($previewPosts as $previewPost)
-                                <article class="live-preview-post">
-                                    <h6>{{ $previewPost->title }}</h6>
-                                    <p>{{ $previewPost->excerpt ?: 'Post sem resumo.' }}</p>
-                                </article>
-                            @empty
-                                <article class="live-preview-post">
-                                    <p>Sem posts publicados ainda.</p>
-                                </article>
-                            @endforelse
+                <div class="card">
+                    <h3>Preview da landing</h3>
+                    <p class="section-subtitle">Pre-visualizacao ao vivo de como a sua landing vai aparecer para visitantes.</p>
+                    @php
+                        $previewMedia = collect($mediaAssets)->take(6);
+                        $previewPosts = collect($posts)->take(3);
+                    @endphp
+                    <div class="live-preview-card" id="landing-live-preview">
+                        <div class="live-preview-hero">
+                            <p id="preview-slug">/{{ old('slug', $profile?->slug) ?: 'seu-slug' }}</p>
+                            <h4 id="preview-headline">{{ old('headline', $profile?->headline) ?: 'Sua headline aparecera aqui' }}</h4>
+                            <p id="preview-bio">{{ old('bio', $profile?->bio) ?: 'Sua bio sera exibida neste bloco.' }}</p>
+                            <p id="preview-skills">{{ old('skills', $profile?->skills) ?: 'Suas habilidades serao mostradas aqui.' }}</p>
+                            <div class="preview-pill-row">
+                                <span class="preview-pill">Autoridade</span>
+                                <span class="preview-pill">Conteudo</span>
+                                <span class="preview-pill">Contato</span>
+                            </div>
+                            <span class="preview-cta">Agendar atendimento</span>
                         </div>
-                    </section>
+                        <div class="live-preview-media">
+                            <div id="preview-image-wrap" style="display:none;"></div>
+                            <div id="preview-video-wrap" style="display:none;"></div>
+                        </div>
+                        <div class="live-preview-body">
+                            <section class="live-preview-section">
+                                <h5 id="preview-service-section-title">{{ old('service_section_title', $profile?->service_section_title) ?: 'Atendimento, conteudo e video' }}</h5>
+                                <div class="live-preview-posts">
+                                    <article class="live-preview-post">
+                                        <h6 id="preview-service-one-title">{{ old('service_one_title', $profile?->service_one_title) ?: 'Mentoria Individual' }}</h6>
+                                        <p id="preview-service-one-description">{{ old('service_one_description', $profile?->service_one_description) ?: 'Acompanhamento direto para acelerar sua evolucao com um plano claro, pratico e adaptado a sua rotina.' }}</p>
+                                    </article>
+                                    <article class="live-preview-post">
+                                        <h6 id="preview-service-two-title">{{ old('service_two_title', $profile?->service_two_title) ?: 'Posts Semanais' }}</h6>
+                                        <p id="preview-service-two-description">{{ old('service_two_description', $profile?->service_two_description) ?: 'Publicacoes praticas com orientacoes, estudos de caso e direcionamentos para aplicar no dia a dia.' }}</p>
+                                    </article>
+                                    <article class="live-preview-post">
+                                        <h6 id="preview-service-three-title">{{ old('service_three_title', $profile?->service_three_title) ?: 'Conteudos em Video' }}</h6>
+                                        <p id="preview-service-three-description">{{ old('service_three_description', $profile?->service_three_description) ?: 'Videos objetivos com explicacoes diretas para transformar teoria em acao com consistencia.' }}</p>
+                                    </article>
+                                </div>
+                            </section>
+
+                            <section class="live-preview-section">
+                                <h5>Galeria</h5>
+                                <div class="live-preview-gallery">
+                                    @forelse ($previewMedia as $previewItem)
+                                        <article class="live-preview-gallery-item">
+                                            <strong>{{ strtoupper((string) $previewItem->media_type) }}</strong>
+                                            <span>{{ $previewItem->title ?: 'Midia sem titulo' }}</span>
+                                        </article>
+                                    @empty
+                                        <article class="live-preview-gallery-item" style="grid-column: 1 / -1;">
+                                            <span>Sem itens de galeria. Adicione fotos ou videos para aparecer aqui.</span>
+                                        </article>
+                                    @endforelse
+                                </div>
+                            </section>
+
+                            <section class="live-preview-section">
+                                <h5>Posts</h5>
+                                <div class="live-preview-posts">
+                                    @forelse ($previewPosts as $previewPost)
+                                        <article class="live-preview-post">
+                                            <h6>{{ $previewPost->title }}</h6>
+                                            <p>{{ $previewPost->excerpt ?: 'Post sem resumo.' }}</p>
+                                        </article>
+                                    @empty
+                                        <article class="live-preview-post">
+                                            <p>Sem posts publicados ainda.</p>
+                                        </article>
+                                    @endforelse
+                                </div>
+                            </section>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="card">
             <h3>Adicionar midia</h3>
-            <p style="margin-top:-4px;color:#6b7280;">Envie um arquivo ou informe uma URL. Limites: imagem ate 3MB, video ate 30MB.</p>
+            <p class="section-subtitle">Envie um arquivo ou informe uma URL. Limites: imagem ate 3MB, video ate 30MB.</p>
             @if (!empty($isProfessional))
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px;">
                     <span class="media-limit-chip {{ (int) $mediaImageCount >= (int) $professionalImageLimit ? 'full' : '' }}">Fotos: {{ (int) $mediaImageCount }}/{{ (int) $professionalImageLimit }}</span>
@@ -646,15 +1004,18 @@
 
             <hr>
             @foreach($mediaAssets as $media)
-                <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;">
+                <div class="collection-item">
                     <div>
-                        <strong>{{ strtoupper($media->media_type) }}</strong> - {{ $media->title ?: $media->media_url }}
+                        <strong>{{ strtoupper($media->media_type) }} - {{ $media->title ?: 'Midia sem titulo' }}</strong>
+                        <p>{{ $media->media_url ?: 'Arquivo enviado internamente' }}</p>
                     </div>
-                    <form method="POST" action="{{ route('my-landing.media.destroy', $media->id) }}">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn btn-soft" type="submit">Remover</button>
-                    </form>
+                    <div class="collection-actions">
+                        <form method="POST" action="{{ route('my-landing.media.destroy', $media->id) }}">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn btn-soft" type="submit">Remover</button>
+                        </form>
+                    </div>
                 </div>
             @endforeach
         </div>
@@ -663,7 +1024,7 @@
             <div class="posts-toolbar">
                 <div>
                     <h3>Posts da landing</h3>
-                    <p style="margin-top:-4px;color:#6b7280;">Esses posts alimentam a secao "Posts e conteudos" da landing publica. Cada pagina mostra ate 6 posts.</p>
+                    <p class="section-subtitle">Esses posts alimentam a secao "Posts e conteudos" da landing publica. Cada pagina mostra ate 6 posts.</p>
                 </div>
                 <span class="posts-summary">{{ collect($posts)->count() }} post(s) cadastrados</span>
             </div>
@@ -759,6 +1120,42 @@
             const mediaVideoCount = {{ (int) ($mediaVideoCount ?? 0) }};
             const professionalImageLimit = {{ (int) ($professionalImageLimit ?? 15) }};
             const professionalVideoLimit = {{ (int) ($professionalVideoLimit ?? 4) }};
+            const previewCard = document.getElementById('landing-live-preview');
+
+            const themePalette = {
+                myhra_bordeaux: {
+                    bg: '#4f0f0c',
+                    surface: '#6a1912',
+                    text: '#f8f3ea',
+                    muted: 'rgba(248, 243, 234, 0.82)',
+                    buttonBg: '#d8d0c8',
+                    buttonText: '#2a2520',
+                },
+                sage_serene: {
+                    bg: '#41554c',
+                    surface: '#688b7d',
+                    text: '#f2f1e9',
+                    muted: 'rgba(242, 241, 233, 0.82)',
+                    buttonBg: '#e2dbcd',
+                    buttonText: '#253028',
+                },
+                graphite_noir: {
+                    bg: '#17181a',
+                    surface: '#313438',
+                    text: '#f5f4ef',
+                    muted: 'rgba(245, 244, 239, 0.82)',
+                    buttonBg: '#d2cec7',
+                    buttonText: '#1a1b1d',
+                },
+                ocean_mist: {
+                    bg: '#20354a',
+                    surface: '#3d607d',
+                    text: '#f0f5f7',
+                    muted: 'rgba(240, 245, 247, 0.84)',
+                    buttonBg: '#d8e2e7',
+                    buttonText: '#1f2f3d',
+                },
+            };
 
             const previewSlug = document.getElementById('preview-slug');
             const previewHeadline = document.getElementById('preview-headline');
@@ -792,6 +1189,7 @@
                 const heroVideoUrlInput = landingForm.querySelector('input[name="hero_video_url"]');
                 const heroImageFileInput = landingForm.querySelector('input[name="hero_image_file"]');
                 const heroVideoFileInput = landingForm.querySelector('input[name="hero_video_file"]');
+                const themeSelect = landingForm.querySelector('select[name="theme_preset"]');
 
                 const slugValue = slugInput ? slugInput.value.trim() : '';
                 const headlineValue = headlineInput ? headlineInput.value.trim() : '';
@@ -804,6 +1202,8 @@
                 const serviceTwoDescriptionValue = serviceTwoDescriptionInput ? serviceTwoDescriptionInput.value.trim() : '';
                 const serviceThreeTitleValue = serviceThreeTitleInput ? serviceThreeTitleInput.value.trim() : '';
                 const serviceThreeDescriptionValue = serviceThreeDescriptionInput ? serviceThreeDescriptionInput.value.trim() : '';
+                const themeValue = themeSelect ? themeSelect.value : 'myhra_bordeaux';
+                const activeTheme = themePalette[themeValue] || themePalette.myhra_bordeaux;
 
                 if (previewSlug) previewSlug.textContent = '/' + (slugValue || 'seu-slug');
                 if (previewHeadline) previewHeadline.textContent = headlineValue || 'Sua headline aparecera aqui';
@@ -816,6 +1216,15 @@
                 if (previewServiceTwoDescription) previewServiceTwoDescription.textContent = serviceTwoDescriptionValue || 'Publicacoes praticas com orientacoes, estudos de caso e direcionamentos para aplicar no dia a dia.';
                 if (previewServiceThreeTitle) previewServiceThreeTitle.textContent = serviceThreeTitleValue || 'Conteudos em Video';
                 if (previewServiceThreeDescription) previewServiceThreeDescription.textContent = serviceThreeDescriptionValue || 'Videos objetivos com explicacoes diretas para transformar teoria em acao com consistencia.';
+
+                if (previewCard) {
+                    previewCard.style.setProperty('--preview-bg', activeTheme.bg);
+                    previewCard.style.setProperty('--preview-surface', activeTheme.surface);
+                    previewCard.style.setProperty('--preview-text', activeTheme.text);
+                    previewCard.style.setProperty('--preview-muted', activeTheme.muted);
+                    previewCard.style.setProperty('--preview-button-bg', activeTheme.buttonBg);
+                    previewCard.style.setProperty('--preview-button-text', activeTheme.buttonText);
+                }
 
                 const heroImageFile = heroImageFileInput && heroImageFileInput.files ? heroImageFileInput.files[0] : null;
                 const heroVideoFile = heroVideoFileInput && heroVideoFileInput.files ? heroVideoFileInput.files[0] : null;

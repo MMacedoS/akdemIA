@@ -10,131 +10,394 @@
         :root {
             --bg: #4f0f0c;
             --surface: #5e130f;
+            --surface-strong: color-mix(in srgb, var(--surface) 78%, black 22%);
+            --surface-soft: color-mix(in srgb, var(--surface) 78%, white 22%);
             --text: #f8f3ea;
             --muted: #ece1cf;
             --line: rgba(250, 239, 222, 0.55);
             --button-bg: #d8d0c8;
             --button-text: #2a2520;
+            --glow: rgba(255, 232, 196, 0.14);
+            --shadow: 0 28px 80px rgba(8, 5, 4, 0.28);
         }
 
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: 'Manrope', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-        .wrap { width: min(1400px, 92vw); margin: 0 auto; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            font-family: 'Manrope', 'Segoe UI', sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(255, 235, 208, 0.12), transparent 34%),
+                radial-gradient(circle at 85% 10%, rgba(255, 255, 255, 0.08), transparent 20%),
+                linear-gradient(180deg, color-mix(in srgb, var(--bg) 84%, black 16%) 0%, var(--bg) 42%, color-mix(in srgb, var(--bg) 78%, black 22%) 100%);
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 38%, rgba(255, 255, 255, 0.03));
+            opacity: .6;
+        }
+        .wrap { width: min(1380px, calc(100vw - 48px)); margin: 0 auto; }
+        .page-shell { padding: 22px 0 72px; position: relative; z-index: 1; }
 
         .top-nav {
+            position: sticky;
+            top: 14px;
+            z-index: 10;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 16px;
-            padding: 24px 0 18px;
+            gap: 20px;
+            padding: 18px 22px;
+            margin-bottom: 26px;
+            border: 1px solid var(--line);
+            background: rgba(26, 17, 15, 0.4);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 14px 50px rgba(0, 0, 0, 0.12);
+            border-radius: 24px;
+        }
+
+        .brand-block {
+            display: grid;
+            gap: 6px;
+        }
+
+        .brand-kicker {
+            margin: 0;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .18em;
+            font-size: 11px;
         }
 
         .brand {
             font-family: 'Cormorant Garamond', serif;
-            font-size: clamp(34px, 3vw, 46px);
+            font-size: clamp(34px, 3vw, 48px);
             margin: 0;
-            line-height: .94;
+            line-height: .9;
             letter-spacing: .01em;
         }
 
-        .menu { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+        .menu {
+            display: flex;
+            gap: 22px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
 
         .menu a {
             color: var(--muted);
             text-decoration: none;
-            font-weight: 600;
-            font-size: 13px;
-            letter-spacing: .12em;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: .14em;
             text-transform: uppercase;
+            position: relative;
+        }
+
+        .menu a::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -6px;
+            width: 100%;
+            height: 1px;
+            background: var(--text);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform .25s ease;
+        }
+
+        .menu a:hover::after,
+        .menu a:focus-visible::after {
+            transform: scaleX(1);
+        }
+
+        .nav-cta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 46px;
+            padding: 0 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: var(--button-bg);
+            color: var(--button-text);
+            text-decoration: none;
+            font-weight: 800;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            font-size: 12px;
         }
 
         .hero {
-            min-height: 38vh;
-            padding: 72px 0 40px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(300px, .72fr);
+            gap: 28px;
+            align-items: stretch;
+            padding: 22px 0 28px;
+        }
+
+        .hero-copy,
+        .hero-side,
+        .hero-cover,
+        .section-panel,
+        .contact-panel,
+        .post-modal-dialog {
+            border: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+            box-shadow: var(--shadow);
+        }
+
+        .hero-copy {
+            border-radius: 36px;
+            padding: clamp(28px, 4vw, 48px);
+            min-height: 100%;
             display: grid;
             align-content: center;
-            justify-items: center;
-            text-align: center;
-            gap: 18px;
+            gap: 22px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-copy::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top left, var(--glow), transparent 42%);
+            pointer-events: none;
+        }
+
+        .hero-side {
+            border-radius: 32px;
+            padding: 24px;
+            display: grid;
+            gap: 16px;
+            align-content: start;
+        }
+
+        .hero-eyebrow {
+            margin: 0;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .2em;
+            font-size: 12px;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(58px, 7vw, 110px);
+            line-height: .88;
+            max-width: 10ch;
+            letter-spacing: -.03em;
+        }
+        .hero p {
+            margin: 0;
+            color: var(--muted);
+            max-width: 62ch;
+            font-size: clamp(15px, 1.6vw, 18px);
+            line-height: 1.78;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .hero-action-primary,
+        .hero-action-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 50px;
+            padding: 0 18px;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .14em;
+        }
+
+        .hero-action-primary {
+            background: var(--button-bg);
+            color: var(--button-text);
+        }
+
+        .hero-action-secondary {
+            border: 1px solid var(--line);
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .hero-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .hero-metric {
+            padding-top: 14px;
+            border-top: 1px solid var(--line);
+        }
+
+        .hero-metric strong {
+            display: block;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(28px, 3.2vw, 42px);
+            line-height: .95;
+        }
+
+        .hero-metric span,
+        .hero-side p,
+        .hero-side li {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .hero-side h2,
+        .side-card h3,
+        .service h3,
+        .post-card h3,
+        .contact-card h3 {
+            margin: 0;
+            font-family: 'Cormorant Garamond', serif;
+            line-height: .94;
+            letter-spacing: -.02em;
+        }
+
+        .hero-side h2 {
+            font-size: clamp(34px, 3vw, 46px);
+        }
+
+        .side-card {
+            display: grid;
+            gap: 8px;
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .side-card span {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .16em;
+            font-size: 11px;
         }
 
         .hero-cover {
             width: 100%;
-            border-top: 1px solid var(--line);
-            border-bottom: 1px solid var(--line);
+            border-radius: 36px;
+            overflow: hidden;
+            margin-bottom: 18px;
         }
 
         .hero-cover img,
         .hero-cover video,
         .hero-cover iframe {
             width: 100%;
-            height: min(58vh, 680px);
+            height: min(62vh, 720px);
             object-fit: cover;
             display: block;
             border: 0;
         }
 
-        .hero small { color: var(--muted); text-transform: uppercase; letter-spacing: .18em; font-size: 12px; }
-        .hero h1 {
-            margin: 0;
-            font-family: 'Cormorant Garamond', serif;
-            font-size: clamp(56px, 7.2vw, 104px);
-            line-height: .9;
-            max-width: 980px;
-            letter-spacing: -.02em;
+        .section { padding: 30px 0 0; }
+
+        .section-panel {
+            border-radius: 34px;
+            padding: clamp(24px, 3vw, 36px);
         }
-        .hero p {
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .section-copy {
+            display: grid;
+            gap: 10px;
+            max-width: 720px;
+        }
+
+        .section-kicker {
             margin: 0;
             color: var(--muted);
-            max-width: 640px;
-            font-size: clamp(14px, 1.6vw, 17px);
-            line-height: 1.7;
-            text-align: center;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: .18em;
+            font-size: 11px;
         }
 
-        .section { padding: 56px 0 72px; }
-        .section-line { border-top: 1px solid var(--line); }
-
         .section h2 {
-            margin: 0 0 34px;
+            margin: 0;
             font-family: 'Cormorant Garamond', serif;
             font-size: clamp(42px, 4.6vw, 76px);
-            line-height: .96;
-            text-align: center;
-            letter-spacing: -.02em;
+            line-height: .94;
+            letter-spacing: -.03em;
+        }
+
+        .section-intro {
+            margin: 0;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.7;
         }
 
         .services {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 34px;
+            gap: 22px;
         }
 
         .service {
-            padding: 8px 6px 0;
-            text-align: center;
+            padding: 24px;
+            text-align: left;
+            border-radius: 26px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+            display: grid;
+            gap: 18px;
         }
 
         .service h3 {
-            margin: 0 0 14px;
-            font-family: 'Cormorant Garamond', serif;
-            font-size: clamp(38px, 3vw, 50px);
-            line-height: .94;
-            letter-spacing: -.01em;
+            font-size: clamp(34px, 2.8vw, 46px);
         }
-        .service p { margin: 0 auto 18px; color: var(--muted); max-width: 340px; line-height: 1.7; }
-        .service a { color: var(--text); text-decoration: underline; font-weight: 700; }
+        .service p { margin: 0; color: var(--muted); line-height: 1.8; }
+        .service a,
+        .post-card a,
+        .post-card button {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
 
         .service .meta {
-            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: .08em;
+            letter-spacing: .14em;
             color: var(--muted);
-            margin: 0 0 10px;
+            margin: 0;
         }
 
         .split {
@@ -176,15 +439,15 @@
         .fitness-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            flex-direction: column;
+            justify-content: space-between;
+            flex-wrap: wrap;
             gap: 16px;
             margin-bottom: 34px;
         }
 
         .fitness-header h2 {
             margin: 0;
-            text-align: center;
+            text-align: left;
         }
 
         .fitness-controls {
@@ -212,6 +475,7 @@
             cursor: pointer;
             font-size: 18px;
             line-height: 1;
+            border-radius: 999px;
         }
 
         .fitness-nav:disabled {
@@ -233,17 +497,20 @@
         }
 
         .fitness-videos .video-item {
-            border-top: 1px solid var(--line);
-            padding-top: 16px;
+            padding: 18px;
             display: grid;
-            gap: 4px;
+            gap: 10px;
+            border-radius: 26px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
         }
 
         .fitness-videos .video-frame {
             background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--line);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             aspect-ratio: 16 / 10;
             overflow: hidden;
+            border-radius: 20px;
         }
 
         .fitness-videos h4 {
@@ -251,15 +518,15 @@
             font-family: 'Cormorant Garamond', serif;
             font-size: clamp(30px, 2.4vw, 36px);
             line-height: .96;
-            text-align: center;
+            text-align: left;
             letter-spacing: -.01em;
         }
 
         .fitness-videos p {
-            margin: 0 auto;
+            margin: 0;
             font-size: 14px;
             color: var(--muted);
-            text-align: center;
+            text-align: left;
             max-width: 360px;
             line-height: 1.65;
         }
@@ -299,15 +566,15 @@
         .post-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            flex-direction: column;
+            justify-content: space-between;
+            flex-wrap: wrap;
             gap: 16px;
             margin-bottom: 34px;
         }
 
         .post-header h2 {
             margin: 0;
-            text-align: center;
+            text-align: left;
         }
 
         .post-controls {
@@ -335,6 +602,7 @@
             cursor: pointer;
             font-size: 18px;
             line-height: 1;
+            border-radius: 999px;
         }
 
         .post-nav:disabled {
@@ -361,44 +629,36 @@
             flex: 0 0 100%;
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 28px;
+            gap: 22px;
             scroll-snap-align: start;
         }
 
         .post-card {
-            border-top: 1px solid var(--line);
-            padding-top: 18px;
-            text-align: center;
+            padding: 24px;
+            text-align: left;
+            border-radius: 26px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 100%);
         }
 
         .post-card h3 {
             margin: 0 0 14px;
-            font-family: 'Cormorant Garamond', serif;
             font-size: clamp(36px, 2.8vw, 46px);
             line-height: .94;
             letter-spacing: -.01em;
         }
 
         .post-card p {
-            margin: 0 auto 16px;
+            margin: 0 0 18px;
             color: var(--muted);
             line-height: 1.75;
-            max-width: 420px;
-        }
-
-        .post-card a {
-            color: var(--text);
-            text-decoration: underline;
-            font-weight: 700;
+            max-width: 48ch;
         }
 
         .post-card button {
             appearance: none;
             border: 0;
             background: transparent;
-            color: var(--text);
-            text-decoration: underline;
-            font-weight: 700;
             padding: 0;
             cursor: pointer;
             font: inherit;
@@ -423,10 +683,9 @@
             width: min(880px, 100%);
             max-height: calc(100vh - 48px);
             overflow: auto;
-            background: var(--surface);
-            border: 1px solid var(--line);
+            background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, white 12%) 0%, var(--surface) 100%);
             padding: 24px;
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+            border-radius: 30px;
         }
 
         .post-modal-topbar {
@@ -447,13 +706,14 @@
         .post-modal-close {
             appearance: none;
             border: 1px solid var(--line);
-            background: transparent;
+            background: rgba(255, 255, 255, 0.04);
             color: var(--text);
             width: 44px;
             height: 44px;
             cursor: pointer;
             font-size: 28px;
             line-height: 1;
+            border-radius: 999px;
         }
 
         .post-modal-excerpt {
@@ -486,6 +746,7 @@
             padding: 12px 14px;
             cursor: pointer;
             font: inherit;
+            border-radius: 999px;
         }
 
         .post-modal-feedback {
@@ -494,50 +755,116 @@
             font-size: 13px;
         }
 
-        .pagination {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 28px;
+        .contact-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+            gap: 22px;
         }
 
-        .pagination a,
-        .pagination span {
-            min-width: 42px;
-            padding: 10px 14px;
-            border: 1px solid var(--line);
+        .contact-panel {
+            border-radius: 34px;
+            padding: clamp(24px, 3vw, 34px);
+            display: grid;
+            gap: 24px;
+        }
+
+        .contact-grid .services {
+            gap: 18px;
+        }
+
+        .contact-card {
+            border-radius: 26px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 24px;
+            display: grid;
+            gap: 14px;
+            align-content: start;
+        }
+
+        .contact-card h3 {
+            font-size: clamp(38px, 3vw, 52px);
+        }
+
+        .contact-card p,
+        .contact-card li,
+        .contact-panel p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.8;
+        }
+
+        .contact-card a {
+            display: inline-flex;
+            width: fit-content;
+            min-height: 46px;
+            align-items: center;
+            padding: 0 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: var(--text);
             text-decoration: none;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.04);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            font-size: 12px;
         }
 
-        .pagination .current {
-            background: var(--button-bg);
-            color: var(--button-text);
-            border-color: var(--button-bg);
-            font-weight: 800;
+        .contact-notes {
+            display: grid;
+            gap: 16px;
+            align-content: start;
+        }
+
+        .contact-note {
+            border-top: 1px solid var(--line);
+            padding-top: 14px;
         }
 
         .empty { color: var(--muted); }
 
+        @media (max-width: 1100px) {
+            .hero,
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .services,
+            .post-page {
+                grid-template-columns: 1fr;
+            }
+
+            .top-nav {
+                position: static;
+            }
+        }
+
         @media (max-width: 980px) {
-            .services { grid-template-columns: 1fr; }
             .split { grid-template-columns: 1fr; }
             .stack { grid-template-columns: 1fr; }
             .fitness-page { grid-template-columns: 1fr; }
             .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .post-page { grid-template-columns: 1fr; }
-            .hero { justify-items: center; text-align: center; }
+            .hero-copy,
+            .hero-side,
+            .section-panel,
+            .contact-panel,
+            .post-modal-dialog { border-radius: 24px; }
             .hero h1 { max-width: 100%; }
             .top-nav { align-items: flex-start; flex-direction: column; }
             .fitness-header,
-            .post-header { gap: 14px; }
+            .post-header,
+            .section-header { gap: 14px; }
+            .hero-metrics { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 620px) {
+            .wrap { width: min(100vw - 24px, 100%); }
             .gallery { grid-template-columns: 1fr; }
+            .menu { gap: 14px; }
+            .nav-cta,
+            .hero-action-primary,
+            .hero-action-secondary,
+            .contact-card a { width: 100%; }
         }
     </style>
 </head>
@@ -678,9 +1005,12 @@
             ],
         ];
     @endphp
-    <div class="wrap">
+    <div class="wrap page-shell">
         <header class="top-nav">
-            <h1 class="brand">{{ $user->name }}</h1>
+            <div class="brand-block">
+                <p class="brand-kicker">Landing profissional</p>
+                <h1 class="brand">{{ $user->name }}</h1>
+            </div>
             <nav class="menu">
                 <a href="#sobre">Sobre</a>
                 <a href="#servicos">Servicos</a>
@@ -688,12 +1018,46 @@
                 <a href="#conteudos">Posts e Conteudos</a>
                 <a href="#contato">Contato</a>
             </nav>
+            <a class="nav-cta" href="#contato">Falar agora</a>
         </header>
 
         <section class="hero" id="sobre">
-            <small>Seu guia certificado para</small>
-            <h1>{{ $profile->headline ?: 'Nutricao consciente como estilo de vida' }}</h1>
-            <p>{{ $profile->bio ?: 'Crie uma rotina possivel, com consistencia, autonomia e estrategias praticas para evoluir com equilibrio.' }}</p>
+            <div class="hero-copy">
+                <p class="hero-eyebrow">Seu guia certificado para evolucao com clareza</p>
+                <h1>{{ $profile->headline ?: 'Nutricao consciente como estilo de vida' }}</h1>
+                <p>{{ $profile->bio ?: 'Crie uma rotina possivel, com consistencia, autonomia e estrategias praticas para evoluir com equilibrio.' }}</p>
+                <div class="hero-actions">
+                    <a class="hero-action-primary" href="#contato">Agendar atendimento</a>
+                    <a class="hero-action-secondary" href="#conteudos">Ver conteudos</a>
+                </div>
+                <div class="hero-metrics">
+                    <div class="hero-metric">
+                        <strong>1:1</strong>
+                        <span>Atendimento focado na sua rotina real.</span>
+                    </div>
+                    <div class="hero-metric">
+                        <strong>360</strong>
+                        <span>Conteudo, acompanhamento e repertorio pratico.</span>
+                    </div>
+                    <div class="hero-metric">
+                        <strong>Consistencia</strong>
+                        <span>Plano claro para transformar orientacao em habito.</span>
+                    </div>
+                </div>
+            </div>
+            <aside class="hero-side" aria-label="Destaques do perfil">
+                <h2>Estrutura pensada para valor percebido alto.</h2>
+                <p>{{ $profile->skills ?: 'Nutricao consciente, organizacao alimentar e evolucao progressiva com acompanhamento humano.' }}</p>
+                <div class="side-card">
+                    <span>Posicionamento</span>
+                    <h3>Imagem premium com conteudo util</h3>
+                    <p>Uma presenca digital mais forte, com narrativa clara, provas visuais e chamadas objetivas.</p>
+                </div>
+                <div class="side-card">
+                    <span>Contato direto</span>
+                    <p>WhatsApp e Instagram integrados para conversao sem friccao.</p>
+                </div>
+            </aside>
         </section>
 
         <section class="hero-cover" aria-label="Imagem principal">
@@ -713,117 +1077,153 @@
         </section>
 
         <section class="section section-line" id="servicos">
-            <h2>{{ $profile->service_section_title ?: 'Atendimento, conteudo e video' }}</h2>
-            <div class="services">
-                @foreach($serviceCards as $serviceCard)
-                    <article class="service">
-                        <p class="meta">{{ $serviceCard['label'] }}</p>
-                        <h3>{{ $serviceCard['title'] }}</h3>
-                        <p>{{ $serviceCard['description'] }}</p>
-                        <a href="{{ $serviceCard['link_url'] }}">{{ $serviceCard['link_label'] }}</a>
-                    </article>
-                @endforeach
+            <div class="section-panel">
+                <div class="section-header">
+                    <div class="section-copy">
+                        <p class="section-kicker">Oferta principal</p>
+                        <h2>{{ $profile->service_section_title ?: 'Atendimento, conteudo e video' }}</h2>
+                        <p class="section-intro">Cada bloco ajuda a explicar seu metodo com mais clareza, reforcando percepcao de autoridade e facilitando a decisao do visitante.</p>
+                    </div>
+                </div>
+                <div class="services">
+                    @foreach($serviceCards as $serviceCard)
+                        <article class="service">
+                            <p class="meta">{{ $serviceCard['label'] }}</p>
+                            <h3>{{ $serviceCard['title'] }}</h3>
+                            <p>{{ $serviceCard['description'] }}</p>
+                            <a href="{{ $serviceCard['link_url'] }}">{{ $serviceCard['link_label'] }}</a>
+                        </article>
+                    @endforeach
+                </div>
             </div>
         </section>
 
         <section class="section section-line" id="coaching">
-            <div class="fitness-header">
-                <h2>Orientacoes Fitness</h2>
-                @if($fitnessVideoPages->count() > 1)
-                    <div class="fitness-controls">
-                        <button type="button" class="fitness-nav" id="fitness-nav-prev" aria-label="Pagina anterior">‹</button>
-                        <span class="fitness-counter" id="fitness-page-indicator">1/{{ $fitnessVideoPages->count() }}</span>
-                        <button type="button" class="fitness-nav" id="fitness-nav-next" aria-label="Proxima pagina">›</button>
+            <div class="section-panel">
+                <div class="fitness-header">
+                    <div class="section-copy">
+                        <p class="section-kicker">Biblioteca visual</p>
+                        <h2>Orientacoes Fitness</h2>
+                        <p class="section-intro">Use este espaco para transformar seu repertorio em autoridade visivel, com materiais que explicam seu metodo e sustentam a conversao.</p>
                     </div>
-                @endif
-            </div>
+                    @if($fitnessVideoPages->count() > 1)
+                        <div class="fitness-controls">
+                            <button type="button" class="fitness-nav" id="fitness-nav-prev" aria-label="Pagina anterior">‹</button>
+                            <span class="fitness-counter" id="fitness-page-indicator">1/{{ $fitnessVideoPages->count() }}</span>
+                            <button type="button" class="fitness-nav" id="fitness-nav-next" aria-label="Proxima pagina">›</button>
+                        </div>
+                    @endif
+                </div>
 
-            <div class="fitness-videos" id="fitness-videos-track">
-                @forelse($fitnessVideoPages as $fitnessPage)
-                    <div class="fitness-page">
-                        @foreach($fitnessPage as $video)
-                            <article class="video-item">
-                                <div class="video-frame">
-                                    @php
-                                        $fitnessVideoUrl = $resolveMediaUrl((string) $video->media_url, ['landings/users/media', 'landings/tenants/professionals']);
-                                        $isEmbeddedFitnessVideo = str_contains($fitnessVideoUrl, 'youtube.com')
-                                            || str_contains($fitnessVideoUrl, 'youtu.be')
-                                            || str_contains($fitnessVideoUrl, 'vimeo.com');
-                                    @endphp
-                                    @if($video->media_type === 'image')
-                                        <img src="{{ $fitnessVideoUrl }}" alt="{{ $video->title ?: 'Imagem em destaque' }}">
-                                    @elseif($isEmbeddedFitnessVideo)
-                                        <iframe src="{{ $fitnessVideoUrl }}" allowfullscreen></iframe>
-                                    @else
-                                        <video src="{{ $fitnessVideoUrl }}" controls preload="metadata"></video>
-                                    @endif
-                                </div>
-                                <h4>{{ $video->title ?: 'Video em destaque' }}</h4>
-                                <p>Conteudo publicado para orientar rotina e performance.</p>
-                            </article>
-                        @endforeach
-                    </div>
-                @empty
-                    <p class="empty">Nenhuma midia cadastrada para orientacoes fitness.</p>
-                @endforelse
+                <div class="fitness-videos" id="fitness-videos-track">
+                    @forelse($fitnessVideoPages as $fitnessPage)
+                        <div class="fitness-page">
+                            @foreach($fitnessPage as $video)
+                                <article class="video-item">
+                                    <div class="video-frame">
+                                        @php
+                                            $fitnessVideoUrl = $resolveMediaUrl((string) $video->media_url, ['landings/users/media', 'landings/tenants/professionals']);
+                                            $isEmbeddedFitnessVideo = str_contains($fitnessVideoUrl, 'youtube.com')
+                                                || str_contains($fitnessVideoUrl, 'youtu.be')
+                                                || str_contains($fitnessVideoUrl, 'vimeo.com');
+                                        @endphp
+                                        @if($video->media_type === 'image')
+                                            <img src="{{ $fitnessVideoUrl }}" alt="{{ $video->title ?: 'Imagem em destaque' }}">
+                                        @elseif($isEmbeddedFitnessVideo)
+                                            <iframe src="{{ $fitnessVideoUrl }}" allowfullscreen></iframe>
+                                        @else
+                                            <video src="{{ $fitnessVideoUrl }}" controls preload="metadata"></video>
+                                        @endif
+                                    </div>
+                                    <h4>{{ $video->title ?: 'Video em destaque' }}</h4>
+                                    <p>Conteudo publicado para orientar rotina, performance e tomada de decisao com mais clareza.</p>
+                                </article>
+                            @endforeach
+                        </div>
+                    @empty
+                        <p class="empty">Nenhuma midia cadastrada para orientacoes fitness.</p>
+                    @endforelse
+                </div>
             </div>
         </section>
 
         <section class="section section-line" id="conteudos">
-            <div class="post-header">
-                <h2>Posts e conteudos</h2>
-                @if($postPages->count() > 1)
-                    <div class="post-controls">
-                        <button type="button" class="post-nav" id="post-nav-prev" aria-label="Pagina anterior de posts">‹</button>
-                        <span class="post-counter" id="post-page-indicator">1/{{ $postPages->count() }}</span>
-                        <button type="button" class="post-nav" id="post-nav-next" aria-label="Proxima pagina de posts">›</button>
+            <div class="section-panel">
+                <div class="post-header">
+                    <div class="section-copy">
+                        <p class="section-kicker">Autoridade editorial</p>
+                        <h2>Posts e conteudos</h2>
+                        <p class="section-intro">Uma camada de conteudo bem apresentada faz a landing parecer mais madura, aumenta permanencia e sustenta melhor sua proposta.</p>
                     </div>
-                @endif
-            </div>
+                    @if($postPages->count() > 1)
+                        <div class="post-controls">
+                            <button type="button" class="post-nav" id="post-nav-prev" aria-label="Pagina anterior de posts">‹</button>
+                            <span class="post-counter" id="post-page-indicator">1/{{ $postPages->count() }}</span>
+                            <button type="button" class="post-nav" id="post-nav-next" aria-label="Proxima pagina de posts">›</button>
+                        </div>
+                    @endif
+                </div>
 
-            <div class="post-list" id="post-list-track">
-                @forelse($postPages as $postPage)
-                    <div class="post-page">
-                        @foreach($postPage as $post)
-                            <article class="post-card">
-                                <h3>{{ $post->title }}</h3>
-                                <p>{{ $post->excerpt ?: \Illuminate\Support\Str::limit(strip_tags((string) $post->content), 240) }}</p>
-                                <button
-                                    type="button"
-                                    data-post-trigger
-                                    data-post-slug="{{ $post->slug }}"
-                                >Continuar leitura</button>
-                            </article>
-                        @endforeach
-                    </div>
-                @empty
-                    <p class="empty">Sem posts publicados.</p>
-                @endforelse
+                <div class="post-list" id="post-list-track">
+                    @forelse($postPages as $postPage)
+                        <div class="post-page">
+                            @foreach($postPage as $post)
+                                <article class="post-card">
+                                    <h3>{{ $post->title }}</h3>
+                                    <p>{{ $post->excerpt ?: \Illuminate\Support\Str::limit(strip_tags((string) $post->content), 240) }}</p>
+                                    <button
+                                        type="button"
+                                        data-post-trigger
+                                        data-post-slug="{{ $post->slug }}"
+                                    >Continuar leitura</button>
+                                </article>
+                            @endforeach
+                        </div>
+                    @empty
+                        <p class="empty">Sem posts publicados.</p>
+                    @endforelse
+                </div>
             </div>
         </section>
 
         <section class="section section-line" id="contato">
-            <h2>Contato</h2>
-            <div class="services">
-                <article class="service">
-                    <h3>WhatsApp</h3>
-                    <p>{{ $rawWhatsapp !== '' ? 'Converse direto pelo WhatsApp para agendar atendimento e tirar duvidas.' : 'Adicione um WhatsApp na configuracao da landing para exibir contato direto.' }}</p>
-                    @if($whatsappUrl !== '')
-                        <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener">Abrir WhatsApp</a>
-                    @endif
-                </article>
-                <article class="service">
-                    <h3>Instagram</h3>
-                    <p>{{ $rawInstagram !== '' ? 'Acompanhe o perfil no Instagram para conteudos, novidades e proximos passos.' : 'Adicione um Instagram na configuracao da landing para exibir o perfil social.' }}</p>
-                    @if($instagramUrl !== '')
-                        <a href="{{ $instagramUrl }}" target="_blank" rel="noopener">Abrir Instagram</a>
-                    @endif
-                </article>
-                <article class="service">
-                    <h3>Especialidades</h3>
-                    <p>{{ $profile->skills ?: 'Nutricao consciente, organizacao alimentar e evolucao progressiva com acompanhamento humano.' }}</p>
-                    <a href="#servicos">Ver servicos</a>
-                </article>
+            <div class="contact-panel">
+                <div class="section-copy">
+                    <p class="section-kicker">Proximo passo</p>
+                    <h2>Contato</h2>
+                    <p class="section-intro">Um fechamento mais forte ajuda a transformar interesse em conversa. O bloco abaixo reforca disponibilidade, especialidade e caminho de contato.</p>
+                </div>
+                <div class="contact-grid">
+                    <div class="services">
+                        <article class="contact-card">
+                            <h3>WhatsApp</h3>
+                            <p>{{ $rawWhatsapp !== '' ? 'Converse direto pelo WhatsApp para agendar atendimento e tirar duvidas.' : 'Adicione um WhatsApp na configuracao da landing para exibir contato direto.' }}</p>
+                            @if($whatsappUrl !== '')
+                                <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener">Abrir WhatsApp</a>
+                            @endif
+                        </article>
+                        <article class="contact-card">
+                            <h3>Instagram</h3>
+                            <p>{{ $rawInstagram !== '' ? 'Acompanhe o perfil no Instagram para conteudos, novidades e proximos passos.' : 'Adicione um Instagram na configuracao da landing para exibir o perfil social.' }}</p>
+                            @if($instagramUrl !== '')
+                                <a href="{{ $instagramUrl }}" target="_blank" rel="noopener">Abrir Instagram</a>
+                            @endif
+                        </article>
+                        <article class="contact-card">
+                            <h3>Especialidades</h3>
+                            <p>{{ $profile->skills ?: 'Nutricao consciente, organizacao alimentar e evolucao progressiva com acompanhamento humano.' }}</p>
+                            <a href="#servicos">Ver servicos</a>
+                        </article>
+                    </div>
+                    <aside class="contact-notes">
+                        <div class="contact-note">
+                            <p>Uma landing profissional precisa encerrar com uma promessa clara e um caminho facil para contato. Este bloco entrega esse fechamento sem perder sobriedade.</p>
+                        </div>
+                        <div class="contact-note">
+                            <p>Se quiser mais resultado comercial, priorize um WhatsApp ativo, headline objetiva e uma imagem principal forte.</p>
+                        </div>
+                    </aside>
+                </div>
             </div>
         </section>
     </div>
