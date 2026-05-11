@@ -2,7 +2,7 @@
   "info": {
     "name": "akademia - auth v1",
     "_postman_id": "3fdccfe5-53c4-4545-85eb-3f56f664eb6b",
-    "description": "Collection para testar o fluxo atual da API v1 multi-tenant: auth, aceite de politicas, perfil, treinador do aluno, dados fisicos/medicos, preferencias, geracao de treino assincrona, lookup de exercicios e endpoints admin.",
+    "description": "Collection para testar o fluxo atual da API v1 multi-tenant: auth, aceite de politicas, perfil, treinador do aluno, dados fisicos/medicos, preferencias, geracao de treino assincrona, lookup de exercicios, catalogo interno, creditos e endpoints admin.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -57,6 +57,18 @@
     {
       "key": "exercise_media_workoutx_name",
       "value": "bench-press"
+    },
+    {
+      "key": "internal_catalog_api_key",
+      "value": ""
+    },
+    {
+      "key": "credit_request_id",
+      "value": ""
+    },
+    {
+      "key": "managed_user_id",
+      "value": ""
     }
   ],
   "item": [
@@ -147,6 +159,60 @@
             "v1",
             "auth",
             "register"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02B - Register Student Alias",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Alias de cadastro retorna autenticacao imediata', function () {",
+              "    pm.expect(data).to.have.property('authenticated', true);",
+              "    pm.expect(data).to.have.property('token').that.is.a('string').and.not.empty;",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Aluno Alias {{$timestamp}}\",\n  \"email\": \"aluno.alias+{{$timestamp}}@akademia.test\",\n  \"password\": \"{{password}}\",\n  \"password_confirmation\": \"{{password}}\",\n  \"terms_of_use\": true,\n  \"privacy_policy\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/register/student",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register",
+            "student"
           ]
         }
       }
@@ -1644,6 +1710,455 @@
             "v1",
             "admin",
             "usage"
+          ]
+        }
+      }
+    },
+    {
+      "name": "26 - Internal Exercise Catalog (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Catalogo interno retorna payload JSON', function () {",
+              "    pm.expect(data).to.be.an('object');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          },
+          {
+            "key": "X-Internal-Catalog-Key",
+            "value": "{{internal_catalog_api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/internal/catalog/exercises?search={{exercise_name}}&limit=10&offset=0",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "internal",
+            "catalog",
+            "exercises"
+          ],
+          "query": [
+            {
+              "key": "search",
+              "value": "{{exercise_name}}"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "offset",
+              "value": "0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "27 - Credit Requests (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Listagem de solicitacoes retorna array', function () {",
+              "    pm.expect(data).to.have.property('data').that.is.an('array');",
+              "  });",
+              "  if (Array.isArray(data.data) && data.data.length > 0 && data.data[0].id) {",
+              "    pm.collectionVariables.set('credit_request_id', String(data.data[0].id));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/credits/requests?per_page=10",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credits",
+            "requests"
+          ],
+          "query": [
+            {
+              "key": "per_page",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "28 - Credit Request (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 401, 403, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Solicitacao de credito criada', function () {",
+              "    pm.expect(data).to.have.property('message');",
+              "    pm.expect(data).to.have.property('data').that.is.an('object');",
+              "    pm.expect(data.data).to.have.property('id');",
+              "  });",
+              "  pm.collectionVariables.set('credit_request_id', String(data.data.id));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"credits_requested\": 25,\n  \"note\": \"Reposicao de creditos para geracao de treinos.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/credits/requests",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credits",
+            "requests"
+          ]
+        }
+      }
+    },
+    {
+      "name": "29 - Credit Request (GET by ID)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 403, 404]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Detalhe da solicitacao retorna id esperado', function () {",
+              "    pm.expect(data).to.have.property('data').that.is.an('object');",
+              "    pm.expect(String(data.data.id)).to.eql(pm.collectionVariables.get('credit_request_id'));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/credits/requests/{{credit_request_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "credits",
+            "requests",
+            "{{credit_request_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "30 - Admin Users (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403, 409]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Listagem de usuarios admin retorna data', function () {",
+              "    pm.expect(data).to.have.property('data').that.is.an('array');",
+              "  });",
+              "  if (Array.isArray(data.data) && data.data.length > 0 && data.data[0].id) {",
+              "    pm.collectionVariables.set('managed_user_id', String(data.data[0].id));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/users",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users"
+          ]
+        }
+      }
+    },
+    {
+      "name": "31 - Admin Create Student (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 401, 402, 403, 409, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Aluno criado com sucesso', function () {",
+              "    pm.expect(data).to.have.property('data').that.is.an('object');",
+              "    pm.expect(data.data).to.have.property('role', 'student');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Aluno Admin {{$timestamp}}\",\n  \"email\": \"admin.student+{{$timestamp}}@akademia.test\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/students",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students"
+          ]
+        }
+      }
+    },
+    {
+      "name": "32 - Admin Create Trainer (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([201, 401, 402, 403, 409, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Treinador criado com sucesso', function () {",
+              "    pm.expect(data).to.have.property('data').that.is.an('object');",
+              "    pm.expect(data.data).to.have.property('role', 'trainer');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Trainer Admin {{$timestamp}}\",\n  \"email\": \"admin.trainer+{{$timestamp}}@akademia.test\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/trainers",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "trainers"
+          ]
+        }
+      }
+    },
+    {
+      "name": "33 - Admin Send Email (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403, 404, 409, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Comunicacao por email enviada', function () {",
+              "    pm.expect(data).to.have.property('message');",
+              "    pm.expect(data).to.have.property('total_sent');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subject\": \"Aviso geral da plataforma\",\n  \"message\": \"Mensagem de teste enviada pela collection Postman.\",\n  \"target_type\": \"role\",\n  \"role\": \"student\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/admin/communications/email",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "communications",
+            "email"
           ]
         }
       }

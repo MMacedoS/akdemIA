@@ -203,6 +203,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('system-admin')->name('system-admin.')->middleware(['system.admin'])->group(function () {
         Route::get('/dashboard', [SystemAdminDashboardController::class, 'index'])->name('dashboard');
         Route::get('/users', [SystemAdminUserManagementController::class, 'index'])->name('users.index');
+        Route::post('/users/{id}/add-credit', [SystemAdminUserManagementController::class, 'updateAddCredit'])->name('users.add-credit.update');
         Route::post('/users/{id}/activate', [SystemAdminUserManagementController::class, 'activate'])->name('users.activate');
         Route::post('/users/{id}/inactivate', [SystemAdminUserManagementController::class, 'inactivate'])->name('users.inactivate');
         Route::delete('/users/{id}', [SystemAdminUserManagementController::class, 'destroy'])->name('users.destroy');

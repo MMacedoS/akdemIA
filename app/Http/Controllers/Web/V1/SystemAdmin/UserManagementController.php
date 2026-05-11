@@ -15,11 +15,33 @@ class UserManagementController extends Controller
         $users = User::query()
             ->orderBy('name')
             ->limit(80)
-            ->get(['id', 'name', 'email', 'credits_balance', 'is_active', 'is_system_admin', 'profile_type']);
+            ->get(['id', 'name', 'email', 'credits_balance', 'is_add_credit', 'is_active', 'is_system_admin', 'profile_type']);
 
         return view('web.v1.system_admin.users.index', [
             'users' => $users,
         ]);
+    }
+
+    public function updateAddCredit(Request $request, int $id): RedirectResponse
+    {
+        $actor = $request->user();
+
+        if ($actor === null) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        $validated = $request->validate([
+            'is_add_credit' => ['required', 'boolean'],
+        ]);
+
+        $targetUser = User::query()->findOrFail($id);
+        $targetUser->forceFill([
+            'is_add_credit' => (bool) $validated['is_add_credit'],
+        ]);
+        $targetUser->save();
+
+        return redirect()->route('system-admin.users.index')
+            ->with('status', 'Permissao de adicionar credito atualizada com sucesso.');
     }
 
     public function activate(Request $request, int $id): RedirectResponse

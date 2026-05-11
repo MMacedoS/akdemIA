@@ -126,6 +126,9 @@
         border-radius: 14px;
         background: #f8fafc;
         padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .exercise-preview-figure img,
@@ -147,6 +150,23 @@
         gap: 8px;
         flex-wrap: wrap;
         margin-top: 8px;
+    }
+
+    .exercise-card-thumb {
+        margin-top: 8px;
+        max-width: 180px;
+    }
+
+    .exercise-card-thumb .exercise-preview-figure {
+        padding: 6px;
+    }
+
+    .exercise-card-thumb img,
+    .exercise-card-thumb svg {
+        width: auto;
+        max-width: 100%;
+        max-height: 96px;
+        object-fit: contain;
     }
 
     .catalog-picker {
@@ -442,6 +462,14 @@
             let latestCatalogResults = [];
             let highlightedCatalogIndex = -1;
             let searchDebounceTimer = null;
+
+            function renderExerciseMedia(mediaUrl, svgMarkup) {
+                if (String(mediaUrl || '').trim() !== '') {
+                    return '<img src="' + String(mediaUrl).replace(/"/g, '&quot;') + '" alt="Midia do exercicio" loading="lazy">';
+                }
+
+                return String(svgMarkup || '');
+            }
 
             function setResultsExpanded(isExpanded) {
                 if (!exerciseSearchInput) {
@@ -899,6 +927,18 @@
                         card.appendChild(notes);
                         card.appendChild(steps);
 
+                        if (safeExercise.exercise_media_url || safeExercise.illustration_svg) {
+                            const preview = document.createElement('div');
+                            preview.className = 'exercise-card-thumb';
+
+                            const figure = document.createElement('div');
+                            figure.className = 'exercise-preview-figure';
+                            figure.innerHTML = renderExerciseMedia(safeExercise.exercise_media_url, safeExercise.illustration_svg);
+
+                            preview.appendChild(figure);
+                            card.appendChild(preview);
+                        }
+
                         if (isEditable) {
                             const removeButton = document.createElement('button');
                             removeButton.type = 'button';
@@ -1121,6 +1161,18 @@
                                     <small>Series: {{ (string) data_get($exercise, 'sets', '-') }} | Reps: {{ (string) data_get($exercise, 'reps', '-') }}</small>
                                     <small>Descanso: {{ (string) data_get($exercise, 'rest', '-') }}</small>
                                     <small>{{ (string) data_get($exercise, 'notes', '') }}</small>
+
+                                    @if ($exerciseMediaUrl !== '' || $exerciseSvg !== '')
+                                        <div class="exercise-preview exercise-card-thumb">
+                                            <div class="exercise-preview-figure">
+                                                @if ($exerciseMediaUrl !== '')
+                                                    <img src="{{ $exerciseMediaUrl }}" alt="Midia do exercicio {{ (string) data_get($exercise, 'name', 'Exercicio') }}" loading="lazy">
+                                                @else
+                                                    {!! $exerciseSvg !!}
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endif
 
                                     @if ($exerciseSteps !== [])
                                         <ol class="exercise-steps">

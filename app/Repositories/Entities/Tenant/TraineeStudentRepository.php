@@ -313,6 +313,8 @@ class TraineeStudentRepository implements TraineeStudentRepositoryContract
             'is_active' => true,
             'is_system_admin' => false,
             'credits_balance' => 0,
+            'is_add_credit' => true,
+            'is_system' => false,
             ...$this->policyAcceptanceAttributes($attributes),
         ]);
     }
@@ -346,6 +348,10 @@ class TraineeStudentRepository implements TraineeStudentRepositoryContract
     {
         $this->studentTraineeLinkQuery($tenant, $studentUserId)->delete();
 
+        User::query()
+            ->whereKey($studentUserId)
+            ->update(['is_add_credit' => $this->shouldEnableAddCredit($traineeUserId)]);
+
         if ($traineeUserId === null) {
             return;
         }
@@ -359,6 +365,18 @@ class TraineeStudentRepository implements TraineeStudentRepositoryContract
             'linked_by_user_id' => $linkedByUserId,
             'note' => null,
         ]);
+    }
+
+    private function shouldEnableAddCredit(?int $traineeUserId): bool
+    {
+        if ($traineeUserId === null) {
+            return true;
+        }
+
+        return User::query()
+            ->whereKey($traineeUserId)
+            ->where('is_system', true)
+            ->exists();
     }
 
     private function studentTraineeLinkQuery(?Tenant $tenant, int $studentUserId)

@@ -17,6 +17,7 @@
                     <p>{{ $user->email }}</p>
                     <p>Perfil: {{ $user->profile_type ?? 'nao definido' }}</p>
                     <p>Saldo de creditos: {{ (int) $user->credits_balance }}</p>
+                    <p>Adicionar credito: {{ (bool) $user->is_add_credit ? 'Sim' : 'Nao' }}</p>
                     <p>
                         Status:
                         @if ((bool) $user->is_active)
@@ -29,6 +30,16 @@
                     @if ((bool) $user->is_system_admin)
                         <p><span class="badge primary">System Admin</span></p>
                     @endif
+
+                    <form method="POST" action="{{ route('system-admin.users.add-credit.update', $user->id) }}" style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        @csrf
+                        <label for="is_add_credit_{{ $user->id }}">Adicionar credito</label>
+                        <select id="is_add_credit_{{ $user->id }}" name="is_add_credit">
+                            <option value="1" @selected((bool) $user->is_add_credit)>Sim</option>
+                            <option value="0" @selected(! (bool) $user->is_add_credit)>Nao</option>
+                        </select>
+                        <button type="submit" class="btn btn-soft">Salvar</button>
+                    </form>
 
                     <div class="actions" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
                         @if (! (bool) $user->is_system_admin)
