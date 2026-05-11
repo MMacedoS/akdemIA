@@ -37,17 +37,17 @@ class WorkoutController extends Controller
             ], 403);
         }
 
-        $tenant = $this->requireTenant($tenant);
-        $this->workoutLifecycleService->expireExpiredWorkouts($tenant->id, (int) $user->id);
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : null;
 
-        $workouts = Workout::query()
-            ->where('tenant_id', $tenant->id)
+        $this->workoutLifecycleService->expireExpiredWorkouts($tenantId, (int) $user->id);
+
+        $workouts = $this->workoutScope($tenantId, (int) $user->id)
             ->where('user_id', (int) $user->id)
             ->orderByDesc('id')
             ->get()
             ->map(fn(Workout $workout) => $this->hydrateWorkoutMedia($workout));
 
-        $currentWorkout = $this->resolveCurrentWorkout($tenant, (int) $user->id);
+        $currentWorkout = $this->resolveCurrentWorkout($tenantId, (int) $user->id);
 
         return response()->json([
             'current_workout' => $currentWorkout === null
@@ -68,8 +68,8 @@ class WorkoutController extends Controller
             ], 403);
         }
 
-        $tenant = $this->requireTenant($tenant);
-        $workout = $this->resolveCurrentWorkout($tenant, (int) $user->id);
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : null;
+        $workout = $this->resolveCurrentWorkout($tenantId, (int) $user->id);
 
         return response()->json([
             'data' => $workout === null
@@ -89,10 +89,9 @@ class WorkoutController extends Controller
             ], 403);
         }
 
-        $tenant = $this->requireTenant($tenant);
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : null;
 
-        $hasProcessingWorkout = Workout::query()
-            ->where('tenant_id', $tenant->id)
+        $hasProcessingWorkout = $this->workoutScope($tenantId, (int) $user->id)
             ->where('user_id', (int) $user->id)
             ->where('status', 'processing')
             ->exists();
@@ -110,10 +109,10 @@ class WorkoutController extends Controller
                 'consume_generation',
                 [
                     'context' => 'api_student',
-                    'tenant_id' => $tenant->id,
+                    'tenant_id' => $tenantId,
                     'student_id' => (int) $user->id,
                 ],
-                $tenant,
+                $tenant instanceof Tenant ? $tenant : null,
             );
         } catch (RuntimeException $exception) {
             return response()->json([
@@ -122,7 +121,7 @@ class WorkoutController extends Controller
         }
 
         $workout = Workout::query()->create(array_merge([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => $tenantId,
             'user_id' => (int) $user->id,
             'status' => 'processing',
             'workout_plan' => ['weekly_plan' => []],
@@ -132,7 +131,7 @@ class WorkoutController extends Controller
             'safety_flags' => [],
         ], $this->workoutLifecycleService->activeAttributes()));
 
-        GenerateWorkoutJob::dispatch($workout->id, (int) $user->id, $tenant->id, null, (int) $user->id);
+        GenerateWorkoutJob::dispatch($workout->id, (int) $user->id, $tenantId, null, (int) $user->id);
 
         return response()->json([
             'message' => 'Geracao do treino iniciada.',
@@ -143,25 +142,27 @@ class WorkoutController extends Controller
 
     private function allowsStudentWorkoutContext($user, mixed $tenant): bool
     {
-        return $tenant instanceof Tenant
-            && $user->profileType() === Role::STUDENT
-            && $user->belongsToTenant($tenant);
-    }
-
-    private function requireTenant(mixed $tenant): Tenant
-    {
-        if (! $tenant instanceof Tenant) {
-            abort(409, 'Tenant not identified.');
+        if ($tenant instanceof Tenant) {
+            return $user->belongsToTenant($tenant);
         }
 
-        return $tenant;
+        return $user->profileType() === Role::STUDENT;
     }
 
-    private function resolveCurrentWorkout(Tenant $tenant, int $userId): ?Workout
+    private function workoutScope(?int $tenantId, int $userId)
     {
-        $doneWorkout = Workout::query()
-            ->where('tenant_id', $tenant->id)
+        return Workout::query()
             ->where('user_id', $userId)
+            ->when(
+                $tenantId === null,
+                fn($query) => $query->whereNull('tenant_id'),
+                fn($query) => $query->where('tenant_id', $tenantId),
+            );
+    }
+
+    private function resolveCurrentWorkout(?int $tenantId, int $userId): ?Workout
+    {
+        $doneWorkout = $this->workoutScope($tenantId, $userId)
             ->where('status', 'done')
             ->orderByDesc('id')
             ->first();
@@ -170,9 +171,7 @@ class WorkoutController extends Controller
             return $this->hydrateWorkoutMedia($doneWorkout);
         }
 
-        $workout = Workout::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('user_id', $userId)
+        $workout = $this->workoutScope($tenantId, $userId)
             ->orderByDesc('id')
             ->first();
 
