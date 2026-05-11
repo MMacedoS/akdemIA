@@ -696,13 +696,19 @@ class WorkoutMediaService
             return ['path' => '', 'url' => ''];
         }
 
-        $disk = Storage::disk('public');
         $path = 'exercises/' . $workoutxName . '.gif';
 
-        if ($disk->exists($path)) {
+        if ($this->exerciseMediaDisk()->exists($path)) {
             return [
                 'path' => $path,
-                'url' => Storage::url($path),
+                'url' => $this->protectedMediaUrl($workoutxName),
+            ];
+        }
+
+        if ($this->migrateLegacyPublicGifToPrivate($path)) {
+            return [
+                'path' => $path,
+                'url' => $this->protectedMediaUrl($workoutxName),
             ];
         }
 
@@ -722,11 +728,11 @@ class WorkoutMediaService
             return ['path' => '', 'url' => ''];
         }
 
-        $disk->put($path, $binary);
+        $this->exerciseMediaDisk()->put($path, $binary);
 
         return [
             'path' => $path,
-            'url' => Storage::url($path),
+            'url' => $this->protectedMediaUrl($workoutxName),
         ];
     }
 
@@ -965,11 +971,11 @@ class WorkoutMediaService
         }
 
         $path = 'exercises/' . $workoutxName . '.gif';
-        Storage::disk('public')->put($path, $binary);
+        $this->exerciseMediaDisk()->put($path, $binary);
 
         return [
             'path' => $path,
-            'url' => Storage::url($path),
+            'url' => $this->protectedMediaUrl($workoutxName),
         ];
     }
 
@@ -1211,10 +1217,17 @@ class WorkoutMediaService
     {
         $path = trim((string) ($cache->storage_path ?? ''));
 
-        if ($path !== '' && Storage::disk('public')->exists($path)) {
+        if ($path !== '' && $this->exerciseMediaDisk()->exists($path)) {
             return [
                 'path' => $path,
-                'url' => Storage::url($path),
+                'url' => $this->protectedMediaUrl((string) $cache->workoutx_name),
+            ];
+        }
+
+        if ($path !== '' && $this->migrateLegacyPublicGifToPrivate($path)) {
+            return [
+                'path' => $path,
+                'url' => $this->protectedMediaUrl((string) $cache->workoutx_name),
             ];
         }
 
@@ -1228,6 +1241,42 @@ class WorkoutMediaService
         }
 
         return $this->storeGifFromUrl((string) $cache->workoutx_name, $gifUrl);
+    }
+
+    private function protectedMediaUrl(string $workoutxName): string
+    {
+        if ($workoutxName === '') {
+            return '';
+        }
+
+        return route('api.workouts.exercises.media.show', [
+            'workoutxName' => $workoutxName,
+        ], false);
+    }
+
+    private function exerciseMediaDisk()
+    {
+        return Storage::disk('local');
+    }
+
+    private function migrateLegacyPublicGifToPrivate(string $path): bool
+    {
+        $publicDisk = Storage::disk('public');
+
+        if (! $publicDisk->exists($path)) {
+            return false;
+        }
+
+        $contents = $publicDisk->get($path);
+
+        if ($contents === false || $contents === '') {
+            return false;
+        }
+
+        $this->exerciseMediaDisk()->put($path, $contents);
+        $publicDisk->delete($path);
+
+        return true;
     }
 
     private function workoutxRequest(): PendingRequest

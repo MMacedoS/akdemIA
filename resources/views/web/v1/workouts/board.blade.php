@@ -149,76 +149,6 @@
         margin-top: 8px;
     }
 
-    .exercise-card-thumb {
-        margin-top: 8px;
-    }
-
-    .exercise-card-thumb .exercise-preview-figure {
-        padding: 6px;
-    }
-
-    .exercise-card-thumb img,
-    .exercise-card-thumb svg {
-        max-height: 120px;
-        object-fit: contain;
-    }
-
-    .exercise-image-modal {
-        display: none;
-        position: fixed;
-        inset: 0;
-        z-index: 140;
-        background: rgba(15, 23, 42, 0.58);
-        align-items: center;
-        justify-content: center;
-        padding: 16px;
-    }
-
-    .exercise-image-modal.open {
-        display: flex;
-    }
-
-    .exercise-image-modal-card {
-        width: min(760px, 100%);
-        max-height: calc(100vh - 32px);
-        overflow: auto;
-        background: #fff;
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        box-shadow: var(--shadow);
-        padding: 16px;
-        display: grid;
-        gap: 12px;
-    }
-
-    .exercise-image-modal-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-    }
-
-    .exercise-image-modal-head h4 {
-        margin: 0;
-        font-size: 18px;
-    }
-
-    .exercise-image-modal-figure {
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        background: #f8fafc;
-        padding: 12px;
-    }
-
-    .exercise-image-modal-figure img,
-    .exercise-image-modal-figure svg {
-        width: 100%;
-        height: auto;
-        display: block;
-        max-height: 65vh;
-        object-fit: contain;
-    }
-
     .catalog-picker {
         min-width: 280px;
         flex: 1 1 360px;
@@ -400,19 +330,6 @@
     @endif
 </div>
 
-<div id="exercise-image-modal" class="exercise-image-modal" aria-hidden="true">
-    <div class="exercise-image-modal-card">
-        <div class="exercise-image-modal-head">
-            <div>
-                <h4 id="exercise-image-modal-title">Imagem do exercicio</h4>
-                <p id="exercise-image-modal-subtitle" style="margin: 4px 0 0; color: var(--muted);">Visualizacao ampliada da midia do exercicio.</p>
-            </div>
-            <button id="exercise-image-modal-close" type="button" class="btn btn-soft">Fechar</button>
-        </div>
-        <div id="exercise-image-modal-figure" class="exercise-image-modal-figure"></div>
-    </div>
-</div>
-
 @if ($editable && $isWorkoutDone && $regenerateRoute !== '' && $reuseRoute !== '')
     <div id="plan-refazer-modal" class="plan-refazer-modal" aria-hidden="true">
         <div class="plan-refazer-modal-card">
@@ -451,11 +368,6 @@
         const openModalButton = document.getElementById('open-refazer-modal-btn');
         const closeModalButton = document.getElementById('close-refazer-modal-btn');
         const modal = document.getElementById('plan-refazer-modal');
-        const exerciseImageModal = document.getElementById('exercise-image-modal');
-        const exerciseImageModalClose = document.getElementById('exercise-image-modal-close');
-        const exerciseImageModalFigure = document.getElementById('exercise-image-modal-figure');
-        const exerciseImageModalTitle = document.getElementById('exercise-image-modal-title');
-        const exerciseImageModalSubtitle = document.getElementById('exercise-image-modal-subtitle');
 
         if (toggleEditorButton && editorPanel) {
             toggleEditorButton.addEventListener('click', function () {
@@ -470,55 +382,6 @@
 
             modal.classList.remove('open');
             modal.setAttribute('aria-hidden', 'true');
-        }
-
-        function closeExerciseImageModal() {
-            if (!exerciseImageModal) {
-                return;
-            }
-
-            exerciseImageModal.classList.remove('open');
-            exerciseImageModal.setAttribute('aria-hidden', 'true');
-            if (exerciseImageModalFigure) {
-                exerciseImageModalFigure.innerHTML = '';
-            }
-        }
-
-        function renderExerciseMedia(mediaUrl, svgMarkup) {
-            if (String(mediaUrl || '').trim() !== '') {
-                return '<img src="' + String(mediaUrl).replace(/"/g, '&quot;') + '" alt="Midia do exercicio" loading="lazy">';
-            }
-
-            return String(svgMarkup || '');
-        }
-
-        function openExerciseImageModal(title, subtitle, mediaUrl, svgMarkup) {
-            if (!exerciseImageModal || !exerciseImageModalFigure) {
-                return;
-            }
-
-            exerciseImageModalTitle.textContent = title || 'Imagem do exercicio';
-            exerciseImageModalSubtitle.textContent = subtitle || 'Visualizacao ampliada da midia do exercicio.';
-            exerciseImageModalFigure.innerHTML = renderExerciseMedia(mediaUrl, svgMarkup);
-            exerciseImageModal.classList.add('open');
-            exerciseImageModal.setAttribute('aria-hidden', 'false');
-        }
-
-        function bindExercisePreviewButtons(root) {
-            if (!root) {
-                return;
-            }
-
-            root.querySelectorAll('[data-exercise-preview-button]').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    openExerciseImageModal(
-                        button.getAttribute('data-exercise-name') || 'Imagem do exercicio',
-                        button.getAttribute('data-exercise-focus') || 'Visualizacao ampliada da ilustracao do exercicio.',
-                        button.getAttribute('data-exercise-media-url') || '',
-                        button.getAttribute('data-exercise-svg') || ''
-                    );
-                });
-            });
         }
 
         if (openModalButton && modal) {
@@ -539,22 +402,6 @@
                 }
             });
         }
-
-        if (exerciseImageModalClose) {
-            exerciseImageModalClose.addEventListener('click', closeExerciseImageModal);
-        }
-
-        if (exerciseImageModal) {
-            exerciseImageModal.addEventListener('click', function (event) {
-                if (event.target === exerciseImageModal) {
-                    closeExerciseImageModal();
-                }
-            });
-        }
-
-        bindExercisePreviewButtons(document);
-
-        window.akdemiaOpenExerciseImageModal = openExerciseImageModal;
     })();
 </script>
 
@@ -1052,40 +899,6 @@
                         card.appendChild(notes);
                         card.appendChild(steps);
 
-                        const hasVisual = safeExercise.exercise_media_url || safeExercise.illustration_svg;
-
-                        if (hasVisual) {
-                            const preview = document.createElement('div');
-                            preview.className = 'exercise-card-thumb';
-
-                            const figure = document.createElement('div');
-                            figure.className = 'exercise-preview-figure';
-                            figure.innerHTML = renderExerciseMedia(safeExercise.exercise_media_url, safeExercise.illustration_svg);
-                            preview.appendChild(figure);
-                            card.appendChild(preview);
-
-                            const actions = document.createElement('div');
-                            actions.className = 'exercise-card-actions';
-
-                            const previewButton = document.createElement('button');
-                            previewButton.type = 'button';
-                            previewButton.className = 'btn btn-soft';
-                            previewButton.textContent = 'Ver imagem';
-                            previewButton.addEventListener('click', function () {
-                                if (typeof window.akdemiaOpenExerciseImageModal === 'function') {
-                                    window.akdemiaOpenExerciseImageModal(
-                                        safeExercise.name,
-                                        String(dayPlan.focus || 'Treino geral'),
-                                        safeExercise.exercise_media_url,
-                                        safeExercise.illustration_svg
-                                    );
-                                }
-                            });
-
-                            actions.appendChild(previewButton);
-                            card.appendChild(actions);
-                        }
-
                         if (isEditable) {
                             const removeButton = document.createElement('button');
                             removeButton.type = 'button';
@@ -1308,30 +1121,6 @@
                                     <small>Series: {{ (string) data_get($exercise, 'sets', '-') }} | Reps: {{ (string) data_get($exercise, 'reps', '-') }}</small>
                                     <small>Descanso: {{ (string) data_get($exercise, 'rest', '-') }}</small>
                                     <small>{{ (string) data_get($exercise, 'notes', '') }}</small>
-
-                                    @if ($exerciseMediaUrl !== '' || $exerciseSvg !== '')
-                                        <div class="exercise-preview exercise-card-thumb">
-                                            <div class="exercise-preview-figure">
-                                                @if ($exerciseMediaUrl !== '')
-                                                    <img src="{{ $exerciseMediaUrl }}" alt="Midia do exercicio {{ (string) data_get($exercise, 'name', 'Exercicio') }}" loading="lazy">
-                                                @else
-                                                    {!! $exerciseSvg !!}
-                                                @endif
-                                            </div>
-                                        </div>
-
-                                        <div class="exercise-card-actions">
-                                            <button
-                                                type="button"
-                                                class="btn btn-soft"
-                                                data-exercise-preview-button
-                                                data-exercise-name="{{ (string) data_get($exercise, 'name', 'Exercicio') }}"
-                                                data-exercise-focus="{{ (string) data_get($dayPlan, 'focus', 'Treino geral') }}"
-                                                data-exercise-media-url="{{ $exerciseMediaUrl }}"
-                                                data-exercise-svg="{{ $exerciseSvg }}"
-                                            >Ver imagem</button>
-                                        </div>
-                                    @endif
 
                                     @if ($exerciseSteps !== [])
                                         <ol class="exercise-steps">

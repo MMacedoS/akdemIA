@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\Preferences\PreferencesController;
 use App\Http\Controllers\Api\V1\Profile\MeController;
 use App\Http\Controllers\Api\V1\Students\WorkoutController as StudentWorkoutController;
 use App\Http\Controllers\Api\V1\Tenants\TenantController;
+use App\Http\Controllers\Api\V1\Workouts\ExerciseMediaController;
 use App\Http\Controllers\Api\V1\Workouts\ExerciseLookupController;
 use App\Http\Controllers\Api\V1\Workouts\InternalExerciseCatalogController;
 use App\Http\Controllers\Api\V1\Workouts\GenerateWorkoutController;
@@ -35,6 +36,8 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware(['tenant.auth', 'tenant.user'])->group(function () {
         Route::post('auth/accept-policies', [AuthController::class, 'acceptPolicies'])->name('api.auth.accept-policies');
+        Route::get('workouts/exercises/media/{workoutxName}', [ExerciseMediaController::class, 'show'])
+            ->name('api.workouts.exercises.media.show');
 
         Route::middleware(['policies.accepted'])->group(function () {
             Route::middleware(['subscription'])->group(function () {

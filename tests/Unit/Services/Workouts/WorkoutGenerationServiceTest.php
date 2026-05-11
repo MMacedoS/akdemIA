@@ -121,7 +121,7 @@ class WorkoutGenerationServiceTest extends TestCase
                             'steps' => ['Ajuste a pegada', 'Puxe ate a linha do peito', 'Retorne de forma controlada'],
                             'workoutx_name' => 'barbell-bench-press',
                             'exercise_media_path' => 'exercises/barbell-bench-press.gif',
-                            'exercise_media_url' => '/storage/exercises/barbell-bench-press.gif',
+                            'exercise_media_url' => '/api/v1/workouts/exercises/media/barbell-bench-press',
                             'illustration_svg' => '',
                         ],
                     ],

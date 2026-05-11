@@ -14,6 +14,23 @@ class WorkoutMediaServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function configureIsolatedLocalDisk(): void
+    {
+        $root = storage_path('framework/testing/disks/local-workout-media-' . bin2hex(random_bytes(5)));
+
+        config()->set('filesystems.disks.local.root', $root);
+
+        app('files')->ensureDirectoryExists($root);
+        app('filesystem')->forgetDisk('local');
+    }
+
+    private function expectedMediaUrl(string $workoutxName): string
+    {
+        return route('api.workouts.exercises.media.show', [
+            'workoutxName' => $workoutxName,
+        ], false);
+    }
+
     private function configureIsolatedPublicDisk(): void
     {
         $root = storage_path('framework/testing/disks/public-workout-media-' . bin2hex(random_bytes(5)));
@@ -28,6 +45,7 @@ class WorkoutMediaServiceTest extends TestCase
     public function test_enrich_workout_plan_downloads_and_stores_gif_from_workoutx(): void
     {
         $this->configureIsolatedPublicDisk();
+        $this->configureIsolatedLocalDisk();
 
         config()->set('services.workoutx.enabled', true);
         config()->set('services.workoutx.api_base_url', 'https://api.workoutxapp.com/v1');
@@ -78,16 +96,17 @@ class WorkoutMediaServiceTest extends TestCase
 
         $this->assertSame('bench-press', data_get($result, 'weekly_plan.0.exercises.0.workoutx_name'));
         $this->assertSame('exercises/bench-press.gif', data_get($result, 'weekly_plan.0.exercises.0.exercise_media_path'));
-        $this->assertSame('/storage/exercises/bench-press.gif', data_get($result, 'weekly_plan.0.exercises.0.exercise_media_url'));
+        $this->assertSame($this->expectedMediaUrl('bench-press'), data_get($result, 'weekly_plan.0.exercises.0.exercise_media_url'));
         $this->assertSame('', data_get($result, 'weekly_plan.0.exercises.0.illustration_svg'));
-        $this->assertTrue(Storage::disk('public')->exists('exercises/bench-press.gif'));
+        $this->assertTrue(Storage::disk('local')->exists('exercises/bench-press.gif'));
         Http::assertSentCount(2);
     }
 
     public function test_enrich_workout_plan_reuses_local_cached_gif_without_new_api_call(): void
     {
         $this->configureIsolatedPublicDisk();
-        Storage::disk('public')->put('exercises/bench-press.gif', 'gif-binary');
+        $this->configureIsolatedLocalDisk();
+        Storage::disk('local')->put('exercises/bench-press.gif', 'gif-binary');
 
         config()->set('services.workoutx.enabled', true);
         config()->set('services.workoutx.allow_fallback', false);
@@ -117,13 +136,14 @@ class WorkoutMediaServiceTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('/storage/exercises/bench-press.gif', data_get($result, 'weekly_plan.0.exercises.0.exercise_media_url'));
+        $this->assertSame($this->expectedMediaUrl('bench-press'), data_get($result, 'weekly_plan.0.exercises.0.exercise_media_url'));
         Http::assertNothingSent();
     }
 
     public function test_enrich_workout_plan_uses_local_catalog_remote_id_and_downloads_gif_locally(): void
     {
         $this->configureIsolatedPublicDisk();
+        $this->configureIsolatedLocalDisk();
 
         ExerciseMediaCache::query()->create([
             'remote_exercise_id' => '0025',
@@ -173,15 +193,16 @@ class WorkoutMediaServiceTest extends TestCase
         $this->assertSame('0025', data_get($result, 'weekly_plan.0.exercises.0.remote_exercise_id'));
         $this->assertSame('barbell-bench-press', data_get($result, 'weekly_plan.0.exercises.0.workoutx_name'));
         $this->assertSame('exercises/barbell-bench-press.gif', data_get($result, 'weekly_plan.0.exercises.0.exercise_media_path'));
-        $this->assertSame('/storage/exercises/barbell-bench-press.gif', data_get($result, 'weekly_plan.0.exercises.0.exercise_media_url'));
-        $this->assertTrue(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
+        $this->assertSame($this->expectedMediaUrl('barbell-bench-press'), data_get($result, 'weekly_plan.0.exercises.0.exercise_media_url'));
+        $this->assertTrue(Storage::disk('local')->exists('exercises/barbell-bench-press.gif'));
         Http::assertSentCount(1);
     }
 
     public function test_enrich_workout_plan_persists_and_reuses_localized_name_in_pt_br(): void
     {
         $this->configureIsolatedPublicDisk();
-        Storage::disk('public')->put('exercises/barbell-bench-press.gif', 'gif-binary');
+        $this->configureIsolatedLocalDisk();
+        Storage::disk('local')->put('exercises/barbell-bench-press.gif', 'gif-binary');
 
         ExerciseMediaCache::query()->create([
             'remote_exercise_id' => '0025',
@@ -247,6 +268,7 @@ class WorkoutMediaServiceTest extends TestCase
     public function test_lookup_exercise_by_name_downloads_gif_and_persists_cache(): void
     {
         $this->configureIsolatedPublicDisk();
+        $this->configureIsolatedLocalDisk();
 
         config()->set('services.workoutx.enabled', true);
         config()->set('services.workoutx.api_base_url', 'https://api.workoutxapp.com/v1');
@@ -282,12 +304,12 @@ class WorkoutMediaServiceTest extends TestCase
         $this->assertSame('barbell-bench-press', $result['workoutx_name']);
         $this->assertSame('Barbell Bench Press', data_get($result, 'exercise.name'));
         $this->assertSame('exercises/barbell-bench-press.gif', data_get($result, 'media.path'));
-        $this->assertSame('/storage/exercises/barbell-bench-press.gif', data_get($result, 'media.url'));
+        $this->assertSame($this->expectedMediaUrl('barbell-bench-press'), data_get($result, 'media.url'));
         $this->assertDatabaseHas('exercise_media_caches', [
             'workoutx_name' => 'barbell-bench-press',
             'storage_path' => 'exercises/barbell-bench-press.gif',
         ]);
-        $this->assertTrue(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
+        $this->assertTrue(Storage::disk('local')->exists('exercises/barbell-bench-press.gif'));
         Http::assertSent(static function ($request): bool {
             return $request->url() === 'https://cdn.workoutx.test/barbell-bench-press.gif'
                 && $request->hasHeader('X-WorkoutX-Key', 'secret-from-settings');
@@ -297,7 +319,8 @@ class WorkoutMediaServiceTest extends TestCase
     public function test_lookup_exercise_by_name_reuses_cached_record_without_new_http_calls(): void
     {
         $this->configureIsolatedPublicDisk();
-        Storage::disk('public')->put('exercises/barbell-bench-press.gif', 'gif-binary');
+        $this->configureIsolatedLocalDisk();
+        Storage::disk('local')->put('exercises/barbell-bench-press.gif', 'gif-binary');
 
         \App\Models\Workout\ExerciseMediaCache::query()->create([
             'workoutx_name' => 'barbell-bench-press',
@@ -320,7 +343,38 @@ class WorkoutMediaServiceTest extends TestCase
         $this->assertTrue($result['found']);
         $this->assertTrue($result['cached']);
         $this->assertSame('', $result['remote_exercise_id']);
-        $this->assertSame('/storage/exercises/barbell-bench-press.gif', data_get($result, 'media.url'));
+        $this->assertSame($this->expectedMediaUrl('barbell-bench-press'), data_get($result, 'media.url'));
+        Http::assertNothingSent();
+    }
+
+    public function test_lookup_exercise_by_name_migrates_legacy_public_gif_to_private_storage(): void
+    {
+        $this->configureIsolatedPublicDisk();
+        $this->configureIsolatedLocalDisk();
+        Storage::disk('public')->put('exercises/barbell-bench-press.gif', 'gif-binary');
+
+        ExerciseMediaCache::query()->create([
+            'workoutx_name' => 'barbell-bench-press',
+            'query_name' => 'Barbell Bench Press',
+            'remote_gif_url' => 'https://cdn.workoutx.test/barbell-bench-press.gif',
+            'storage_path' => 'exercises/barbell-bench-press.gif',
+            'payload' => [
+                'id' => '0025',
+                'name' => 'Barbell Bench Press',
+            ],
+        ]);
+
+        config()->set('services.workoutx.enabled', true);
+
+        Http::fake();
+
+        $service = new WorkoutMediaService();
+        $result = $service->lookupExerciseByName('Barbell Bench Press');
+
+        $this->assertTrue($result['found']);
+        $this->assertSame($this->expectedMediaUrl('barbell-bench-press'), data_get($result, 'media.url'));
+        $this->assertTrue(Storage::disk('local')->exists('exercises/barbell-bench-press.gif'));
+        $this->assertFalse(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
         Http::assertNothingSent();
     }
 
@@ -404,6 +458,7 @@ class WorkoutMediaServiceTest extends TestCase
     public function test_sync_pending_catalog_gifs_downloads_pending_files_and_updates_storage_path(): void
     {
         $this->configureIsolatedPublicDisk();
+        $this->configureIsolatedLocalDisk();
 
         ExerciseMediaCache::query()->create([
             'remote_exercise_id' => '0025',
@@ -457,8 +512,10 @@ class WorkoutMediaServiceTest extends TestCase
             'storage_path' => 'exercises/incline-dumbbell-press.gif',
         ]);
 
-        $this->assertTrue(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
-        $this->assertTrue(Storage::disk('public')->exists('exercises/incline-dumbbell-press.gif'));
+        $this->assertTrue(Storage::disk('local')->exists('exercises/barbell-bench-press.gif'));
+        $this->assertTrue(Storage::disk('local')->exists('exercises/incline-dumbbell-press.gif'));
+        $this->assertFalse(Storage::disk('public')->exists('exercises/barbell-bench-press.gif'));
+        $this->assertFalse(Storage::disk('public')->exists('exercises/incline-dumbbell-press.gif'));
 
         Http::assertSentCount(2);
     }
