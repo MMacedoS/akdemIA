@@ -90,6 +90,12 @@
                                     @csrf
                                     <button type="submit" class="btn btn-primary">Aprovar</button>
                                 </form>
+                            @elseif ($requestItem->payment_external_reference !== null)
+                                <form method="POST" action="{{ route('system-admin.requests.approve', $requestItem->id) }}">
+                                    @csrf
+                                    <input type="hidden" name="mark_as_paid" value="1">
+                                    <button type="submit" class="btn btn-primary">Marcar como pago e aprovar</button>
+                                </form>
                             @endif
 
                             <form method="POST" action="{{ route('system-admin.requests.reject', $requestItem->id) }}" style="display: flex; gap: 6px; align-items: center;">

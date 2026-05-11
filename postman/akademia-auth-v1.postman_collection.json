@@ -200,6 +200,9 @@
               "",
               "  if (data.token) {",
               "    pm.collectionVariables.set('token', data.token);",
+              "    if (data.requiresTenantSelection !== true) {",
+              "      pm.collectionVariables.set('tenant_host', pm.collectionVariables.get('app_host'));",
+              "    }",
               "  }",
               "}"
             ]
@@ -504,9 +507,14 @@
               "if (pm.response.code === 200) {",
               "  const data = pm.response.json();",
               "  pm.test('Perfil atualizado', function () {",
-              "    pm.expect(data).to.have.property('name', 'Multi Tenant User');",
-              "    pm.expect(data).to.have.property('height', 1.75);",
-              "    pm.expect(data).to.have.property('weight', 82);",
+              "    pm.expect(data).to.have.property('name', 'Contato Plataforma');",
+              "    pm.expect(data).to.have.property('phone', '(11) 99999-9999');",
+              "    pm.expect(data).to.have.property('goal', 'Hipertrofia');",
+              "    pm.expect(data).to.have.property('physical_data').that.is.an('object');",
+              "    pm.expect(data).to.have.property('medical_data').that.is.an('object');",
+              "    pm.expect(data).to.have.property('preferences').that.is.an('object');",
+              "    pm.expect(data.preferences).to.have.property('workout_days', '4x por semana');",
+              "    pm.expect(data.preferences).to.have.property('notifications_enabled', true);",
               "  });",
               "}"
             ]
@@ -531,7 +539,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Multi Tenant User\",\n  \"birth_date\": \"1992-05-10\",\n  \"gender\": \"male\",\n  \"height\": 1.75,\n  \"weight\": 82,\n  \"goal\": \"gain_muscle\"\n}"
+          "raw": "{\n  \"name\": \"Contato Plataforma\",\n  \"email\": \"plataforma@academai.com.br\",\n  \"phone\": \"11999999999\",\n  \"birth_date\": \"1994-06-17\",\n  \"gender\": \"male\",\n  \"height\": \"1.70\",\n  \"weight\": \"82.00\",\n  \"physical_data\": {\n    \"body_fat_percentage\": \"20.00\",\n    \"activity_level\": \"high\",\n    \"imc\": \"28.40\"\n  },\n  \"medical_data\": {\n    \"injuries\": \"\",\n    \"restrictions\": \"Hipertensao | Doenca cardiovascular\",\n    \"medications\": \"Losartana\"\n  },\n  \"preferences\": {\n    \"workout_days\": \"4x por semana\",\n    \"focus_areas\": \"Hipertrofia\",\n    \"notifications_enabled\": true\n  }\n}"
         },
         "url": {
           "raw": "{{base_url}}/api/v1/me",

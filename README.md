@@ -155,6 +155,89 @@ Descricao por area:
 - `/api/v1/workouts`: geracao, status e consulta de exercicios.
 - `/api/v1/admin`: dashboard, logs de IA, uso e comunicacao.
 
+### Contrato do endpoint `/api/v1/me`
+
+O endpoint de perfil autenticado aceita `GET`, `POST` e `PUT` em `/api/v1/me`.
+
+- `GET /api/v1/me`: retorna o perfil consolidado do usuario autenticado.
+- `POST /api/v1/me`: cria ou atualiza o perfil consolidado com payload do app.
+- `PUT /api/v1/me`: atualiza parcialmente o perfil consolidado.
+
+Payload aceito pelo app mobile:
+
+```json
+{
+	"name": "Contato Plataforma",
+	"email": "plataforma@academai.com.br",
+	"phone": "11999999999",
+	"birth_date": "1994-06-17",
+	"gender": "male",
+	"height": "1.70",
+	"weight": "82.00",
+	"physical_data": {
+		"body_fat_percentage": "20.00",
+		"activity_level": "high",
+		"imc": "28.40"
+	},
+	"medical_data": {
+		"injuries": "",
+		"restrictions": "Hipertensao | Doenca cardiovascular",
+		"medications": "Losartana"
+	},
+	"preferences": {
+		"workout_days": "4x por semana",
+		"focus_areas": "Hipertrofia",
+		"notifications_enabled": true
+	}
+}
+```
+
+Regras aplicadas no backend:
+
+- `phone` e salvo em `users.phone` com formatacao brasileira quando valido.
+- `preferences.notifications_enabled` e salvo em `preferences.notifications_enabled`.
+- `preferences.workout_days` e mapeado para `preferences.training_frequency`.
+- `preferences.focus_areas` e mapeado para `users.goal`.
+- `physical_data.imc` pode ser enviado, mas o valor persistido e recalculado a partir de `height` e `weight`.
+- campos enviados como string vazia podem ser normalizados para `null` pelos middlewares globais do Laravel.
+
+Resposta consolidada esperada:
+
+```json
+{
+	"id": 1,
+	"tenant_id": null,
+	"name": "Contato Plataforma",
+	"email": "plataforma@academai.com.br",
+	"phone": "(11) 99999-9999",
+	"avatar_url": null,
+	"birth_date": "1994-06-17",
+	"gender": "male",
+	"height": "1.70",
+	"weight": "82.00",
+	"goal": "Hipertrofia",
+	"physical_data": {
+		"user_id": 1,
+		"body_fat_percentage": "20.00",
+		"activity_level": "high",
+		"imc": "28.37"
+	},
+	"medical_data": {
+		"user_id": 1,
+		"injuries": null,
+		"restrictions": "Hipertensao | Doenca cardiovascular",
+		"medications": "Losartana"
+	},
+	"preferences": {
+		"user_id": 1,
+		"training_frequency": "4x por semana",
+		"workout_days": "4x por semana",
+		"focus_areas": "Hipertrofia",
+		"notifications_enabled": true
+	}
+}
+```
+
 ## Requisitos Para Rodar Localmente
 
 - Docker Engine com permissao para o usuario atual.

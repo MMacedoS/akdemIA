@@ -55,11 +55,24 @@ class CreditController extends Controller
             abort(401, 'Unauthenticated.');
         }
 
+        $payload = $request->validate([
+            'mark_as_paid' => ['nullable', 'boolean'],
+        ]);
+
         $creditRequest = CreditRequest::query()->where('status', 'pending')->findOrFail($id);
 
-        if ($creditRequest->payment_external_reference !== null && $creditRequest->payment_status !== 'approved') {
+        $markAsPaid = (bool) ($payload['mark_as_paid'] ?? false);
+
+        if ($creditRequest->payment_external_reference !== null && $creditRequest->payment_status !== 'approved' && ! $markAsPaid) {
             return redirect()->route('system-admin.credits.index')
                 ->with('status', 'A solicitacao ainda nao teve o pagamento Pix confirmado pelo Mercado Pago.');
+        }
+
+        if ($markAsPaid) {
+            $creditRequest->fill([
+                'payment_status' => 'approved',
+                'payment_status_detail' => 'manual_system_admin_confirmation',
+            ]);
         }
 
         $this->creditService->addCredits(
@@ -70,6 +83,7 @@ class CreditController extends Controller
             'Credito concedido por aprovacao da solicitacao.',
             [
                 'credit_request_id' => $creditRequest->id,
+                'payment_confirmed_manually' => $markAsPaid,
             ],
             $creditRequest->tenant,
             $creditRequest,
