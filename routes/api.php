@@ -29,6 +29,9 @@ Route::prefix('v1')->group(function () {
         Route::get('options', [AuthController::class, 'options'])->name('api.auth.options');
         Route::post('register', [AuthController::class, 'registerStudent'])->name('api.auth.register');
         Route::post('register/student', [AuthController::class, 'registerStudent'])->name('api.auth.register-student');
+        Route::get('verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+            ->middleware(['signed', 'throttle:6,1'])
+            ->name('api.auth.verify-email');
         Route::post('login', [AuthController::class, 'login'])->name('api.auth.login');
         Route::post('select-tenant', [AuthController::class, 'selectTenant'])->name('api.auth.select-tenant');
     });

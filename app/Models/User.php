@@ -13,7 +13,9 @@ use App\Models\Tenant\Tenant;
 use App\Models\Tenant\TenantStudentTraineeLink;
 use App\Models\Workout\Workout;
 use App\Support\LegalDocuments;
+use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -49,10 +51,10 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'privacy_policy_accepted_at',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmailContract
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, MustVerifyEmail, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.

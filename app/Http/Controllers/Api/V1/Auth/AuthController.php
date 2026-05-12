@@ -14,6 +14,8 @@ use App\Services\Tenant\TenantManager;
 use App\Support\FormPatterns;
 use App\Transformers\Profile\StudentTrainerTransformer;
 use App\Transformers\Tenant\TenantTransformer;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -42,7 +44,22 @@ class AuthController extends Controller
         $platformTrainee = $this->platformTenantService->resolvePlatformTrainee();
         $student = $this->traineeStudentRepository->createForTrainee(null, $platformTrainee->id, $validated);
 
-        return $this->standaloneStudentResponse($student, 201, 'Aluno criado e vinculado ao trainer Plataforma.');
+        event(new Registered($student));
+
+        return response()->json([
+            'registered' => true,
+            'requiresEmailVerification' => true,
+            'verification_email_sent' => true,
+            'message' => 'Aluno criado com sucesso. Confirme seu e-mail para liberar o login.',
+            'profile' => Role::STUDENT->value,
+            'policies' => $this->policyStatus($student),
+            'user' => [
+                'id' => $student->id,
+                'name' => $student->name,
+                'email' => $student->email,
+            ],
+            'assigned_trainer' => $this->studentTrainerTransformer->transformAssigned($platformTrainee),
+        ], 201);
     }
 
     public function options(): JsonResponse
@@ -221,6 +238,12 @@ class AuthController extends Controller
             ], 422);
         }
 
+        if (! $user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Voce precisa confirmar seu e-mail antes de fazer login.',
+            ], 403);
+        }
+
         $tenant = $request->attributes->get('tenant');
 
         if ($tenant instanceof Tenant) {
@@ -313,6 +336,39 @@ class AuthController extends Controller
             'token' => $token,
             'tenant' => $this->tenantTransformer->transform($tenant),
             'policies' => $this->policyStatus($user),
+        ]);
+    }
+
+    public function verifyEmail(Request $request, int $id, string $hash): JsonResponse
+    {
+        $user = User::query()->find($id);
+
+        if ($user === null) {
+            return response()->json([
+                'message' => 'Usuario nao encontrado.',
+            ], 404);
+        }
+
+        if (! hash_equals($hash, sha1($user->getEmailForVerification()))) {
+            return response()->json([
+                'message' => 'Link de verificacao invalido.',
+            ], 403);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'verified' => true,
+                'message' => 'E-mail ja confirmado.',
+            ]);
+        }
+
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+
+        return response()->json([
+            'verified' => true,
+            'message' => 'E-mail confirmado com sucesso.',
         ]);
     }
 

@@ -69,6 +69,18 @@
     {
       "key": "managed_user_id",
       "value": ""
+    },
+    {
+      "key": "tenant_slug",
+      "value": "plataforma"
+    },
+    {
+      "key": "mercadopago_webhook_secret",
+      "value": ""
+    },
+    {
+      "key": "mercadopago_resource_id",
+      "value": "123456789"
     }
   ],
   "item": [
@@ -2159,6 +2171,354 @@
             "admin",
             "communications",
             "email"
+          ]
+        }
+      }
+    },
+    {
+      "name": "34 - Me (POST Alias)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403, 422, 503]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Alias POST do perfil atualiza os dados', function () {",
+              "    pm.expect(data).to.have.property('name', 'Contato Plataforma POST');",
+              "    pm.expect(data).to.have.property('phone', '(11) 98888-7777');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Contato Plataforma POST\",\n  \"email\": \"plataforma.post@academai.com.br\",\n  \"phone\": \"11988887777\",\n  \"birth_date\": \"1994-06-17\",\n  \"gender\": \"male\",\n  \"height\": \"1.70\",\n  \"weight\": \"82.00\",\n  \"physical_data\": {\n    \"body_fat_percentage\": \"19.00\",\n    \"activity_level\": \"moderate\",\n    \"imc\": \"28.40\"\n  },\n  \"medical_data\": {\n    \"injuries\": \"\",\n    \"restrictions\": \"Hipertensao controlada\",\n    \"medications\": \"Losartana\"\n  },\n  \"preferences\": {\n    \"workout_days\": \"3x por semana\",\n    \"focus_areas\": \"Condicionamento\",\n    \"notifications_enabled\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/me",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "35 - Student Workout Regenerate (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([202, 401, 402, 403, 404, 409, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 202) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Refazer treino iniciou nova geracao', function () {",
+              "    pm.expect(data).to.have.property('message', 'Refazer treino iniciado.');",
+              "    pm.expect(data).to.have.property('data').that.is.an('object');",
+              "    pm.expect(data.data).to.have.property('id');",
+              "    pm.expect(data.data).to.have.property('status', 'processing');",
+              "  });",
+              "  pm.collectionVariables.set('workout_id', String(data.data.id));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"adjustment_request\": \"Ajustar o treino para reduzir impacto no joelho.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/students/workouts/{{workout_id}}/regenerate",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "students",
+            "workouts",
+            "{{workout_id}}",
+            "regenerate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "36 - Workout Change Status (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 402, 403, 404, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Mudanca de status retorna contrato esperado', function () {",
+              "    pm.expect(data).to.have.property('message');",
+              "    pm.expect(data).to.have.property('credits_balance');",
+              "    pm.expect(data).to.have.property('data').that.is.an('object');",
+              "    pm.expect(data.data).to.have.property('request_status');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{tenant_host}}"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_status\": \"inactive\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/workouts/change-status/{{workout_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workouts",
+            "change-status",
+            "{{workout_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "37 - Web Tenant Selection (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Selecao de tenant por sessao retorna lista', function () {",
+              "    pm.expect(data).to.have.property('tenants').that.is.an('array');",
+              "  });",
+              "  if (Array.isArray(data.tenants) && data.tenants.length > 0 && data.tenants[0].slug) {",
+              "    pm.collectionVariables.set('tenant_slug', String(data.tenants[0].slug));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          }
+        ],
+        "description": "Requer autenticacao por sessao web. Use os cookies da aplicacao autenticada no Postman.",
+        "url": {
+          "raw": "{{base_url}}/api/v1/tenants/select",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "tenants",
+            "select"
+          ]
+        }
+      }
+    },
+    {
+      "name": "38 - Web Tenant Selection (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 401, 404, 422]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Tenant selecionado na sessao', function () {",
+              "    pm.expect(data).to.have.property('tenant').that.is.an('object');",
+              "    pm.expect(data.tenant).to.have.property('slug');",
+              "  });",
+              "  if (data.tenant && data.tenant.slug) {",
+              "    pm.collectionVariables.set('tenant_slug', String(data.tenant.slug));",
+              "    pm.collectionVariables.set('tenant_host', data.tenant.slug + '.' + pm.collectionVariables.get('root_domain'));",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Requer autenticacao por sessao web. Use os cookies da aplicacao autenticada no Postman.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"slug\": \"{{tenant_slug}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/tenants/select",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "tenants",
+            "select"
+          ]
+        }
+      }
+    },
+    {
+      "name": "39 - Mercado Pago Webhook (POST)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code esperado', function () {",
+              "  pm.expect([200, 202, 401]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if ([200, 202].includes(pm.response.code)) {",
+              "  const data = pm.response.json();",
+              "  pm.test('Webhook retorna contrato minimo', function () {",
+              "    pm.expect(data).to.have.property('received', true);",
+              "    pm.expect(data).to.have.property('processed');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{app_host}}"
+          },
+          {
+            "key": "X-Webhook-Secret",
+            "value": "{{mercadopago_webhook_secret}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"payment\",\n  \"data\": {\n    \"id\": \"{{mercadopago_resource_id}}\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/billing/mercadopago/webhook?secret={{mercadopago_webhook_secret}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "billing",
+            "mercadopago",
+            "webhook"
+          ],
+          "query": [
+            {
+              "key": "secret",
+              "value": "{{mercadopago_webhook_secret}}"
+            }
           ]
         }
       }

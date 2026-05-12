@@ -9,7 +9,9 @@ use App\Models\Preferences\Preference;
 use App\Models\Tenant\TenantStudentTraineeLink;
 use App\Models\User;
 use App\Services\Tenant\PlatformTenantService;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class ApiStudentStandaloneAuthTest extends TestCase
@@ -18,6 +20,8 @@ class ApiStudentStandaloneAuthTest extends TestCase
 
     public function test_student_can_register_via_api_and_is_linked_to_platform_trainer_without_tenant(): void
     {
+        Notification::fake();
+
         $response = $this->postJson('/api/v1/auth/register', [
             'name' => 'Aluno App',
             'email' => 'aluno@app.test',
@@ -28,14 +32,19 @@ class ApiStudentStandaloneAuthTest extends TestCase
         ]);
 
         $response->assertCreated()
+            ->assertJsonPath('registered', true)
             ->assertJsonPath('profile', Role::STUDENT->value)
+            ->assertJsonPath('requiresEmailVerification', true)
+            ->assertJsonPath('verification_email_sent', true)
             ->assertJsonPath('assigned_trainer.name', PlatformTenantService::PLATFORM_TRAINEE_NAME)
-            ->assertJsonPath('policies.accepted', true);
+            ->assertJsonPath('policies.accepted', true)
+            ->assertJsonMissingPath('token');
 
         $student = User::query()->where('email', 'aluno@app.test')->firstOrFail();
         $platformTrainee = User::query()->where('name', PlatformTenantService::PLATFORM_TRAINEE_NAME)->firstOrFail();
 
         $this->assertSame(Role::STUDENT, $student->profileType());
+        $this->assertNull($student->email_verified_at);
         $this->assertDatabaseMissing('tenant_user', [
             'user_id' => $student->id,
         ]);
@@ -49,6 +58,10 @@ class ApiStudentStandaloneAuthTest extends TestCase
             'terms_version' => config('legal.terms.version'),
             'privacy_policy_version' => config('legal.privacy_policy.version'),
         ]);
+
+        Notification::assertSentTo($student, VerifyEmail::class, function (VerifyEmail $notification) use ($student): bool {
+            return str_contains((string) $notification->toMail($student)->actionUrl, '/api/v1/auth/verify-email/');
+        });
     }
 
     public function test_student_registration_via_api_requires_policy_acceptance(): void
@@ -143,6 +156,22 @@ class ApiStudentStandaloneAuthTest extends TestCase
             'student_user_id' => $student->id,
             'trainee_user_id' => $replacementTrainee->id,
         ]);
+    }
+
+    public function test_unverified_student_cannot_login_via_api(): void
+    {
+        $student = User::factory()->unverified()->create([
+            'name' => 'Aluno Nao Verificado',
+            'email' => 'aluno-unverified@app.test',
+            'profile_type' => Role::STUDENT->value,
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $student->email,
+            'password' => 'password',
+        ])->assertForbidden()
+            ->assertJsonPath('message', 'Voce precisa confirmar seu e-mail antes de fazer login.');
     }
 
     public function test_me_endpoint_returns_physical_medical_and_preferences_data(): void

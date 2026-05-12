@@ -7,10 +7,12 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
 use App\Services\Tenant\PlatformTenantService;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -35,6 +37,7 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+        $this->configureEmailVerification();
     }
 
     /**
@@ -62,6 +65,12 @@ class FortifyServiceProvider extends ServiceProvider
 
             if (! (bool) $user->is_active) {
                 return null;
+            }
+
+            if (! $user->hasVerifiedEmail()) {
+                throw ValidationException::withMessages([
+                    'email' => 'Voce precisa confirmar seu e-mail antes de entrar.',
+                ]);
             }
 
             if (! $user->isSystemAdmin() && $request->hasSession()) {
@@ -159,6 +168,20 @@ class FortifyServiceProvider extends ServiceProvider
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())) . '|' . $request->ip());
 
             return Limit::perMinute(5)->by($throttleKey);
+        });
+    }
+
+    private function configureEmailVerification(): void
+    {
+        VerifyEmail::createUrlUsing(function (User $user): string {
+            return URL::temporarySignedRoute(
+                'api.auth.verify-email',
+                now()->addMinutes(60),
+                [
+                    'id' => $user->getKey(),
+                    'hash' => sha1($user->getEmailForVerification()),
+                ],
+            );
         });
     }
 }
