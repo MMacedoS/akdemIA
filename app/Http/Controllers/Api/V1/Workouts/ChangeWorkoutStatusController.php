@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V1\Workouts;
 
 use App\Enums\Role;
-use App\Jobs\GenerateWorkoutJob;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
 use App\Models\Workout\Workout;
@@ -12,9 +11,10 @@ use App\Services\Workouts\WorkoutLifecycleService;
 use App\Services\Workouts\WorkoutRulesService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
-class GenerateWorkoutController extends Controller
+class ChangeWorkoutStatusController extends Controller
 {
     public function __construct(
         private readonly CreditService $creditService,
@@ -22,7 +22,7 @@ class GenerateWorkoutController extends Controller
         private readonly WorkoutLifecycleService $workoutLifecycleService,
     ) {}
 
-    public function store(Request $request): JsonResponse
+    public function update(Request $request, int $workoutId): JsonResponse
     {
         $user = $request->user();
         $tenant = $request->attributes->get('tenant');
@@ -39,30 +39,66 @@ class GenerateWorkoutController extends Controller
             ], 403);
         }
 
-        $hasProcessingWorkout = Workout::query()
+        $payload = $request->validate([
+            'request_status' => ['required', 'string', Rule::in(['active', 'inactive'])],
+        ]);
+
+        $workout = Workout::query()
+            ->where('id', $workoutId)
             ->where('user_id', $user->id)
-            ->where('status', 'processing')
             ->when(
                 $tenant instanceof Tenant,
                 fn($query) => $query->where('tenant_id', $tenant->id),
                 fn($query) => $query->whereNull('tenant_id'),
             )
-            ->exists();
+            ->first();
 
-        if ($hasProcessingWorkout) {
+        if ($workout === null) {
             return response()->json([
-                'message' => 'Workout generation already in progress for this user.',
-            ], 409);
+                'message' => 'Workout not found.',
+            ], 404);
+        }
+
+        $workout = $this->workoutLifecycleService->syncWorkoutStatus($workout);
+
+        if ($payload['request_status'] === 'inactive') {
+            if ((string) $workout->request_status !== 'inactive') {
+                $workout = $this->workoutLifecycleService->inactivateWorkout($workout);
+            }
+
+            return response()->json([
+                'message' => 'Treino inativado com sucesso.',
+                'credits_balance' => (int) $user->fresh()?->credits_balance,
+                'data' => [
+                    'id' => $workout->id,
+                    'status' => $workout->status,
+                    'request_status' => $workout->request_status,
+                ],
+            ]);
+        }
+
+        if ((string) $workout->request_status === 'active') {
+            return response()->json([
+                'message' => 'Treino ja esta ativo.',
+                'credits_balance' => (int) $user->fresh()?->credits_balance,
+                'data' => [
+                    'id' => $workout->id,
+                    'status' => $workout->status,
+                    'request_status' => $workout->request_status,
+                ],
+            ]);
         }
 
         try {
             $this->creditService->consumeCredits(
                 $user,
-                $this->workoutRulesService->generationCredits(),
-                'consume_generation',
+                $this->workoutRulesService->reactivationCredits(),
+                'consume_reactivation',
                 [
                     'context' => 'api',
                     'tenant_id' => $tenant?->id,
+                    'student_id' => (int) $user->id,
+                    'workout_id' => $workout->id,
                 ],
                 $tenant instanceof Tenant ? $tenant : null,
             );
@@ -71,17 +107,6 @@ class GenerateWorkoutController extends Controller
                 'message' => $exception->getMessage(),
             ], 422);
         }
-
-        $workout = Workout::query()->create(array_merge([
-            'tenant_id' => $tenant?->id,
-            'user_id' => $user->id,
-            'status' => 'processing',
-            'workout_plan' => ['weekly_plan' => []],
-            'meal_plan' => [],
-            'recommendations' => [],
-            'cardio_plan' => [],
-            'safety_flags' => [],
-        ], $this->workoutLifecycleService->activeAttributes()));
 
         $workout = $this->workoutLifecycleService->activateWorkout(
             Workout::query()
@@ -94,14 +119,15 @@ class GenerateWorkoutController extends Controller
             $workout,
         );
 
-        GenerateWorkoutJob::dispatch($workout->id, $user->id, $tenant?->id, null, $user->id);
-
         return response()->json([
-            'status' => 'processing',
-            'id' => $workout->id,
-            'message' => 'Workout generation started.',
+            'message' => 'Treino ativado com sucesso.',
             'credits_balance' => (int) $user->fresh()?->credits_balance,
-        ], 202);
+            'data' => [
+                'id' => $workout->id,
+                'status' => $workout->status,
+                'request_status' => $workout->request_status,
+            ],
+        ]);
     }
 
     private function allowsWorkoutContext($user, mixed $tenant): bool

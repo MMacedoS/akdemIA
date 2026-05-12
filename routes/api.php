@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\Tenants\TenantController;
 use App\Http\Controllers\Api\V1\Workouts\ExerciseMediaController;
 use App\Http\Controllers\Api\V1\Workouts\ExerciseLookupController;
 use App\Http\Controllers\Api\V1\Workouts\InternalExerciseCatalogController;
+use App\Http\Controllers\Api\V1\Workouts\ChangeWorkoutStatusController;
 use App\Http\Controllers\Api\V1\Workouts\GenerateWorkoutController;
 use App\Http\Controllers\Api\V1\Workouts\WorkoutStatusController;
 use Illuminate\Support\Facades\Route;
@@ -79,6 +80,7 @@ Route::prefix('v1')->group(function () {
                 });
 
                 Route::post('workouts/generate', [GenerateWorkoutController::class, 'store'])->name('api.workouts.generate');
+                Route::post('workouts/change-status/{workoutId}', [ChangeWorkoutStatusController::class, 'update'])->name('api.workouts.change-status');
                 Route::get('workouts/status/{id}', [WorkoutStatusController::class, 'show'])->name('api.workouts.status.show');
                 Route::get('workouts/exercises/name/{name}', [ExerciseLookupController::class, 'show'])->name('api.workouts.exercises.show');
 

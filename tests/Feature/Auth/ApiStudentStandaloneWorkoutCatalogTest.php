@@ -93,6 +93,18 @@ class ApiStudentStandaloneWorkoutCatalogTest extends TestCase
             'note' => null,
         ]);
 
+        $previousWorkout = Workout::query()->create([
+            'tenant_id' => null,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'active',
+            'workout_plan' => ['weekly_plan' => [['day' => 'friday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
         $token = app(TenantAuthService::class)->generateStandaloneToken($student);
 
         $generateResponse = $this->postJson('/api/v1/workouts/generate', [], [
@@ -110,6 +122,8 @@ class ApiStudentStandaloneWorkoutCatalogTest extends TestCase
                 && $job->workoutId === $workoutId
                 && $job->tenantId === null;
         });
+
+        $this->assertSame('inactive', (string) $previousWorkout->fresh()->request_status);
 
         Workout::query()->whereKey($workoutId)->update([
             'status' => 'done',

@@ -18,13 +18,34 @@ return new class extends Migration
             ->whereRaw('LOWER(email) = ?', ['plataforma@academai.com.br'])
             ->update(['is_system' => true]);
 
-        DB::table('users')
+        $studentIdsWithSystemTrainer = DB::table('tenant_student_trainee_links')
+            ->join('users as trainees', 'trainees.id', '=', 'tenant_student_trainee_links.trainee_user_id')
+            ->join('users as students', 'students.id', '=', 'tenant_student_trainee_links.student_user_id')
+            ->where('students.profile_type', 'student')
+            ->where('trainees.is_system', true)
+            ->distinct()
+            ->pluck('students.id');
+
+        $studentIdsWithoutTrainer = DB::table('users')
             ->leftJoin('tenant_student_trainee_links', 'tenant_student_trainee_links.student_user_id', '=', 'users.id')
-            ->leftJoin('users as trainees', 'trainees.id', '=', 'tenant_student_trainee_links.trainee_user_id')
             ->where('users.profile_type', 'student')
-            ->update([
-                'users.is_add_credit' => DB::raw('CASE WHEN tenant_student_trainee_links.trainee_user_id IS NULL OR trainees.is_system = 1 THEN 1 ELSE 0 END'),
-            ]);
+            ->whereNull('tenant_student_trainee_links.trainee_user_id')
+            ->pluck('users.id');
+
+        DB::table('users')
+            ->where('profile_type', 'student')
+            ->update(['is_add_credit' => false]);
+
+        $studentIdsWithAddCredit = $studentIdsWithSystemTrainer
+            ->merge($studentIdsWithoutTrainer)
+            ->unique()
+            ->values();
+
+        if ($studentIdsWithAddCredit->isNotEmpty()) {
+            DB::table('users')
+                ->whereIn('id', $studentIdsWithAddCredit)
+                ->update(['is_add_credit' => true]);
+        }
     }
 
     public function down(): void

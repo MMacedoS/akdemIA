@@ -110,6 +110,18 @@ class StudentWorkoutFlowTest extends TestCase
 
         $tenant->users()->attach($student->id, ['role' => Role::STUDENT->value]);
 
+        $previousWorkout = Workout::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'active',
+            'workout_plan' => ['weekly_plan' => [['day' => 'friday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
         $token = app(TenantAuthService::class)->generateTenantToken($student, $tenant);
 
         $response = $this->postJson('/api/v1/students/workout/generate', [], [
@@ -132,7 +144,74 @@ class StudentWorkoutFlowTest extends TestCase
                 && $job->workoutId === $workoutId;
         });
 
+        $this->assertSame('inactive', (string) $previousWorkout->fresh()->request_status);
         $this->assertSame(3, $student->fresh()->credits_balance);
+    }
+
+    public function test_student_can_change_workout_status_from_api_and_activation_consumes_credits(): void
+    {
+        $tenant = $this->createTenant('academia-status');
+
+        $student = User::factory()->create([
+            'profile_type' => Role::STUDENT->value,
+            'is_active' => true,
+            'credits_balance' => 8,
+        ]);
+
+        $tenant->users()->attach($student->id, ['role' => Role::STUDENT->value]);
+
+        $previousWorkout = Workout::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'active',
+            'workout_plan' => ['weekly_plan' => [['day' => 'monday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
+        $targetWorkout = Workout::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'inactive',
+            'workout_plan' => ['weekly_plan' => [['day' => 'tuesday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
+        $token = app(TenantAuthService::class)->generateTenantToken($student, $tenant);
+
+        $this->postJson('/api/v1/workouts/change-status/' . $targetWorkout->id, [
+            'request_status' => 'active',
+        ], [
+            'Authorization' => 'Bearer ' . $token,
+            'X-Tenant-Slug' => $tenant->slug,
+        ])->assertOk()
+            ->assertJsonPath('message', 'Treino ativado com sucesso.')
+            ->assertJsonPath('credits_balance', 6)
+            ->assertJsonPath('data.id', $targetWorkout->id)
+            ->assertJsonPath('data.request_status', 'active');
+
+        $this->assertSame('inactive', (string) $previousWorkout->fresh()->request_status);
+        $this->assertSame('active', (string) $targetWorkout->fresh()->request_status);
+        $this->assertSame(6, $student->fresh()->credits_balance);
+
+        $this->postJson('/api/v1/workouts/change-status/' . $targetWorkout->id, [
+            'request_status' => 'inactive',
+        ], [
+            'Authorization' => 'Bearer ' . $token,
+            'X-Tenant-Slug' => $tenant->slug,
+        ])->assertOk()
+            ->assertJsonPath('message', 'Treino inativado com sucesso.')
+            ->assertJsonPath('credits_balance', 6)
+            ->assertJsonPath('data.request_status', 'inactive');
+
+        $this->assertSame('inactive', (string) $targetWorkout->fresh()->request_status);
     }
 
     public function test_standalone_student_can_list_current_workout_and_history_from_student_api(): void

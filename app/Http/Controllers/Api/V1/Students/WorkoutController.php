@@ -131,6 +131,11 @@ class WorkoutController extends Controller
             'safety_flags' => [],
         ], $this->workoutLifecycleService->activeAttributes()));
 
+        $workout = $this->workoutLifecycleService->activateWorkout(
+            $this->workoutScope($tenantId, (int) $user->id),
+            $workout,
+        );
+
         GenerateWorkoutJob::dispatch($workout->id, (int) $user->id, $tenantId, null, (int) $user->id);
 
         return response()->json([

@@ -140,9 +140,14 @@ class WorkoutMediaService
                     continue;
                 }
 
-                $hasMedia = trim((string) data_get($exercise, 'exercise_media_url', '')) !== '';
+                $mediaUrl = trim((string) data_get($exercise, 'exercise_media_url', ''));
+                $hasMedia = $mediaUrl !== '';
 
                 if (! $hasMedia) {
+                    return true;
+                }
+
+                if ($mediaUrl !== $this->protectedMediaUrl($workoutxName)) {
                     return true;
                 }
             }
@@ -705,7 +710,7 @@ class WorkoutMediaService
             ];
         }
 
-        if ($this->migrateLegacyPublicGifToPrivate($path)) {
+        if ($this->migrateLegacyPrivateGifToPublic($path)) {
             return [
                 'path' => $path,
                 'url' => $this->protectedMediaUrl($workoutxName),
@@ -1224,7 +1229,7 @@ class WorkoutMediaService
             ];
         }
 
-        if ($path !== '' && $this->migrateLegacyPublicGifToPrivate($path)) {
+        if ($path !== '' && $this->migrateLegacyPrivateGifToPublic($path)) {
             return [
                 'path' => $path,
                 'url' => $this->protectedMediaUrl((string) $cache->workoutx_name),
@@ -1249,32 +1254,31 @@ class WorkoutMediaService
             return '';
         }
 
-        return route('api.workouts.exercises.media.show', [
-            'workoutxName' => $workoutxName,
-        ], false);
+        return rtrim((string) config('filesystems.disks.public.url', '/storage'), '/')
+            . '/exercises/' . $workoutxName . '.gif';
     }
 
     private function exerciseMediaDisk()
     {
-        return Storage::disk('local');
+        return Storage::disk('public');
     }
 
-    private function migrateLegacyPublicGifToPrivate(string $path): bool
+    private function migrateLegacyPrivateGifToPublic(string $path): bool
     {
-        $publicDisk = Storage::disk('public');
+        $privateDisk = Storage::disk('local');
 
-        if (! $publicDisk->exists($path)) {
+        if (! $privateDisk->exists($path)) {
             return false;
         }
 
-        $contents = $publicDisk->get($path);
+        $contents = $privateDisk->get($path);
 
         if ($contents === false || $contents === '') {
             return false;
         }
 
         $this->exerciseMediaDisk()->put($path, $contents);
-        $publicDisk->delete($path);
+        $privateDisk->delete($path);
 
         return true;
     }
