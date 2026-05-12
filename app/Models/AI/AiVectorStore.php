@@ -2,13 +2,10 @@
 
 namespace App\Models\AI;
 
-use App\Models\Tenant\Tenant;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'tenant_id',
     'catalog_type',
     'vector_store_id',
     'vector_store_name',
@@ -30,10 +27,5 @@ class AiVectorStore extends Model
             'last_used_at' => 'datetime',
             'metadata' => 'array',
         ];
-    }
-
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
     }
 }

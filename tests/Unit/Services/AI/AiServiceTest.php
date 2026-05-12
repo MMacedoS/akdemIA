@@ -26,7 +26,6 @@ class AiServiceTest extends TestCase
     {
         config()->set('services.openai.api_key', 'openai-test-key');
         config()->set('services.openai.responses_model', 'gpt-4o-mini');
-        config()->set('services.openai.vector_store.scope', 'global');
         config()->set('services.internal_catalog.storage_path', 'ai/test-openai-workout-catalog.json');
         config()->set('services.internal_catalog.vector_store_storage_path', 'ai/test-openai-workout-catalog.jsonl');
         config()->set('services.openai.vector_store.minimum_candidates', 5);

@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('ai_vector_stores', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tenant_id')->nullable()->constrained('tenants')->nullOnDelete();
             $table->string('catalog_type', 80);
             $table->string('vector_store_id', 120);
             $table->string('vector_store_name', 160)->nullable();
@@ -24,7 +23,7 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->index(['tenant_id', 'catalog_type']);
+            $table->index(['catalog_type']);
             $table->index(['vector_store_id']);
             $table->index(['source_hash']);
         });

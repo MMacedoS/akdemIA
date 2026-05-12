@@ -17,7 +17,6 @@ class WorkoutCatalogVectorStoreService
 
     public function ensureSynced(?int $tenantId): VectorStoreSyncResult
     {
-        $scopedTenantId = $this->scopedTenantId($tenantId);
         $export = $this->exerciseCatalogService->exportVectorStoreDocument();
         $storagePath = (string) $export['path'];
         $disk = (string) ($export['disk'] ?? 'local');
@@ -26,7 +25,6 @@ class WorkoutCatalogVectorStoreService
         $catalogType = (string) config('services.openai.vector_store.catalog_type', 'workout_exercises');
 
         $record = AiVectorStore::query()
-            ->where('tenant_id', $scopedTenantId)
             ->where('catalog_type', $catalogType)
             ->latest('id')
             ->first();
@@ -48,22 +46,21 @@ class WorkoutCatalogVectorStoreService
                 storagePath: $record->storage_path,
                 sourceHash: $record->source_hash,
                 reused: true,
-                tenantId: $scopedTenantId,
+                tenantId: null,
                 catalogType: $catalogType,
                 metadata: $record->metadata ?? [],
             );
         }
 
         $vectorStoreId = $record?->vector_store_id;
-        $vectorStoreName = $this->vectorStoreName($scopedTenantId);
+        $vectorStoreName = $this->vectorStoreName();
 
         if ($vectorStoreId === null || $vectorStoreId === '') {
             $vectorStore = $this->client->createVectorStore([
                 'name' => $vectorStoreName,
                 'metadata' => [
                     'catalog_type' => $catalogType,
-                    'tenant_id' => $scopedTenantId,
-                    'scope' => $this->scope(),
+                    'scope' => 'global',
                 ],
             ]);
 
@@ -80,7 +77,6 @@ class WorkoutCatalogVectorStoreService
 
         $record ??= new AiVectorStore();
         $record->forceFill([
-            'tenant_id' => $scopedTenantId,
             'catalog_type' => $catalogType,
             'vector_store_id' => $vectorStoreId,
             'vector_store_name' => $vectorStoreName,
@@ -94,7 +90,7 @@ class WorkoutCatalogVectorStoreService
             'metadata' => [
                 'export' => $export,
                 'attachment' => $attachment['body'] ?? [],
-                'scope' => $this->scope(),
+                'scope' => 'global',
                 'requested_tenant_id' => $tenantId,
             ],
         ])->save();
@@ -118,8 +114,7 @@ class WorkoutCatalogVectorStoreService
             ],
             'metadata' => [
                 'reused' => false,
-                'tenant_id' => $scopedTenantId,
-                'scope' => $this->scope(),
+                'scope' => 'global',
                 'requested_tenant_id' => $tenantId,
             ],
         ]);
@@ -130,26 +125,16 @@ class WorkoutCatalogVectorStoreService
             storagePath: $storagePath,
             sourceHash: $sourceHash,
             reused: false,
-            tenantId: $scopedTenantId,
+            tenantId: null,
             catalogType: $catalogType,
             metadata: $record->metadata ?? [],
         );
     }
 
-    private function vectorStoreName(?int $tenantId): string
+    private function vectorStoreName(): string
     {
         $prefix = trim((string) config('services.openai.vector_store.name_prefix', 'akdemia-workouts'));
 
-        return $prefix . '-' . ($tenantId ?? 'global');
-    }
-
-    private function scopedTenantId(?int $tenantId): ?int
-    {
-        return $this->scope() === 'tenant' ? $tenantId : null;
-    }
-
-    private function scope(): string
-    {
-        return (string) config('services.openai.vector_store.scope', 'global');
+        return $prefix . '-global';
     }
 }
