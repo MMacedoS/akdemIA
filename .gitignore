@@ -34,3 +34,4 @@ docker-compose.yml
 Dockerfile
 Dockerfile
 scripts/deploy-ubuntu.sh
+emails.csv
