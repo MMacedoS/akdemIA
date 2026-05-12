@@ -160,6 +160,7 @@
                             <a href="{{ route('profile.edit') }}" class="account-link">Meu perfil</a>
                             <a href="{{ route('security.edit') }}" class="account-link">Trocar senha</a>
                             <a href="{{ route('appearance.edit') }}" class="account-link">Aparencia</a>
+                            <a href="{{ route('drop-account.create') }}" class="account-link">Excluir conta</a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="logout-btn">Sair da plataforma</button>

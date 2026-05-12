@@ -28,6 +28,7 @@ use App\Http\Controllers\Web\V1\Admin\UsersController;
 use App\Http\Controllers\Web\V1\Students\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Web\V1\Students\HealthController as StudentHealthController;
 use App\Http\Controllers\Web\V1\Students\WorkoutController as StudentWorkoutController;
+use App\Http\Controllers\Web\AccountDeletionController;
 use App\Http\Controllers\Web\V1\Tenants\TenantSelectionController;
 use App\Http\Controllers\Web\V1\Trainee\DashboardController as TraineeDashboardController;
 use App\Http\Controllers\Web\V1\Trainee\CreditRequestController as TraineeCreditRequestController;
@@ -43,6 +44,16 @@ Route::get('/', SystemLandingController::class)->name('home');
 Route::get('/pro/{slug}', [PublicLandingController::class, 'user'])->name('landing.user');
 Route::get('/termos-de-uso', [WebLegalDocumentController::class, 'terms'])->name('legal.terms');
 Route::get('/politica-de-privacidade', [WebLegalDocumentController::class, 'privacy'])->name('legal.privacy');
+Route::get('/drop-account', [AccountDeletionController::class, 'create'])->name('drop-account.create');
+Route::post('/drop-account', [AccountDeletionController::class, 'store'])
+    ->middleware('throttle:3,10')
+    ->name('drop-account.store');
+Route::get('/drop-account/confirm/{user}/{hash}', [AccountDeletionController::class, 'confirm'])
+    ->middleware('signed')
+    ->name('drop-account.confirm');
+Route::post('/drop-account/confirm/{user}/{hash}', [AccountDeletionController::class, 'destroy'])
+    ->middleware(['signed', 'throttle:3,10'])
+    ->name('drop-account.destroy');
 
 $configuredLandingDomain = env('APP_LANDING_ROOT_DOMAIN');
 $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
