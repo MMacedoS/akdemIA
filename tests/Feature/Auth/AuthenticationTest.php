@@ -72,7 +72,7 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_non_trainee_users_can_not_authenticate_without_tenant_slug()
+    public function test_trainer_users_can_authenticate_without_tenant_slug_when_a_default_tenant_exists()
     {
         $user = User::factory()->create([
             'profile_type' => Role::TRAINER->value,
@@ -84,9 +84,8 @@ class AuthenticationTest extends TestCase
             'tenant_slug' => '',
         ]);
 
-        $response->assertRedirect(route('login'));
-        $response->assertSessionHasErrors('tenant_slug');
-        $this->assertGuest();
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect(route('dashboard', absolute: false));
     }
 
     public function test_users_can_logout()

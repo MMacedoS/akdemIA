@@ -25,7 +25,7 @@ class WorkoutActivationRulesTest extends TestCase
         ]);
 
         TenantStudentTraineeLink::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'student_user_id' => $student->id,
             'trainee_user_id' => $trainer->id,
             'linked_by_user_id' => $admin->id,
@@ -33,7 +33,7 @@ class WorkoutActivationRulesTest extends TestCase
         ]);
 
         $workout = Workout::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'user_id' => $student->id,
             'status' => 'done',
             'request_status' => 'inactive',
@@ -65,7 +65,7 @@ class WorkoutActivationRulesTest extends TestCase
         ]);
 
         TenantStudentTraineeLink::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'student_user_id' => $student->id,
             'trainee_user_id' => $trainer->id,
             'linked_by_user_id' => $admin->id,
@@ -73,7 +73,7 @@ class WorkoutActivationRulesTest extends TestCase
         ]);
 
         $workout = Workout::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'user_id' => $student->id,
             'status' => 'done',
             'request_status' => 'active',
@@ -103,7 +103,7 @@ class WorkoutActivationRulesTest extends TestCase
         ]);
 
         TenantStudentTraineeLink::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'student_user_id' => $student->id,
             'trainee_user_id' => $trainer->id,
             'linked_by_user_id' => $admin->id,
@@ -111,7 +111,7 @@ class WorkoutActivationRulesTest extends TestCase
         ]);
 
         $sourceWorkout = Workout::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'user_id' => $student->id,
             'status' => 'done',
             'request_status' => 'active',

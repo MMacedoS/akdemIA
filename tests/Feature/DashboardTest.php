@@ -26,7 +26,7 @@ class DashboardTest extends TestCase
         $response->assertRedirect(route('trainee.dashboard'));
     }
 
-    public function test_non_trainee_users_without_tenant_are_redirected_to_tenant_selection()
+    public function test_trainer_users_without_tenant_are_redirected_to_trainee_dashboard()
     {
         $user = User::factory()->create([
             'profile_type' => Role::TRAINER->value,
@@ -35,6 +35,6 @@ class DashboardTest extends TestCase
         $this->actingAs($user);
 
         $response = $this->get(route('dashboard'));
-        $response->assertRedirect(route('tenants.select'));
+        $response->assertRedirect(route('trainee.dashboard'));
     }
 }

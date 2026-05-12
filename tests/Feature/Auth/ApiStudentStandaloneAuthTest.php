@@ -235,7 +235,7 @@ class ApiStudentStandaloneAuthTest extends TestCase
             ->assertJsonPath('physical_data.activity_level', 'moderate')
             ->assertJsonPath('physical_data.body_fat_percentage', '12.50')
             ->assertJsonPath('medical_data.injuries', 'joelho')
-            ->assertJsonPath('preferences.training_frequency', 4)
+            ->assertJsonPath('preferences.training_frequency', '4')
             ->assertJsonPath('preferences.preferred_foods.0', 'frango');
     }
 

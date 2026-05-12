@@ -98,7 +98,7 @@ class WebStandaloneStudentPanelsTest extends TestCase
         ]);
 
         TenantStudentTraineeLink::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'student_user_id' => $student->id,
             'trainee_user_id' => $trainer->id,
             'linked_by_user_id' => $trainer->id,
@@ -125,13 +125,13 @@ class WebStandaloneStudentPanelsTest extends TestCase
 
         $generateResponse->assertRedirect(route('trainer.students.show', $student->id));
 
-        Queue::assertPushed(GenerateWorkoutJob::class, function (GenerateWorkoutJob $job) use ($student): bool {
-            return $job->userId === $student->id && $job->tenantId === null;
+        Queue::assertPushed(GenerateWorkoutJob::class, function (GenerateWorkoutJob $job) use ($student, $tenant): bool {
+            return $job->userId === $student->id && $job->tenantId === $tenant->id;
         });
 
         $this->assertDatabaseHas('workouts', [
             'user_id' => $student->id,
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'status' => 'processing',
         ]);
 
@@ -149,7 +149,7 @@ class WebStandaloneStudentPanelsTest extends TestCase
         ]);
 
         TenantStudentTraineeLink::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'student_user_id' => $student->id,
             'trainee_user_id' => $trainer->id,
             'linked_by_user_id' => $trainer->id,
@@ -157,7 +157,7 @@ class WebStandaloneStudentPanelsTest extends TestCase
         ]);
 
         $sourceWorkout = \App\Models\Workout\Workout::query()->create([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'user_id' => $student->id,
             'status' => 'done',
             'request_status' => 'active',
@@ -177,7 +177,6 @@ class WebStandaloneStudentPanelsTest extends TestCase
         $response->assertRedirect(route('trainer.students.workouts.show', [$student->id, $newWorkout->id]));
         $this->assertNotSame($sourceWorkout->id, $newWorkout->id);
         $this->assertSame(2, $trainer->fresh()->credits_balance);
-    }
     }
 
     private function createTenantContext(): array
