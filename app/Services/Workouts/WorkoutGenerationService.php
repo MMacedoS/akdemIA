@@ -30,6 +30,18 @@ class WorkoutGenerationService
 
         $normalizedAdjustmentRequest = trim((string) $adjustmentRequest);
 
+        if ($normalizedAdjustmentRequest === '') {
+            $cachedWorkoutId = Cache::get($this->buildCacheKey($user, $tenant));
+
+            if (is_int($cachedWorkoutId) || ctype_digit((string) $cachedWorkoutId)) {
+                $cachedWorkout = Workout::query()->find((int) $cachedWorkoutId);
+
+                if ($cachedWorkout instanceof Workout) {
+                    return $cachedWorkout;
+                }
+            }
+        }
+
         if ($normalizedAdjustmentRequest !== '') {
             return $this->generateAndStore($user, $tenant, $normalizedAdjustmentRequest);
         }
@@ -76,7 +88,7 @@ class WorkoutGenerationService
 
         $workoutPlan = $this->workoutMediaService->enrichWorkoutPlan($safeWorkoutData);
 
-        return Workout::query()->create([
+        $workout = Workout::query()->create([
             'tenant_id' => $tenant?->id,
             'user_id' => $user->id,
             'workout_plan' => $workoutPlan,
@@ -85,6 +97,16 @@ class WorkoutGenerationService
             'cardio_plan' => $wellbeingResponse['cardio_plan'] ?? [],
             'safety_flags' => $this->validationService->safetyFlags(),
         ]);
+
+        if (trim((string) $adjustmentRequest) === '') {
+            Cache::put(
+                $this->buildCacheKey($user, $tenant),
+                $workout->id,
+                (int) config('services.openai.workout_cache_ttl', 3600),
+            );
+        }
+
+        return $workout;
     }
 
     private function buildCacheKey(User $user, ?Tenant $tenant): string

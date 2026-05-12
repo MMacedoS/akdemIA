@@ -3,13 +3,41 @@
 namespace App\Services\Workouts;
 
 use App\Models\Workout\ExerciseMediaCache;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Collection;
+use Throwable;
 
 /**
  * Service facade para leitura e auditoria do catalogo local de exercicios.
  */
 class ExerciseCatalogService
 {
+    public function buildAiPromptCatalogSnapshot(): array
+    {
+        $bucketLimit = max(1, (int) config('services.internal_catalog.ai_prompt_bucket_limit', 30));
+        $document = $this->loadFreshAiCatalogDocument();
+        $catalog = is_array($document['catalog'] ?? null) ? $document['catalog'] : [];
+
+        $grouped = collect($catalog)
+            ->map(function (mixed $items): array {
+                return collect(is_array($items) ? $items : [])
+                    ->sortBy(fn(array $item): string => mb_strtolower((string) ($item['localized_name_pt_br'] ?? $item['name'] ?? '')))
+                    ->values()
+                    ->all();
+            })
+            ->filter(fn(array $items): bool => $items !== [])
+            ->sortKeys()
+            ->all();
+
+        return [
+            'bucket_limit' => $bucketLimit,
+            'catalog_total' => (int) ($document['meta']['total'] ?? 0),
+            'storage_path' => $this->aiCatalogStoragePath(),
+            'catalog' => $grouped,
+        ];
+    }
+
     public function buildAiCatalogSnapshot(): array
     {
         $bucketLimit = max(1, (int) config('services.internal_catalog.ai_bucket_limit', 12));
@@ -41,6 +69,71 @@ class ExerciseCatalogService
             'bucket_limit' => $bucketLimit,
             'catalog' => $grouped,
         ];
+    }
+
+    public function exportAiCatalogDocument(?string $path = null): array
+    {
+        $document = $this->buildAiCatalogDocument();
+
+        Storage::disk('local')->put(
+            $path ?: $this->aiCatalogStoragePath(),
+            json_encode($document, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+
+        return [
+            'path' => $path ?: $this->aiCatalogStoragePath(),
+            'meta' => $document['meta'],
+        ];
+    }
+
+    public function buildVectorStoreCatalogRows(): array
+    {
+        return $this->baseCatalogQuery()
+            ->get()
+            ->map(fn(ExerciseMediaCache $exercise): array => $this->transformCatalogExercise($exercise))
+            ->values()
+            ->all();
+    }
+
+    public function exportVectorStoreDocument(?string $path = null): array
+    {
+        $resolvedPath = $path ?: $this->vectorStoreCatalogStoragePath();
+        $rows = $this->buildVectorStoreCatalogRows();
+
+        $document = collect($rows)
+            ->map(static fn(array $row): string => json_encode([
+                'remote_exercise_id' => $row['id'],
+                'localized_name_pt_br' => $row['localized_name_pt_br'],
+                'name' => $row['name'],
+                'workoutx_name' => $row['workoutx_name'],
+                'focus' => $row['focus'],
+                'body_part' => $row['body_part'],
+                'target' => $row['target'],
+                'equipment' => $row['equipment'],
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
+            ->implode(PHP_EOL);
+
+        Storage::disk('local')->put($resolvedPath, $document . PHP_EOL);
+
+        return [
+            'disk' => 'local',
+            'path' => $resolvedPath,
+            'count' => count($rows),
+            'hash' => hash('sha256', $document),
+        ];
+    }
+
+    public function loadAiCatalogDocument(?string $path = null): array
+    {
+        $resolvedPath = $path ?: $this->aiCatalogStoragePath();
+
+        if (! Storage::disk('local')->exists($resolvedPath)) {
+            return [];
+        }
+
+        $decoded = json_decode((string) Storage::disk('local')->get($resolvedPath), true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     public function listForInternalApi(?string $focus = null, ?string $search = null, ?string $translationStatus = null, int $limit = 50, int $offset = 0): array
@@ -161,6 +254,104 @@ class ExerciseCatalogService
                 'payload',
             ])
             ->orderBy('remote_exercise_id');
+    }
+
+    private function buildAiCatalogDocument(): array
+    {
+        $meta = $this->catalogDocumentMeta();
+
+        $grouped = $this->baseCatalogQuery()
+            ->get()
+            ->map(fn(ExerciseMediaCache $exercise): array => $this->transformCatalogExercise($exercise))
+            ->groupBy('focus')
+            ->map(function (Collection $items): array {
+                return $items
+                    ->sortBy(fn(array $item): string => mb_strtolower((string) ($item['localized_name_pt_br'] ?: $item['name'])))
+                    ->values()
+                    ->all();
+            })
+            ->filter(fn(array $items): bool => $items !== [])
+            ->sortKeys()
+            ->all();
+
+        return [
+            'meta' => array_merge($meta, [
+                'generated_at' => now()->toIso8601String(),
+                'storage_path' => $this->aiCatalogStoragePath(),
+                'focuses' => array_keys($grouped),
+            ]),
+            'catalog' => $grouped,
+        ];
+    }
+
+    private function loadFreshAiCatalogDocument(): array
+    {
+        $document = $this->loadAiCatalogDocument();
+
+        try {
+            $currentMeta = $this->catalogDocumentMeta();
+        } catch (Throwable) {
+            return $this->documentHasUsableCatalog($document)
+                ? $document
+                : [];
+        }
+
+        if ($this->documentMatchesCurrentCatalog($document, $currentMeta)) {
+            return $document;
+        }
+
+        try {
+            $this->exportAiCatalogDocument();
+        } catch (Throwable) {
+            return $this->documentHasUsableCatalog($document)
+                ? $document
+                : [];
+        }
+
+        $document = $this->loadAiCatalogDocument();
+
+        return $this->documentMatchesCurrentCatalog($document, $currentMeta)
+            ? $document
+            : ($this->documentHasUsableCatalog($document) ? $document : $this->buildAiCatalogDocument());
+    }
+
+    private function vectorStoreCatalogStoragePath(): string
+    {
+        return (string) config('services.internal_catalog.vector_store_storage_path', 'ai/openai-workout-catalog.jsonl');
+    }
+
+    private function documentHasUsableCatalog(array $document): bool
+    {
+        return is_array($document['catalog'] ?? null)
+            && $document['catalog'] !== []
+            && is_array($document['meta'] ?? null);
+    }
+
+    private function documentMatchesCurrentCatalog(array $document, array $currentMeta): bool
+    {
+        if (! is_array($document['catalog'] ?? null) || ! is_array($document['meta'] ?? null)) {
+            return false;
+        }
+
+        return (int) ($document['meta']['total'] ?? -1) === $currentMeta['total']
+            && (string) ($document['meta']['max_updated_at'] ?? '') === (string) $currentMeta['max_updated_at'];
+    }
+
+    protected function catalogDocumentMeta(): array
+    {
+        $maxUpdatedAt = ExerciseMediaCache::query()->max('updated_at');
+
+        return [
+            'total' => $this->baseCatalogQuery()->count(),
+            'max_updated_at' => $maxUpdatedAt !== null
+                ? Carbon::parse((string) $maxUpdatedAt)->toIso8601String()
+                : null,
+        ];
+    }
+
+    private function aiCatalogStoragePath(): string
+    {
+        return trim((string) config('services.internal_catalog.storage_path', 'ai/openai-workout-catalog.json'));
     }
 
     private function transformCatalogExercise(ExerciseMediaCache $exercise, bool $includeMedia = false): array

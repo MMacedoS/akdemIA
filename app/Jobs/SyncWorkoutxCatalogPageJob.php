@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Services\System\SystemAdminAuditLogger;
 use App\Services\System\SystemSettingsRuntimeService;
+use App\Services\Workouts\ExerciseCatalogService;
 use App\Services\Workouts\WorkoutMediaService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -25,6 +26,7 @@ class SyncWorkoutxCatalogPageJob implements ShouldQueue
 
     public function handle(
         WorkoutMediaService $workoutMediaService,
+        ExerciseCatalogService $exerciseCatalogService,
         SystemAdminAuditLogger $auditLogger,
         SystemSettingsRuntimeService $systemSettingsRuntimeService,
     ): void {
@@ -45,6 +47,7 @@ class SyncWorkoutxCatalogPageJob implements ShouldQueue
             return;
         }
 
+        $exerciseCatalogService->exportAiCatalogDocument();
         $workoutMediaService->completeWorkoutxSyncStatus($progress);
 
         $auditLogger->log(

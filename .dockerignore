@@ -1,0 +1,16 @@
+.git
+.github
+.cursorrules
+.env
+.env.*
+node_modules
+vendor
+storage/framework/testing
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+storage/logs
+public/build
+bootstrap/cache/*.php
+npm-debug.log
+yarn-error.log

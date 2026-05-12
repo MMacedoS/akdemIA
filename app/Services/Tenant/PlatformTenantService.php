@@ -12,8 +12,8 @@ class PlatformTenantService
 {
     public const PLATFORM_TENANT_SLUG = 'plataforma';
     public const PLATFORM_TENANT_NAME = 'Plataforma';
-    public const PLATFORM_TRAINEE_NAME = 'Plataforma';
-    public const PLATFORM_TRAINEE_EMAIL = 'plataforma@akdemia.local';
+    public const PLATFORM_TRAINEE_NAME = 'Trainer Plataforma';
+    public const PLATFORM_TRAINEE_EMAIL = 'plataforma@academai.com.br';
 
     public function ensurePlatformTenant(): Tenant
     {
@@ -49,16 +49,24 @@ class PlatformTenantService
 
     public function resolvePlatformTrainee(): User
     {
+        $normalizedEmail = FormPatterns::normalizeEmail(self::PLATFORM_TRAINEE_EMAIL);
+
         $trainee = User::query()
-            ->whereIn('profile_type', [Role::TRAINER->value, 'trainee'])
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower(self::PLATFORM_TRAINEE_NAME)])
+            ->where(function ($query) use ($normalizedEmail): void {
+                $query->where('email', $normalizedEmail)
+                    ->orWhere(function ($nestedQuery): void {
+                        $nestedQuery->whereIn('profile_type', [Role::TRAINER->value, 'trainee'])
+                            ->whereRaw('LOWER(name) = ?', [mb_strtolower(self::PLATFORM_TRAINEE_NAME)]);
+                    });
+            })
+            ->orderByRaw('CASE WHEN email = ? THEN 0 ELSE 1 END', [$normalizedEmail])
             ->orderBy('id')
             ->first();
 
         if (! $trainee instanceof User) {
             $trainee = User::query()->create([
                 'name' => self::PLATFORM_TRAINEE_NAME,
-                'email' => FormPatterns::normalizeEmail(self::PLATFORM_TRAINEE_EMAIL),
+                'email' => $normalizedEmail,
                 'password' => bin2hex(random_bytes(24)),
                 'profile_type' => Role::TRAINER->value,
                 'is_active' => true,

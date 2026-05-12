@@ -38,11 +38,23 @@ return [
     'openai' => [
         'api_key' => env('KEY_AI_GPT_MODEL'),
         'model' => env('OPENAI_CHAT_MODEL', 'gpt-4o-mini'),
+        'responses_model' => env('OPENAI_RESPONSES_MODEL', env('OPENAI_CHAT_MODEL', 'gpt-4o-mini')),
+        'recommendations_model' => env('OPENAI_RECOMMENDATIONS_MODEL', env('OPENAI_RESPONSES_MODEL', env('OPENAI_CHAT_MODEL', 'gpt-4o-mini'))),
         'timeout' => (int) env('OPENAI_TIMEOUT', 90),
         'connect_timeout' => (int) env('OPENAI_CONNECT_TIMEOUT', 20),
         'retry_times' => (int) env('OPENAI_RETRY_TIMES', 3),
         'retry_sleep_ms' => (int) env('OPENAI_RETRY_SLEEP_MS', 1200),
         'workout_cache_ttl' => (int) env('OPENAI_WORKOUT_CACHE_TTL', 3600),
+        'prompt_log_path' => env('OPENAI_PROMPT_LOG_PATH', 'logs/ai-prompts.log'),
+        'vector_store' => [
+            'enabled' => (bool) env('OPENAI_VECTOR_STORE_ENABLED', true),
+            'scope' => env('OPENAI_VECTOR_STORE_SCOPE', 'global'),
+            'catalog_type' => env('OPENAI_VECTOR_STORE_CATALOG_TYPE', 'workout_exercises'),
+            'name_prefix' => env('OPENAI_VECTOR_STORE_NAME_PREFIX', 'akdemia-workouts'),
+            'file_purpose' => env('OPENAI_VECTOR_STORE_FILE_PURPOSE', 'assistants'),
+            'max_search_results' => (int) env('OPENAI_VECTOR_STORE_MAX_SEARCH_RESULTS', 24),
+            'minimum_candidates' => (int) env('OPENAI_VECTOR_STORE_MINIMUM_CANDIDATES', 12),
+        ],
     ],
 
     'payment' => [
@@ -83,7 +95,10 @@ return [
     'internal_catalog' => [
         'api_key' => env('INTERNAL_CATALOG_API_KEY'),
         'ai_bucket_limit' => (int) env('INTERNAL_CATALOG_AI_BUCKET_LIMIT', 12),
+        'ai_prompt_bucket_limit' => (int) env('INTERNAL_CATALOG_AI_PROMPT_BUCKET_LIMIT', 30),
         'endpoint_limit' => (int) env('INTERNAL_CATALOG_ENDPOINT_LIMIT', 100),
+        'storage_path' => env('INTERNAL_CATALOG_STORAGE_PATH', 'ai/openai-workout-catalog.json'),
+        'vector_store_storage_path' => env('INTERNAL_CATALOG_VECTOR_STORE_STORAGE_PATH', 'ai/openai-workout-catalog.jsonl'),
     ],
 
 ];

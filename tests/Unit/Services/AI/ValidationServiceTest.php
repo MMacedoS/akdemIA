@@ -174,6 +174,63 @@ class ValidationServiceTest extends TestCase
         ]);
     }
 
+    public function test_validate_workout_response_recovers_remote_id_from_workoutx_name_when_model_sends_slug(): void
+    {
+        ExerciseMediaCache::query()->create([
+            'remote_exercise_id' => '0456',
+            'workoutx_name' => 'dumbbell-lunge',
+            'query_name' => 'Dumbbell Lunge',
+            'payload' => ['id' => '0456', 'name' => 'Dumbbell Lunge', 'bodyPart' => 'upper legs'],
+        ]);
+
+        ExerciseMediaCache::query()->create([
+            'remote_exercise_id' => '0457',
+            'workoutx_name' => 'leg-press',
+            'query_name' => 'Leg Press',
+            'payload' => ['id' => '0457', 'name' => 'Leg Press', 'bodyPart' => 'upper legs'],
+        ]);
+
+        ExerciseMediaCache::query()->create([
+            'remote_exercise_id' => '0458',
+            'workoutx_name' => 'romanian-deadlift',
+            'query_name' => 'Romanian Deadlift',
+            'payload' => ['id' => '0458', 'name' => 'Romanian Deadlift', 'bodyPart' => 'upper legs'],
+        ]);
+
+        ExerciseMediaCache::query()->create([
+            'remote_exercise_id' => '0459',
+            'workoutx_name' => 'leg-extension',
+            'query_name' => 'Leg Extension',
+            'payload' => ['id' => '0459', 'name' => 'Leg Extension', 'bodyPart' => 'upper legs'],
+        ]);
+
+        ExerciseMediaCache::query()->create([
+            'remote_exercise_id' => '1160',
+            'workoutx_name' => 'incline-treadmill-walk',
+            'query_name' => 'Incline Treadmill Walk',
+            'payload' => ['id' => '1160', 'name' => 'Incline Treadmill Walk', 'bodyPart' => 'cardio'],
+        ]);
+
+        $service = new ValidationService();
+
+        $result = $service->validateWorkoutResponse([
+            'weekly_plan' => [[
+                'day' => 'Segunda',
+                'focus' => 'Pernas',
+                'exercises' => [
+                    ['name' => 'Avanco com halteres', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '60s', 'remote_exercise_id' => 'dumbbell-lunge'],
+                    ['name' => 'Leg press', 'category' => 'specific', 'sets' => 4, 'reps' => '10-12', 'rest' => '60s', 'remote_exercise_id' => '0457'],
+                    ['name' => 'Levantamento romeno', 'category' => 'specific', 'sets' => 3, 'reps' => '8-10', 'rest' => '60s', 'remote_exercise_id' => '0458'],
+                    ['name' => 'Extensora', 'category' => 'specific', 'sets' => 3, 'reps' => '12', 'rest' => '45s', 'remote_exercise_id' => '0459'],
+                    ['name' => 'Caminhada inclinada', 'category' => 'cardio', 'sets' => 1, 'reps' => '15 min', 'rest' => '0s', 'remote_exercise_id' => '1160'],
+                ],
+            ]],
+        ]);
+
+        $this->assertSame('0456', data_get($result, 'weekly_plan.0.exercises.0.remote_exercise_id'));
+        $this->assertSame('dumbbell-lunge', data_get($result, 'weekly_plan.0.exercises.0.workoutx_name'));
+    }
+
     public function test_validate_workout_response_rejects_plan_with_less_days_than_training_frequency(): void
     {
         $user = $this->mockCreateUserTotal();

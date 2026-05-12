@@ -99,9 +99,12 @@ class ValidationService
             }
 
             $focus = (string) ($dayPlan['focus'] ?? 'Treino geral');
+            $dayFocusToken = $this->normalizeFocusToken($focus);
 
             $exercises = [];
             $rawExercises = $dayPlan['exercises'] ?? [];
+            $resolvedFocusTokens = [];
+            $dayExerciseKeys = [];
 
             if (! is_array($rawExercises) || $rawExercises === []) {
                 throw ValidationException::withMessages([
@@ -184,25 +187,51 @@ class ValidationService
                     ]);
                 }
 
-                $catalogExercise = null;
+                $catalogExercise = $this->resolveCatalogExercise(
+                    $remoteExerciseId,
+                    $exercise['workoutx_name'] ?? data_get($exercise, 'workoutx_lookup.name'),
+                    $name,
+                );
 
-                if ($remoteExerciseId !== '') {
-                    $catalogExercise = ExerciseMediaCache::query()
-                        ->where('remote_exercise_id', $remoteExerciseId)
-                        ->first();
-
-                    if ($catalogExercise === null) {
-                        throw ValidationException::withMessages([
-                            'workout' => 'Exercise remote_exercise_id not found in local catalog: ' . $remoteExerciseId,
-                        ]);
-                    }
+                if ($remoteExerciseId !== '' && $catalogExercise === null) {
+                    throw ValidationException::withMessages([
+                        'workout' => 'Exercise remote_exercise_id not found in local catalog: ' . $remoteExerciseId,
+                    ]);
                 }
+
+                $remoteExerciseId = trim((string) ($catalogExercise?->remote_exercise_id ?? $remoteExerciseId));
 
                 $workoutxName = $this->normalizeWorkoutxName(
                     $catalogExercise?->workoutx_name
                         ?? ($exercise['workoutx_name'] ?? data_get($exercise, 'workoutx_lookup.name')),
                     $name,
                 );
+
+                $exerciseKey = $remoteExerciseId !== '' ? 'id:' . $remoteExerciseId : 'slug:' . $workoutxName;
+
+                if (isset($dayExerciseKeys[$exerciseKey])) {
+                    throw ValidationException::withMessages([
+                        'workout' => 'Duplicate exercise found in the same day: ' . $name,
+                    ]);
+                }
+
+                $dayExerciseKeys[$exerciseKey] = true;
+
+                if (count($steps) < 2 || count($steps) > 5) {
+                    throw ValidationException::withMessages([
+                        'workout' => 'Each exercise must contain between 2 and 5 steps: ' . $name,
+                    ]);
+                }
+
+                $resolvedFocusToken = $category === 'cardio'
+                    ? 'cardio'
+                    : $this->normalizeFocusToken(
+                        (string) data_get($catalogExercise?->payload ?? [], 'bodyPart', data_get($catalogExercise?->payload ?? [], 'target', ''))
+                    );
+
+                if ($category === 'specific') {
+                    $resolvedFocusTokens[] = $resolvedFocusToken;
+                }
 
                 $exercises[] = [
                     'name' => $name,
@@ -231,6 +260,8 @@ class ValidationService
                 ]);
             }
 
+            $this->assertFocusCoherence($focus, $dayFocusToken, $resolvedFocusTokens);
+
             $normalizedPlan[] = [
                 'day' => (string) ($dayPlan['day'] ?? 'Dia'),
                 'focus' => $focus,
@@ -243,6 +274,8 @@ class ValidationService
                 'workout' => 'weekly_plan contains no valid day.',
             ]);
         }
+
+        $this->assertNoConsecutiveRepeats($normalizedPlan);
 
         return ['weekly_plan' => $normalizedPlan];
     }
@@ -274,7 +307,7 @@ class ValidationService
             ->take(4)
             ->all();
 
-        if ($fallbackSteps !== []) {
+        if (count($fallbackSteps) >= 2) {
             return $fallbackSteps;
         }
 
@@ -305,6 +338,105 @@ class ValidationService
         $normalized = trim($normalized, '-');
 
         return $normalized !== '' ? $normalized : 'body-weight-exercise';
+    }
+
+    private function resolveCatalogExercise(string $remoteExerciseId, mixed $workoutxName, string $name): ?ExerciseMediaCache
+    {
+        if ($remoteExerciseId !== '') {
+            $catalogExercise = ExerciseMediaCache::query()
+                ->where('remote_exercise_id', $remoteExerciseId)
+                ->first();
+
+            if ($catalogExercise instanceof ExerciseMediaCache) {
+                return $catalogExercise;
+            }
+
+            $catalogExercise = ExerciseMediaCache::query()
+                ->where('workoutx_name', $this->normalizeWorkoutxName($remoteExerciseId, $name))
+                ->first();
+
+            if ($catalogExercise instanceof ExerciseMediaCache) {
+                return $catalogExercise;
+            }
+        }
+
+        $normalizedWorkoutxName = $this->normalizeWorkoutxName($workoutxName, $name);
+
+        if ($normalizedWorkoutxName === '') {
+            return null;
+        }
+
+        return ExerciseMediaCache::query()
+            ->where('workoutx_name', $normalizedWorkoutxName)
+            ->first();
+    }
+
+    private function assertFocusCoherence(string $focus, ?string $dayFocusToken, array $resolvedFocusTokens): void
+    {
+        $resolvedFocusTokens = array_values(array_filter($resolvedFocusTokens));
+
+        if ($resolvedFocusTokens === []) {
+            return;
+        }
+
+        $uniqueTokens = array_values(array_unique($resolvedFocusTokens));
+
+        if (count($uniqueTokens) > 1) {
+            throw ValidationException::withMessages([
+                'workout' => 'Specific exercises do not share a coherent biomechanical focus for day: ' . $focus,
+            ]);
+        }
+
+        if ($dayFocusToken !== null && $uniqueTokens[0] !== $dayFocusToken) {
+            throw ValidationException::withMessages([
+                'workout' => 'Day focus does not match retrieved exercise biomechanics for day: ' . $focus,
+            ]);
+        }
+    }
+
+    private function assertNoConsecutiveRepeats(array $normalizedPlan): void
+    {
+        $previousDayKeys = null;
+
+        foreach ($normalizedPlan as $dayPlan) {
+            $currentDayKeys = collect($dayPlan['exercises'] ?? [])
+                ->map(fn(array $exercise): string => (string) ($exercise['remote_exercise_id'] ?? $exercise['workoutx_name'] ?? ''))
+                ->filter()
+                ->values()
+                ->all();
+
+            if (is_array($previousDayKeys)) {
+                $repeated = array_values(array_intersect($previousDayKeys, $currentDayKeys));
+
+                if ($repeated !== []) {
+                    throw ValidationException::withMessages([
+                        'workout' => 'Consecutive days cannot repeat the same exercise ids: ' . implode(', ', $repeated),
+                    ]);
+                }
+            }
+
+            $previousDayKeys = $currentDayKeys;
+        }
+    }
+
+    private function normalizeFocusToken(mixed $value): ?string
+    {
+        $normalized = mb_strtolower(trim((string) $value));
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        return match (true) {
+            str_contains($normalized, 'cardio') => 'cardio',
+            str_contains($normalized, 'chest'), str_contains($normalized, 'peito') => 'peito',
+            str_contains($normalized, 'back'), str_contains($normalized, 'costa') => 'costas',
+            str_contains($normalized, 'shoulder'), str_contains($normalized, 'ombro') => 'ombro',
+            str_contains($normalized, 'upper legs'), str_contains($normalized, 'lower legs'), str_contains($normalized, 'quadr'), str_contains($normalized, 'hamstring'), str_contains($normalized, 'glute'), str_contains($normalized, 'perna') => 'pernas',
+            str_contains($normalized, 'waist'), str_contains($normalized, 'abd') || str_contains($normalized, 'core') => 'core',
+            str_contains($normalized, 'biceps'), str_contains($normalized, 'triceps'), str_contains($normalized, 'forearms'), str_contains($normalized, 'bra') => 'bracos',
+            default => null,
+        };
     }
 
     private function resolveTrainingDays(mixed $trainingFrequency): ?int
