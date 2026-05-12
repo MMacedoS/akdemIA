@@ -6,6 +6,7 @@ use App\Models\MedicalData\MedicalData;
 use App\Models\PhysicalData\PhysicalData;
 use App\Models\Preferences\Preference;
 use App\Models\User;
+use App\Models\Workout\Workout;
 use App\Models\Workout\ExerciseMediaCache;
 use App\Services\AI\AiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,6 +50,29 @@ class AiServiceTest extends TestCase
             'user_id' => $user->id,
             'training_frequency' => '5x por semana',
             'available_hours' => ['18:00'],
+        ]);
+
+        Workout::query()->create([
+            'tenant_id' => null,
+            'user_id' => $user->id,
+            'status' => 'done',
+            'request_status' => 'active',
+            'workout_plan' => [
+                'weekly_plan' => [[
+                    'day' => 'Segunda',
+                    'focus' => 'Peito',
+                    'exercises' => [[
+                        'name' => 'Supino reto com barra',
+                        'category' => 'specific',
+                        'workoutx_name' => 'barbell-bench-press',
+                        'remote_exercise_id' => '0009',
+                    ]],
+                ]],
+            ],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
         ]);
 
         ExerciseMediaCache::query()->create([
@@ -105,6 +129,10 @@ class AiServiceTest extends TestCase
                 && $request->url() === 'https://api.openai.com/v1/chat/completions'
                 && str_contains($prompt, 'Voce e um especialista de elite em educacao fisica, hipertrofia, biomecanica, periodizacao e prescricao de treino baseada em evidencias.')
                 && str_contains($prompt, 'Sua funcao e montar um plano de treino tecnicamente consistente, seguro, intenso na medida certa e altamente eficaz para o objetivo do usuario')
+                && str_contains($prompt, 'Trate seguranca, aderencia ao objetivo e coerencia biomecanica como prioridade absoluta.')
+                && str_contains($prompt, 'NUNCA monte treino generico; adapte selecao, volume, intensidade e dificuldade ao nivel fisico, objetivo e contexto do usuario.')
+                && str_contains($prompt, 'Cada exercicio deve conter workoutx_name e remote_exercise_id validos, extraidos do catalogo local fornecido no prompt.')
+                && str_contains($prompt, 'Evite redundancia: nao repetir exercicios, padroes de movimento ou variacoes quase identicas no mesmo dia sem justificativa tecnica.')
                 && str_contains($prompt, 'CATALOGO LOCAL ENXUTO POR FOCO MUSCULAR (OBRIGATORIO)')
                 && str_contains($prompt, 'limitado a 12 exercicios por grupo')
                 && str_contains($prompt, 'Use SOMENTE exercicios presentes neste catalogo local.')
@@ -115,7 +143,16 @@ class AiServiceTest extends TestCase
                 && str_contains($prompt, '"workoutx_name":"incline-treadmill-walk"')
                 && str_contains($prompt, '"remote_exercise_id": "0043"')
                 && str_contains($prompt, 'O campo name deve ficar em pt-BR. Quando localized_name_pt_br estiver preenchido, use exatamente esse valor.')
-                && str_contains($prompt, 'Cada exercicio possui remote_exercise_id real do catalogo local?');
+                && str_contains($prompt, '# TREINO ANTERIOR')
+                && str_contains($prompt, 'Ao montar o novo plano, trate o treino anterior como referencia obrigatoria de variacao.')
+                && str_contains($prompt, 'Nao reaproveite mecanicamente os mesmos exercicios, o mesmo cardio principal ou combinacoes quase identicas de padrao de movimento')
+                && str_contains($prompt, 'so repita um exercicio anterior se isso for tecnicamente indispensavel para seguranca, contexto clinico ou falta real de opcao melhor no catalogo.')
+                && str_contains($prompt, '"workoutx_name": "barbell-bench-press"')
+                && str_contains($prompt, 'Todos os dias do weekly_plan estao completos, distintos e utilizaveis, sem placeholders, exemplos parciais ou campos vazios?')
+                && str_contains($prompt, 'Existe coerencia tecnica entre focus, exercicios escolhidos, volume, repeticoes, descanso e nivel do usuario?')
+                && str_contains($prompt, 'Cada exercicio usa workoutx_name exatamente igual ao catalogo local, sem inventar nomes, ids ou variacoes fora da base?')
+                && str_contains($prompt, 'Existe repeticao desnecessaria de exercicios, padroes de movimento ou variacoes quase identicas no mesmo dia ou em dias consecutivos?')
+                && str_contains($prompt, 'Se qualquer resposta for NAO ou SIM para uma checagem de erro, voce DEVE corrigir o plano inteiro antes de responder.');
         });
     }
 

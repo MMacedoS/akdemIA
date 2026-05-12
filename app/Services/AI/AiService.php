@@ -13,7 +13,7 @@ use RuntimeException;
 
 class AiService
 {
-    public const WORKOUT_PROMPT_VERSION = '2026-05-12-workoutx-local-catalog-expert-fallback';
+    public const WORKOUT_PROMPT_VERSION = '2026-05-12-workoutx-local-catalog-harder-previous-workout-rules';
 
     public function __construct(
         private readonly ?ExerciseCatalogService $exerciseCatalogService = null,
@@ -46,7 +46,7 @@ class AiService
             . "# =========================\n\n"
             . "O plano de treino anterior gerado para o usuario foi:\n\n"
             . json_encode($previousWorkoutPlan, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n\n"
-            . " Evite repetir os mesmos exercicios do plano anterior, buscando variacoes seguras e eficientes, mas mantendo a estrutura 4+1 por dia e obedecendo as regras criticas de seguranca e estrutura do treino.";
+            . "Ao montar o novo plano, trate o treino anterior como referencia obrigatoria de variacao. Nao reaproveite mecanicamente os mesmos exercicios, o mesmo cardio principal ou combinacoes quase identicas de padrao de movimento quando houver alternativa segura no catalogo local. Substitua por variacoes equivalentes, mantenha o mesmo foco muscular do dia quando fizer sentido, preserve a estrutura 4+1 por dia e so repita um exercicio anterior se isso for tecnicamente indispensavel para seguranca, contexto clinico ou falta real de opcao melhor no catalogo.";
     }
 
     public function generateRecommendations(User $user, ?Tenant $tenant): array
@@ -157,19 +157,20 @@ class AiService
             . "# =========================\n"
             . "# REGRAS CRITICAS\n"
             . "# =========================\n\n"
-            . "- Respeitar nivel fisico do usuario\n"
-            . "- Adaptar treino ao objetivo\n"
-            . "- Evitar sobrecarga\n"
-            . "- Priorizar seguranca\n"
-            . "- NUNCA misturar grandes grupos musculares no mesmo dia (ex.: pernas com ombro, pernas com peito, pernas com costas)\n"
-            . "- Cada dia deve ter foco muscular unico e coerente\n"
-            . "- Cada dia deve conter EXATAMENTE 5 exercicios\n"
-            . "- Dos 5 exercicios do dia: EXATAMENTE 4 devem ser do foco muscular do dia e EXATAMENTE 1 deve ser cardio\n"
-            . "- Cada exercicio deve conter um array steps com 2 a 5 passos curtos e objetivos\n"
-            . "- Cada exercicio deve conter workoutx_name para busca exata na WorkoutX API\n"
-            . "- workoutx_name deve estar em INGLES e corresponder ao nome do exercicio na base da WorkoutX\n"
-            . "- O campo name deve SEMPRE ser salvo em pt-BR para exibicao ao usuario final\n"
-            . "- O cardio deve ser de baixo a moderado impacto, compativel com o perfil do usuario\n\n"
+            . "- Trate seguranca, aderencia ao objetivo e coerencia biomecanica como prioridade absoluta.\n"
+            . "- NUNCA prescreva exercicios que contrariem restricoes medicas, lesoes, limitacoes articulares ou sinais claros de risco mecanico.\n"
+            . "- NUNCA monte treino generico; adapte selecao, volume, intensidade e dificuldade ao nivel fisico, objetivo e contexto do usuario.\n"
+            . "- NUNCA misture grandes grupos musculares no mesmo dia quando isso comprometer a qualidade do foco (ex.: pernas com ombro, pernas com peito, pernas com costas).\n"
+            . "- Cada dia deve ter foco muscular unico, claro e coerente do inicio ao fim.\n"
+            . "- Cada dia deve conter EXATAMENTE 5 exercicios.\n"
+            . "- Dos 5 exercicios do dia: EXATAMENTE 4 devem ser do foco muscular do dia e EXATAMENTE 1 deve ser cardio.\n"
+            . "- O cardio deve ser compativel com o perfil do usuario e com as restricoes clinicas, priorizando baixo a moderado impacto quando necessario.\n"
+            . "- Cada exercicio deve conter um array steps com 2 a 5 passos curtos, claros e acionaveis.\n"
+            . "- Cada exercicio deve conter workoutx_name e remote_exercise_id validos, extraidos do catalogo local fornecido no prompt.\n"
+            . "- workoutx_name deve permanecer em INGLES exatamente como esta no catalogo local.\n"
+            . "- O campo name deve SEMPRE ser salvo em pt-BR para exibicao ao usuario final.\n"
+            . "- Evite redundancia: nao repetir exercicios, padroes de movimento ou variacoes quase identicas no mesmo dia sem justificativa tecnica.\n"
+            . "- Prefira exercicios com melhor relacao entre seguranca, eficiencia e capacidade real de progressao para este usuario.\n\n"
             . "# =========================\n"
             . "# REGRAS DE ESTRUTURA DO TREINO (OBRIGATORIAS)\n"
             . "# =========================\n\n"
@@ -235,15 +236,20 @@ class AiService
             . "}\n\n"
             . "VALIDACAO FINAL ANTES DE RESPONDER:\n"
             . "- O weekly_plan contem exatamente a quantidade de dias pedida pela frequencia de treino?\n"
+            . "- Todos os dias do weekly_plan estao completos, distintos e utilizaveis, sem placeholders, exemplos parciais ou campos vazios?\n"
             . "- Cada dia tem exatamente 5 exercicios?\n"
             . "- Cada dia tem exatamente 4 com category=specific e 1 com category=cardio?\n"
             . "- O focus do dia e unico e nao mistura grupos?\n"
             . "- Dia de pernas contem somente exercicios de pernas + 1 cardio?\n"
+            . "- Existe coerencia tecnica entre focus, exercicios escolhidos, volume, repeticoes, descanso e nivel do usuario?\n"
+            . "- Existe qualquer exercicio proibido, arriscado ou incoerente com lesoes, restricoes e contexto clinico do usuario?\n"
             . "- Cada exercicio possui remote_exercise_id real do catalogo local?\n"
+            . "- Cada exercicio usa workoutx_name exatamente igual ao catalogo local, sem inventar nomes, ids ou variacoes fora da base?\n"
             . "- Todos os campos name estao em pt-BR para salvar no banco e exibir ao usuario?\n"
             . "- Todos os exercicios possuem workoutx_name em ingles para busca?\n"
             . "- Todos os exercicios possuem steps validos?\n"
-            . "Se alguma resposta for NAO, corrija antes de enviar o JSON final.";
+            . "- Existe repeticao desnecessaria de exercicios, padroes de movimento ou variacoes quase identicas no mesmo dia ou em dias consecutivos?\n"
+            . "Se qualquer resposta for NAO ou SIM para uma checagem de erro, voce DEVE corrigir o plano inteiro antes de responder. Nao explique, nao resuma e nao entregue texto fora do JSON final valido.";
 
         $normalizedAdjustmentRequest = trim((string) $adjustmentRequest);
 
