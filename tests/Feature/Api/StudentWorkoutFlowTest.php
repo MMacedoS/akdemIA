@@ -59,7 +59,7 @@ class StudentWorkoutFlowTest extends TestCase
 
         $tenant->users()->attach($student->id, ['role' => Role::STUDENT->value]);
 
-        $oldWorkout = Workout::query()->create([
+        $olderWorkout = Workout::query()->create([
             'tenant_id' => $tenant->id,
             'user_id' => $student->id,
             'status' => 'error',
@@ -69,6 +69,30 @@ class StudentWorkoutFlowTest extends TestCase
             'recommendations' => [],
             'cardio_plan' => [],
             'safety_flags' => ['generation_error' => 'falha'],
+        ]);
+
+        $oldWorkout = Workout::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'inactive',
+            'workout_plan' => ['weekly_plan' => [['day' => 'sunday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
+        $recentInactiveWorkout = Workout::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'inactive',
+            'workout_plan' => ['weekly_plan' => [['day' => 'tuesday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
         ]);
 
         $currentWorkout = Workout::query()->create([
@@ -91,9 +115,15 @@ class StudentWorkoutFlowTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('current_workout.id', $currentWorkout->id)
             ->assertJsonPath('current_workout.workout_plan.weekly_plan.0.day', 'monday')
-            ->assertJsonCount(2, 'data')
+            ->assertJsonCount(3, 'data')
             ->assertJsonPath('data.0.id', $currentWorkout->id)
-            ->assertJsonPath('data.1.id', $oldWorkout->id);
+            ->assertJsonPath('data.1.id', $recentInactiveWorkout->id)
+            ->assertJsonPath('data.2.id', $oldWorkout->id);
+
+        $this->assertNotSame($olderWorkout->id, data_get($this->getJson('/api/v1/students/workouts', [
+            'Authorization' => 'Bearer ' . $token,
+            'X-Tenant-Slug' => $tenant->slug,
+        ])->json(), 'data.2.id'));
     }
 
     public function test_student_can_generate_workout_from_student_api_flow(): void
@@ -279,7 +309,7 @@ class StudentWorkoutFlowTest extends TestCase
             'is_active' => true,
         ]);
 
-        $oldWorkout = Workout::query()->create([
+        $olderWorkout = Workout::query()->create([
             'tenant_id' => null,
             'user_id' => $student->id,
             'status' => 'error',
@@ -289,6 +319,30 @@ class StudentWorkoutFlowTest extends TestCase
             'recommendations' => [],
             'cardio_plan' => [],
             'safety_flags' => ['generation_error' => 'falha'],
+        ]);
+
+        $oldWorkout = Workout::query()->create([
+            'tenant_id' => null,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'inactive',
+            'workout_plan' => ['weekly_plan' => [['day' => 'saturday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
+        $recentInactiveWorkout = Workout::query()->create([
+            'tenant_id' => null,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'inactive',
+            'workout_plan' => ['weekly_plan' => [['day' => 'friday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
         ]);
 
         $currentWorkout = Workout::query()->create([
@@ -310,9 +364,14 @@ class StudentWorkoutFlowTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('current_workout.id', $currentWorkout->id)
             ->assertJsonPath('current_workout.tenant_id', null)
-            ->assertJsonCount(2, 'data')
+            ->assertJsonCount(3, 'data')
             ->assertJsonPath('data.0.id', $currentWorkout->id)
-            ->assertJsonPath('data.1.id', $oldWorkout->id);
+            ->assertJsonPath('data.1.id', $recentInactiveWorkout->id)
+            ->assertJsonPath('data.2.id', $oldWorkout->id);
+
+        $this->assertNotSame($olderWorkout->id, data_get($this->getJson('/api/v1/students/workouts', [
+            'Authorization' => 'Bearer ' . $token,
+        ])->json(), 'data.2.id'));
 
         $this->getJson('/api/v1/students/workout', [
             'Authorization' => 'Bearer ' . $token,

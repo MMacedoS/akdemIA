@@ -44,6 +44,7 @@ class WorkoutController extends Controller
         $workouts = $this->workoutScope($tenantId, (int) $user->id)
             ->where('user_id', (int) $user->id)
             ->orderByDesc('id')
+            ->limit(3)
             ->get()
             ->map(fn(Workout $workout) => $this->hydrateWorkoutMedia($workout));
 
