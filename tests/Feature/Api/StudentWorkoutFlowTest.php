@@ -214,6 +214,64 @@ class StudentWorkoutFlowTest extends TestCase
         $this->assertSame('inactive', (string) $targetWorkout->fresh()->request_status);
     }
 
+    public function test_student_can_regenerate_workout_from_student_api_flow(): void
+    {
+        Queue::fake();
+
+        $tenant = $this->createTenant('academia-refazer');
+
+        $student = User::factory()->create([
+            'profile_type' => Role::STUDENT->value,
+            'is_active' => true,
+            'credits_balance' => 8,
+        ]);
+
+        $tenant->users()->attach($student->id, ['role' => Role::STUDENT->value]);
+
+        $currentWorkout = Workout::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'active',
+            'workout_plan' => ['weekly_plan' => [['day' => 'wednesday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
+        $token = app(TenantAuthService::class)->generateTenantToken($student, $tenant);
+
+        $response = $this->postJson('/api/v1/students/workouts/' . $currentWorkout->id . '/regenerate', [
+            'adjustment_request' => 'Trocar por treino com menos impacto no joelho.',
+        ], [
+            'Authorization' => 'Bearer ' . $token,
+            'X-Tenant-Slug' => $tenant->slug,
+        ]);
+
+        $workoutId = (int) $response->json('data.id');
+
+        $response->assertAccepted()
+            ->assertJsonPath('message', 'Refazer treino iniciado.')
+            ->assertJsonPath('credits_balance', 5)
+            ->assertJsonPath('data.status', 'processing')
+            ->assertJsonPath('data.request_status', 'active')
+            ->assertJsonPath('data.regeneration_request', 'Trocar por treino com menos impacto no joelho.')
+            ->assertJsonPath('data.tenant_id', $tenant->id)
+            ->assertJsonPath('data.user_id', $student->id);
+
+        Queue::assertPushed(GenerateWorkoutJob::class, function (GenerateWorkoutJob $job) use ($student, $tenant, $currentWorkout, $workoutId): bool {
+            return $job->userId === $student->id
+                && $job->tenantId === $tenant->id
+                && $job->workoutId === $workoutId
+                && $job->requestedByUserId === $student->id
+                && $job->adjustmentRequest === 'Trocar por treino com menos impacto no joelho.';
+        });
+
+        $this->assertSame('inactive', (string) $currentWorkout->fresh()->request_status);
+        $this->assertSame(5, $student->fresh()->credits_balance);
+    }
+
     public function test_standalone_student_can_list_current_workout_and_history_from_student_api(): void
     {
         $student = User::factory()->create([
@@ -295,6 +353,58 @@ class StudentWorkoutFlowTest extends TestCase
         });
 
         $this->assertSame(3, $student->fresh()->credits_balance);
+    }
+
+    public function test_standalone_student_can_regenerate_workout_from_student_api_flow(): void
+    {
+        Queue::fake();
+
+        $student = User::factory()->create([
+            'profile_type' => Role::STUDENT->value,
+            'is_active' => true,
+            'credits_balance' => 8,
+        ]);
+
+        $currentWorkout = Workout::query()->create([
+            'tenant_id' => null,
+            'user_id' => $student->id,
+            'status' => 'done',
+            'request_status' => 'active',
+            'workout_plan' => ['weekly_plan' => [['day' => 'thursday']]],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ]);
+
+        $token = app(TenantAuthService::class)->generateStandaloneToken($student);
+
+        $response = $this->postJson('/api/v1/students/workouts/' . $currentWorkout->id . '/regenerate', [
+            'adjustment_request' => 'Quero um treino mais rapido para dias corridos.',
+        ], [
+            'Authorization' => 'Bearer ' . $token,
+        ]);
+
+        $workoutId = (int) $response->json('data.id');
+
+        $response->assertAccepted()
+            ->assertJsonPath('message', 'Refazer treino iniciado.')
+            ->assertJsonPath('credits_balance', 5)
+            ->assertJsonPath('data.status', 'processing')
+            ->assertJsonPath('data.tenant_id', null)
+            ->assertJsonPath('data.user_id', $student->id)
+            ->assertJsonPath('data.regeneration_request', 'Quero um treino mais rapido para dias corridos.');
+
+        Queue::assertPushed(GenerateWorkoutJob::class, function (GenerateWorkoutJob $job) use ($student, $currentWorkout, $workoutId): bool {
+            return $job->userId === $student->id
+                && $job->tenantId === null
+                && $job->workoutId === $workoutId
+                && $job->requestedByUserId === $student->id
+                && $job->adjustmentRequest === 'Quero um treino mais rapido para dias corridos.';
+        });
+
+        $this->assertSame('inactive', (string) $currentWorkout->fresh()->request_status);
+        $this->assertSame(5, $student->fresh()->credits_balance);
     }
 
     public function test_student_api_rejects_student_with_wrong_tenant_token_context(): void

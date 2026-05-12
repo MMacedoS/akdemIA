@@ -77,6 +77,7 @@ Route::prefix('v1')->group(function () {
                     Route::get('workout', [StudentWorkoutController::class, 'show'])->name('api.students.workout.show');
                     Route::get('workouts', [StudentWorkoutController::class, 'index'])->name('api.students.workouts.index');
                     Route::post('workout/generate', [StudentWorkoutController::class, 'store'])->name('api.students.workout.generate');
+                    Route::post('workouts/{workoutId}/regenerate', [StudentWorkoutController::class, 'regenerate'])->name('api.students.workouts.regenerate');
                 });
 
                 Route::post('workouts/generate', [GenerateWorkoutController::class, 'store'])->name('api.workouts.generate');

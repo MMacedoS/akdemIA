@@ -145,6 +145,103 @@ class WorkoutController extends Controller
         ], 202);
     }
 
+    public function regenerate(Request $request, int $workoutId): JsonResponse
+    {
+        $user = $request->user();
+        $tenant = $request->attributes->get('tenant');
+
+        if ($user === null || ! $this->allowsStudentWorkoutContext($user, $tenant)) {
+            return response()->json([
+                'message' => 'Forbidden.',
+            ], 403);
+        }
+
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : null;
+        $payload = $request->validate([
+            'adjustment_request' => ['nullable', 'string', 'max:1500'],
+        ]);
+
+        $adjustmentRequest = trim((string) ($payload['adjustment_request'] ?? ''));
+        $normalizedAdjustmentRequest = $adjustmentRequest !== '' ? $adjustmentRequest : null;
+
+        $hasProcessingWorkout = $this->workoutScope($tenantId, (int) $user->id)
+            ->where('status', 'processing')
+            ->exists();
+
+        if ($hasProcessingWorkout) {
+            return response()->json([
+                'message' => 'Ja existe uma geracao em processamento para voce.',
+            ], 409);
+        }
+
+        $targetWorkout = $this->workoutScope($tenantId, (int) $user->id)
+            ->whereKey($workoutId)
+            ->first();
+
+        if (! $targetWorkout instanceof Workout) {
+            return response()->json([
+                'message' => 'Treino nao encontrado.',
+            ], 404);
+        }
+
+        $targetWorkout = $this->workoutLifecycleService->syncWorkoutStatus($targetWorkout);
+
+        if ((string) ($targetWorkout->request_status ?? 'active') !== 'active') {
+            return response()->json([
+                'message' => 'Treino inativo. Nao e permitido refazer este plano.',
+            ], 422);
+        }
+
+        if ((string) $targetWorkout->status !== 'done') {
+            return response()->json([
+                'message' => 'Aguarde a conclusao do treino antes de refazer.',
+            ], 422);
+        }
+
+        try {
+            $this->creditService->consumeCredits(
+                $user,
+                $this->workoutRulesService->reuseCredits(),
+                'consume_regeneration',
+                [
+                    'context' => 'api_student',
+                    'tenant_id' => $tenantId,
+                    'student_id' => (int) $user->id,
+                    'source_workout_id' => $targetWorkout->id,
+                ],
+                $tenant instanceof Tenant ? $tenant : null,
+            );
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        $targetWorkout->forceFill([
+            'request_status' => 'inactive',
+        ])->save();
+
+        $workout = Workout::query()->create(array_merge([
+            'tenant_id' => $tenantId,
+            'user_id' => (int) $user->id,
+            'status' => 'processing',
+            'regeneration_request' => $normalizedAdjustmentRequest,
+            'workout_plan' => ['weekly_plan' => []],
+            'meal_plan' => [],
+            'recommendations' => [],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ], $this->workoutLifecycleService->activeAttributes()));
+
+        GenerateWorkoutJob::dispatch($workout->id, (int) $user->id, $tenantId, $normalizedAdjustmentRequest, (int) $user->id);
+
+        return response()->json([
+            'message' => 'Refazer treino iniciado.',
+            'credits_balance' => (int) $user->fresh()?->credits_balance,
+            'data' => $this->studentWorkoutTransformer->transform($workout),
+        ], 202);
+    }
+
     private function allowsStudentWorkoutContext($user, mixed $tenant): bool
     {
         if ($tenant instanceof Tenant) {
