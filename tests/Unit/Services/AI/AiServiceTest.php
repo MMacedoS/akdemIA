@@ -205,13 +205,15 @@ class AiServiceTest extends TestCase
 
     private function seedCatalog(): void
     {
-        foreach ([
-            ['id' => '0009', 'localized' => 'Supino reto com barra', 'slug' => 'barbell-bench-press', 'name' => 'Barbell Bench Press', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'barbell'],
-            ['id' => '0010', 'localized' => 'Supino inclinado com halteres', 'slug' => 'incline-dumbbell-bench-press', 'name' => 'Incline Dumbbell Bench Press', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'dumbbell'],
-            ['id' => '0011', 'localized' => 'Crucifixo no cabo', 'slug' => 'cable-fly', 'name' => 'Cable Fly', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'cable'],
-            ['id' => '0012', 'localized' => 'Peck deck', 'slug' => 'pec-deck-fly', 'name' => 'Pec Deck Fly', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'machine'],
-            ['id' => '1160', 'localized' => 'Caminhada inclinada', 'slug' => 'incline-treadmill-walk', 'name' => 'Incline Treadmill Walk', 'body' => 'cardio', 'target' => 'cardiovascular system', 'equipment' => 'treadmill'],
-        ] as $exercise) {
+        foreach (
+            [
+                ['id' => '0009', 'localized' => 'Supino reto com barra', 'slug' => 'barbell-bench-press', 'name' => 'Barbell Bench Press', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'barbell'],
+                ['id' => '0010', 'localized' => 'Supino inclinado com halteres', 'slug' => 'incline-dumbbell-bench-press', 'name' => 'Incline Dumbbell Bench Press', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'dumbbell'],
+                ['id' => '0011', 'localized' => 'Crucifixo no cabo', 'slug' => 'cable-fly', 'name' => 'Cable Fly', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'cable'],
+                ['id' => '0012', 'localized' => 'Peck deck', 'slug' => 'pec-deck-fly', 'name' => 'Pec Deck Fly', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'machine'],
+                ['id' => '1160', 'localized' => 'Caminhada inclinada', 'slug' => 'incline-treadmill-walk', 'name' => 'Incline Treadmill Walk', 'body' => 'cardio', 'target' => 'cardiovascular system', 'equipment' => 'treadmill'],
+            ] as $exercise
+        ) {
             ExerciseMediaCache::query()->create([
                 'remote_exercise_id' => $exercise['id'],
                 'localized_name_pt_br' => $exercise['localized'],

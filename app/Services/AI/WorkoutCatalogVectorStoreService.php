@@ -31,7 +31,8 @@ class WorkoutCatalogVectorStoreService
             ->latest('id')
             ->first();
 
-        if ($record instanceof AiVectorStore
+        if (
+            $record instanceof AiVectorStore
             && $record->source_hash === $sourceHash
             && $record->vector_store_id !== ''
             && $record->file_id !== null
