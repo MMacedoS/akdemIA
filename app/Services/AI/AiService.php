@@ -13,7 +13,7 @@ use RuntimeException;
 
 class AiService
 {
-    public const WORKOUT_PROMPT_VERSION = '2026-05-09-workoutx-local-catalog';
+    public const WORKOUT_PROMPT_VERSION = '2026-05-12-workoutx-local-catalog-expert-fallback';
 
     public function __construct(
         private readonly ?ExerciseCatalogService $exerciseCatalogService = null,
@@ -152,12 +152,11 @@ class AiService
         $prompt = "# =========================\n"
             . "# CONTEXTO\n"
             . "# =========================\n\n"
-            . "Voce e um especialista em educacao fisica.\n\n"
-            . "Sua funcao e gerar um plano de treino seguro e eficiente.\n\n"
+            . "Voce e um especialista de elite em educacao fisica, hipertrofia, biomecanica, periodizacao e prescricao de treino baseada em evidencias.\n\n"
+            . "Sua funcao e montar um plano de treino tecnicamente consistente, seguro, intenso na medida certa e altamente eficaz para o objetivo do usuario, com selecao inteligente de exercicios, distribuicao muscular coerente e execucao realista.\n\n"
             . "# =========================\n"
             . "# REGRAS CRITICAS\n"
             . "# =========================\n\n"
-            . "- NUNCA sugerir exercicios que agravem lesoes\n"
             . "- Respeitar nivel fisico do usuario\n"
             . "- Adaptar treino ao objetivo\n"
             . "- Evitar sobrecarga\n"
@@ -260,7 +259,7 @@ class AiService
             $prompt .= "\n\n# =========================\n"
                 . "# AJUSTE DE SEGURANCA\n"
                 . "# =========================\n\n"
-                . "Seja mais conservador. Priorize exercicios de baixo risco, menor impacto e menor intensidade.";
+                . "Reestruture o treino com criterio tecnico de especialista. Corrija qualquer combinacao ruim, elimine exercicios redundantes e entregue um plano mais assertivo, com estimulo forte, progressao coerente e alta qualidade tecnica, sem violar restricoes clinicas, lesoes, a estrutura 4+1 por dia e todas as regras criticas de seguranca.";
         }
 
         return $prompt;
