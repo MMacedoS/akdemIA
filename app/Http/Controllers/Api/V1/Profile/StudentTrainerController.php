@@ -35,7 +35,7 @@ class StudentTrainerController extends Controller
 
         $search = trim((string) ($validated['search'] ?? ''));
         $perPage = (int) ($validated['per_page'] ?? 15);
-        $trainees = $this->traineeStudentRepository->paginateStandaloneTrainees($search, $perPage);
+        $trainers = $this->traineeStudentRepository->paginateStandaloneTrainees($search, $perPage);
 
         return response()->json([
             'assigned_trainer_id' => $assignedTrainee?->id,
@@ -43,15 +43,15 @@ class StudentTrainerController extends Controller
                 'search' => $search !== '' ? $search : null,
                 'per_page' => $perPage,
             ],
-            'data' => collect($trainees->items())->map(fn(User $trainee) => $this->studentTrainerTransformer->transform(
-                $trainee,
-                $assignedTrainee?->id === $trainee->id,
+            'data' => collect($trainers->items())->map(fn(User $trainer) => $this->studentTrainerTransformer->transform(
+                $trainer,
+                $assignedTrainee?->id === $trainer->id,
             ))->values(),
             'meta' => [
-                'current_page' => $trainees->currentPage(),
-                'per_page' => $trainees->perPage(),
-                'total' => $trainees->total(),
-                'last_page' => $trainees->lastPage(),
+                'current_page' => $trainers->currentPage(),
+                'per_page' => $trainers->perPage(),
+                'total' => $trainers->total(),
+                'last_page' => $trainers->lastPage(),
             ],
         ]);
     }

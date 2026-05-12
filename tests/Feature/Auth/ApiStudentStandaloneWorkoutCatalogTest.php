@@ -32,10 +32,31 @@ class ApiStudentStandaloneWorkoutCatalogTest extends TestCase
             'is_active' => true,
         ]);
 
+        $legacyTrainee = User::factory()->create([
+            'name' => 'Jose Trainee',
+            'email' => 'jose@trainee.test',
+            'profile_type' => 'trainee',
+            'is_active' => true,
+        ]);
+
         User::factory()->create([
             'name' => 'Carlos Trainer',
             'email' => 'carlos@trainer.test',
             'profile_type' => Role::TRAINER->value,
+            'is_active' => true,
+        ]);
+
+        User::factory()->create([
+            'name' => 'Joao Student',
+            'email' => 'joao@student.test',
+            'profile_type' => Role::STUDENT->value,
+            'is_active' => true,
+        ]);
+
+        User::factory()->create([
+            'name' => 'Jonas Admin',
+            'email' => 'jonas@admin.test',
+            'profile_type' => Role::ADMIN->value,
             'is_active' => true,
         ]);
 
@@ -56,14 +77,19 @@ class ApiStudentStandaloneWorkoutCatalogTest extends TestCase
 
         $token = app(TenantAuthService::class)->generateStandaloneToken($student);
 
-        $this->getJson('/api/v1/me/trainers?search=jo&per_page=1', [
+        $response = $this->getJson('/api/v1/me/trainers?search=jo&per_page=10', [
             'Authorization' => 'Bearer ' . $token,
         ])->assertOk()
             ->assertJsonPath('filters.search', 'jo')
-            ->assertJsonPath('meta.per_page', 1)
-            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.per_page', 10)
+            ->assertJsonPath('meta.total', 2)
             ->assertJsonPath('data.0.id', $matchTrainer->id)
             ->assertJsonPath('data.0.is_current', false);
+
+        $this->assertSame([
+            $matchTrainer->id,
+            $legacyTrainee->id,
+        ], array_column($response->json('data'), 'id'));
     }
 
     public function test_student_can_generate_and_check_workout_without_tenant(): void
