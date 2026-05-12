@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Web\V1\Trainer;
 
-use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Jobs\GenerateWorkoutJob;
 use App\Models\MedicalData\MedicalData;
@@ -36,23 +35,25 @@ class StudentsController extends Controller
 
     public function index(Request $request): View
     {
+        $tenant = $this->resolveTenant($request);
         $trainer = $this->resolveTrainer($request);
         $search = trim((string) $request->query('q', ''));
 
         return view('web.v1.trainer.students.index', [
-            'students' => $this->repository->paginateForTrainee(null, $trainer->id, $search),
+            'students' => $this->repository->paginateForTrainee($tenant, $trainer->id, $search),
             'search' => $search,
         ]);
     }
 
     public function show(Request $request, int $id): View
     {
+        $tenant = $this->resolveTenant($request);
         $student = $this->resolveStudent($request, $id);
         $student->loadMissing(['physicalData', 'medicalData', 'preference']);
 
-        $this->workoutLifecycleService->expireExpiredWorkouts(null, $student->id);
+        $this->workoutLifecycleService->expireExpiredWorkouts($tenant->id, $student->id);
 
-        $workouts = $this->studentWorkoutQuery($student)
+        $workouts = $this->studentWorkoutQuery($tenant, $student)
             ->orderByDesc('id')
             ->limit(10)
             ->get(['id', 'status', 'request_status', 'created_at']);
@@ -76,7 +77,7 @@ class StudentsController extends Controller
         $adjustmentRequest = trim((string) ($payload['adjustment_request'] ?? ''));
         $normalizedAdjustmentRequest = $adjustmentRequest !== '' ? $adjustmentRequest : null;
 
-        $hasProcessingWorkout = $this->studentWorkoutQuery($student)
+        $hasProcessingWorkout = $this->studentWorkoutQuery($tenant, $student)
             ->where('status', 'processing')
             ->exists();
 
@@ -103,7 +104,7 @@ class StudentsController extends Controller
         }
 
         $workout = Workout::query()->create(array_merge([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'user_id' => $student->id,
             'status' => 'processing',
             'workout_plan' => ['weekly_plan' => []],
@@ -113,7 +114,7 @@ class StudentsController extends Controller
             'safety_flags' => [],
         ], $this->workoutLifecycleService->activeAttributes()));
 
-        GenerateWorkoutJob::dispatch($workout->id, $student->id, null, $normalizedAdjustmentRequest, (int) $trainer->id);
+        GenerateWorkoutJob::dispatch($workout->id, $student->id, $tenant->id, $normalizedAdjustmentRequest, (int) $trainer->id);
 
         return redirect()->route('trainer.students.show', $student->id)
             ->with('status', 'Geracao de treino com ilustracoes e recomendacoes iniciada. Saldo atual: ' . (int) $trainer->fresh()?->credits_balance . ' credito(s).');
@@ -132,7 +133,7 @@ class StudentsController extends Controller
         $adjustmentRequest = trim((string) ($payload['adjustment_request'] ?? ''));
         $normalizedAdjustmentRequest = $adjustmentRequest !== '' ? $adjustmentRequest : null;
 
-        $hasProcessingWorkout = $this->studentWorkoutQuery($student)
+        $hasProcessingWorkout = $this->studentWorkoutQuery($tenant, $student)
             ->where('status', 'processing')
             ->exists();
 
@@ -141,7 +142,7 @@ class StudentsController extends Controller
                 ->withErrors(['workout' => 'Ja existe uma geracao em processamento para este aluno. Aguarde finalizar para evitar novo consumo de credito.']);
         }
 
-        $targetWorkout = $this->studentWorkoutQuery($student)
+        $targetWorkout = $this->studentWorkoutQuery($tenant, $student)
             ->where('id', $workoutId)
             ->firstOrFail();
 
@@ -181,7 +182,7 @@ class StudentsController extends Controller
         $targetWorkout->save();
 
         $newWorkout = Workout::query()->create(array_merge([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'user_id' => $student->id,
             'status' => 'processing',
             'regeneration_request' => $normalizedAdjustmentRequest,
@@ -192,7 +193,7 @@ class StudentsController extends Controller
             'safety_flags' => [],
         ], $this->workoutLifecycleService->activeAttributes()));
 
-        GenerateWorkoutJob::dispatch($newWorkout->id, $student->id, null, $normalizedAdjustmentRequest, (int) $trainer->id);
+        GenerateWorkoutJob::dispatch($newWorkout->id, $student->id, $tenant->id, $normalizedAdjustmentRequest, (int) $trainer->id);
 
         return redirect()->route('trainer.students.workouts.show', [$student->id, $newWorkout->id])
             ->with('status', 'Refazer treino iniciado com as instrucoes enviadas para a IA. Saldo atual: ' . (int) $trainer->fresh()?->credits_balance . ' credito(s).');
@@ -200,9 +201,10 @@ class StudentsController extends Controller
 
     public function showWorkout(Request $request, int $id, int $workoutId): View
     {
+        $tenant = $this->resolveTenant($request);
         $student = $this->resolveStudent($request, $id);
 
-        $workout = $this->studentWorkoutQuery($student)
+        $workout = $this->studentWorkoutQuery($tenant, $student)
             ->where('id', $workoutId)
             ->firstOrFail();
 
@@ -232,9 +234,10 @@ class StudentsController extends Controller
     public function retryWorkout(Request $request, int $id, int $workoutId): RedirectResponse
     {
         $trainer = $this->resolveTrainer($request);
+        $tenant = $this->resolveTenant($request);
         $student = $this->resolveStudent($request, $id);
 
-        $targetWorkout = $this->studentWorkoutQuery($student)
+        $targetWorkout = $this->studentWorkoutQuery($tenant, $student)
             ->where('id', $workoutId)
             ->firstOrFail();
 
@@ -243,7 +246,7 @@ class StudentsController extends Controller
                 ->withErrors(['workout' => 'O reenvio esta disponivel apenas para treinos com falha.']);
         }
 
-        $hasProcessingWorkout = $this->studentWorkoutQuery($student)
+        $hasProcessingWorkout = $this->studentWorkoutQuery($tenant, $student)
             ->where('status', 'processing')
             ->where('id', '!=', $targetWorkout->id)
             ->exists();
@@ -262,7 +265,7 @@ class StudentsController extends Controller
         GenerateWorkoutJob::dispatch(
             $targetWorkout->id,
             $student->id,
-            null,
+            $tenant->id,
             $targetWorkout->regeneration_request ? (string) $targetWorkout->regeneration_request : null,
             (int) $trainer->id,
         );
@@ -277,7 +280,7 @@ class StudentsController extends Controller
         $trainer = $this->resolveTrainer($request);
         $tenant = $this->resolveTenant($request);
 
-        $workout = $this->studentWorkoutQuery($student)
+        $workout = $this->studentWorkoutQuery($tenant, $student)
             ->where('id', $workoutId)
             ->firstOrFail();
 
@@ -306,7 +309,7 @@ class StudentsController extends Controller
                 ->withErrors(['workout' => $exception->getMessage()]);
         }
 
-        $this->workoutLifecycleService->activateWorkout($this->studentWorkoutQuery($student), $workout);
+        $this->workoutLifecycleService->activateWorkout($this->studentWorkoutQuery($tenant, $student), $workout);
 
         return redirect()->route('trainer.students.workouts.show', [$student->id, $workout->id])
             ->with('status', 'Treino ativado com sucesso. Saldo atual: ' . (int) $trainer->fresh()?->credits_balance . ' credito(s).');
@@ -314,9 +317,10 @@ class StudentsController extends Controller
 
     public function inactivateWorkout(Request $request, int $id, int $workoutId): RedirectResponse
     {
+        $tenant = $this->resolveTenant($request);
         $student = $this->resolveStudent($request, $id);
 
-        $workout = $this->studentWorkoutQuery($student)
+        $workout = $this->studentWorkoutQuery($tenant, $student)
             ->where('id', $workoutId)
             ->firstOrFail();
 
@@ -328,9 +332,10 @@ class StudentsController extends Controller
 
     public function reuseWorkout(Request $request, int $id, int $workoutId): RedirectResponse
     {
+        $tenant = $this->resolveTenant($request);
         $student = $this->resolveStudent($request, $id);
 
-        $sourceWorkout = $this->studentWorkoutQuery($student)
+        $sourceWorkout = $this->studentWorkoutQuery($tenant, $student)
             ->where('id', $workoutId)
             ->firstOrFail();
 
@@ -346,7 +351,7 @@ class StudentsController extends Controller
                 'consume_regeneration',
                 [
                     'context' => 'web_trainer',
-                    'tenant_id' => $this->resolveTenant($request)->id,
+                    'tenant_id' => $tenant->id,
                     'trainer_id' => (int) $request->user()?->id,
                     'student_id' => $student->id,
                     'source_workout_id' => $sourceWorkout->id,
@@ -358,12 +363,12 @@ class StudentsController extends Controller
                 ->withErrors(['workout' => $exception->getMessage()]);
         }
 
-        $this->studentWorkoutQuery($student)
+        $this->studentWorkoutQuery($tenant, $student)
             ->where('request_status', 'active')
             ->update(['request_status' => 'inactive']);
 
         $newWorkout = Workout::query()->create(array_merge([
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'user_id' => $student->id,
             'status' => 'done',
             'regeneration_request' => 'Treino reaproveitado manualmente sem chamada de IA.',
@@ -380,9 +385,10 @@ class StudentsController extends Controller
 
     public function updateWorkoutBoard(Request $request, int $id, int $workoutId): RedirectResponse
     {
+        $tenant = $this->resolveTenant($request);
         $student = $this->resolveStudent($request, $id);
 
-        $workout = $this->studentWorkoutQuery($student)
+        $workout = $this->studentWorkoutQuery($tenant, $student)
             ->where('id', $workoutId)
             ->firstOrFail();
 
@@ -506,16 +512,16 @@ class StudentsController extends Controller
 
     private function resolveStudent(Request $request, int $studentId): User
     {
-        $this->resolveTenant($request);
+        $tenant = $this->resolveTenant($request);
         $trainer = $this->resolveTrainer($request);
 
-        return $this->repository->findForTrainee(null, $trainer->id, $studentId);
+        return $this->repository->findForTrainee($tenant, $trainer->id, $studentId);
     }
 
-    private function studentWorkoutQuery(User $student)
+    private function studentWorkoutQuery(Tenant $tenant, User $student)
     {
         return Workout::query()
-            ->whereNull('tenant_id')
+            ->where('tenant_id', $tenant->id)
             ->where('user_id', $student->id);
     }
 

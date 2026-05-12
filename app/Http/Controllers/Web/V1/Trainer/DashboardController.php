@@ -18,36 +18,36 @@ class DashboardController extends Controller
 
     public function index(Request $request): View
     {
-        $this->resolveTenant($request);
+        $tenant = $this->resolveTenant($request);
         $trainer = $request->user();
 
         abort_unless($trainer instanceof User, 401, 'Sessao invalida. Faca login novamente.');
 
-        $metrics = $this->repository->metricsForTrainee(null, $trainer->id);
+        $metrics = $this->repository->metricsForTrainee($tenant, $trainer->id);
 
         $pendingWorkouts = Workout::query()
-            ->whereNull('tenant_id')
-            ->where('user_id', 'in', function ($query) use ($trainer): void {
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('user_id', function ($query) use ($tenant, $trainer): void {
                 $query->select('student_user_id')
                     ->from('tenant_student_trainee_links')
                     ->where('trainee_user_id', $trainer->id)
-                    ->whereNull('tenant_id');
+                    ->where('tenant_id', $tenant->id);
             })
             ->where('status', 'processing')
             ->count();
 
         $completedWorkouts = Workout::query()
-            ->whereNull('tenant_id')
-            ->where('user_id', 'in', function ($query) use ($trainer): void {
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('user_id', function ($query) use ($tenant, $trainer): void {
                 $query->select('student_user_id')
                     ->from('tenant_student_trainee_links')
                     ->where('trainee_user_id', $trainer->id)
-                    ->whereNull('tenant_id');
+                    ->where('tenant_id', $tenant->id);
             })
             ->where('status', 'done')
             ->count();
 
-        $recentStudents = $this->repository->recentForTrainee(null, $trainer->id, 8);
+        $recentStudents = $this->repository->recentForTrainee($tenant, $trainer->id, 8);
 
         return view('web.v1.trainer.dashboard', [
             'summary' => [
