@@ -65,8 +65,12 @@ class StudentProfileService
                 'goal',
             ]);
 
-            if (! array_key_exists('goal', $userData) && is_array($preferencesData) && array_key_exists('focus_areas', $preferencesData)) {
-                $userData['goal'] = $preferencesData['focus_areas'];
+            if (! array_key_exists('goal', $userData)) {
+                $goalFromPreferences = $this->resolveGoalFromPreferences($preferencesData);
+
+                if ($goalFromPreferences !== null) {
+                    $userData['goal'] = $goalFromPreferences;
+                }
             }
 
             if ($userData !== []) {
@@ -134,5 +138,24 @@ class StudentProfileService
         }
 
         return $normalized;
+    }
+
+    private function resolveGoalFromPreferences(?array $preferencesData): ?string
+    {
+        if (! is_array($preferencesData)) {
+            return null;
+        }
+
+        foreach (['focus_areas', 'summary'] as $key) {
+            if (! array_key_exists($key, $preferencesData)) {
+                continue;
+            }
+
+            $value = trim((string) ($preferencesData[$key] ?? ''));
+
+            return $value !== '' ? $value : null;
+        }
+
+        return null;
     }
 }

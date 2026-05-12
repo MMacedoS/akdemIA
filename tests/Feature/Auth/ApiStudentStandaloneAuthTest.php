@@ -261,7 +261,7 @@ class ApiStudentStandaloneAuthTest extends TestCase
             ],
             'preferences' => [
                 'workout_days' => '4x por semana',
-                'focus_areas' => 'Hipertrofia',
+                'summary' => 'Hipertrofia com foco em pernas',
                 'notifications_enabled' => true,
             ],
         ];
@@ -272,13 +272,14 @@ class ApiStudentStandaloneAuthTest extends TestCase
             ->assertJsonPath('name', 'Contato Plataforma')
             ->assertJsonPath('email', 'plataforma@academai.com.br')
             ->assertJsonPath('phone', '(11) 99999-9999')
-            ->assertJsonPath('goal', 'Hipertrofia')
+            ->assertJsonPath('goal', 'Hipertrofia com foco em pernas')
             ->assertJsonPath('physical_data.activity_level', 'high')
             ->assertJsonPath('physical_data.imc', '28.37')
             ->assertJsonPath('medical_data.restrictions', 'Hipertensao | Doenca cardiovascular')
             ->assertJsonPath('preferences.training_frequency', '4x por semana')
             ->assertJsonPath('preferences.workout_days', '4x por semana')
-            ->assertJsonPath('preferences.focus_areas', 'Hipertrofia')
+            ->assertJsonPath('preferences.focus_areas', 'Hipertrofia com foco em pernas')
+            ->assertJsonPath('preferences.summary', 'Hipertrofia com foco em pernas')
             ->assertJsonPath('preferences.notifications_enabled', true);
 
         $this->assertDatabaseHas('users', [
@@ -286,7 +287,7 @@ class ApiStudentStandaloneAuthTest extends TestCase
             'name' => 'Contato Plataforma',
             'email' => 'plataforma@academai.com.br',
             'phone' => '(11) 99999-9999',
-            'goal' => 'Hipertrofia',
+            'goal' => 'Hipertrofia com foco em pernas',
         ]);
 
         $this->assertDatabaseHas('physical_data', [
@@ -312,18 +313,25 @@ class ApiStudentStandaloneAuthTest extends TestCase
         $this->putJson('/api/v1/me', [
             'preferences' => [
                 'workout_days' => '5x por semana',
+                'summary' => 'Definicao e condicionamento',
                 'notifications_enabled' => false,
             ],
         ], [
             'Authorization' => 'Bearer ' . $token,
         ])->assertOk()
             ->assertJsonPath('preferences.training_frequency', '5x por semana')
+            ->assertJsonPath('preferences.summary', 'Definicao e condicionamento')
             ->assertJsonPath('preferences.notifications_enabled', false);
 
         $this->assertDatabaseHas('preferences', [
             'user_id' => $student->id,
             'training_frequency' => '5x por semana',
             'notifications_enabled' => false,
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $student->id,
+            'goal' => 'Definicao e condicionamento',
         ]);
     }
 

@@ -66,6 +66,7 @@ class MeTransformer
 
         $preferences['workout_days'] = $preferences['training_frequency'] ?? null;
         $preferences['focus_areas'] = $user->goal;
+        $preferences['summary'] = $user->goal;
 
         return $preferences;
     }

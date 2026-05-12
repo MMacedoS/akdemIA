@@ -44,6 +44,7 @@ class UpdateMeRequest extends FormRequest
             'preferences.training_frequency' => ['sometimes', 'nullable', 'string', 'max:255'],
             'preferences.workout_days' => ['sometimes', 'nullable', 'string', 'max:255'],
             'preferences.focus_areas' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'preferences.summary' => ['sometimes', 'nullable', 'string', 'max:500'],
             'preferences.notifications_enabled' => ['sometimes', 'boolean'],
         ];
     }
