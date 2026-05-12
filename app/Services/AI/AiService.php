@@ -251,6 +251,15 @@ class AiService
             . "- Existe repeticao desnecessaria de exercicios, padroes de movimento ou variacoes quase identicas no mesmo dia ou em dias consecutivos?\n"
             . "Se qualquer resposta for NAO ou SIM para uma checagem de erro, voce DEVE corrigir o plano inteiro antes de responder. Nao explique, nao resuma e nao entregue texto fora do JSON final valido.";
 
+        if ($this->goalPrioritizesGymMachines($input)) {
+            $prompt .= "\n\n# =========================\n"
+                . "# REGRA ESPECIFICA PARA MUSCULACAO E HIPERTROFIA\n"
+                . "# =========================\n\n"
+                . "Se o foco do usuario for musculacao, ganho de massa muscular ou hipertrofia, priorize exercicios feitos em aparelhos e maquinas tipicas de academia de musculacao, alem de equipamentos tradicionais de musculacao quando isso gerar melhor estabilidade, controle de carga e progressao.\n"
+                . "Evite montar a base do treino com materiais basicos ou solucoes simplificadas, como vassoura, cadeira, elasticos, cabo improvisado, peso corporal isolado ou acessorios leves, exceto se o catalogo local nao oferecer alternativa melhor e houver justificativa tecnica clara de seguranca ou contexto clinico.\n"
+                . "Para esse perfil, prefira selecoes com cara real de academia, com foco em hipertrofia, tensao mecanica, estabilidade e progressao consistente de carga.";
+        }
+
         $normalizedAdjustmentRequest = trim((string) $adjustmentRequest);
 
         if ($normalizedAdjustmentRequest !== '') {
@@ -387,6 +396,20 @@ class AiService
         $days = (int) $matches[1];
 
         return $days > 0 ? $days : null;
+    }
+
+    private function goalPrioritizesGymMachines(array $input): bool
+    {
+        $goal = mb_strtolower(trim((string) ($input['goal'] ?? '')));
+
+        if ($goal === '') {
+            return false;
+        }
+
+        return str_contains($goal, 'hipertrof')
+            || str_contains($goal, 'muscula')
+            || str_contains($goal, 'massa muscular')
+            || str_contains($goal, 'ganho de massa');
     }
 
     private function recommendationInputFromUser(User $user): array
