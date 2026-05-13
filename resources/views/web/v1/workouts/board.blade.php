@@ -8,7 +8,13 @@
             return $mediaUrl;
         }
 
-        if ($mediaUrl === '' || str_contains($mediaUrl, '/storage/exercises/')) {
+        if ($mediaUrl === ''
+            || $mediaUrl === $workoutxName
+            || str_contains($mediaUrl, '/storage/exercises/')
+            || (! str_contains($mediaUrl, '://')
+                && ! str_starts_with($mediaUrl, '/')
+                && preg_match('/^[a-z0-9-]+$/', $mediaUrl) === 1)
+        ) {
             return route('api.workouts.exercises.media.show', ['workoutxName' => $workoutxName]);
         }
 

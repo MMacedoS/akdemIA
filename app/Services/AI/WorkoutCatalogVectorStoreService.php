@@ -29,6 +29,9 @@ class WorkoutCatalogVectorStoreService
             ->latest('id')
             ->first();
 
+        $configuredVectorStoreId = trim((string) config('services.openai.vector_store.existing_id', ''));
+        $configuredVectorStoreName = trim((string) config('services.openai.vector_store.existing_name', ''));
+
         if (
             $record instanceof AiVectorStore
             && $record->source_hash === $sourceHash
@@ -53,7 +56,11 @@ class WorkoutCatalogVectorStoreService
         }
 
         $vectorStoreId = $record?->vector_store_id;
-        $vectorStoreName = $this->vectorStoreName();
+        $vectorStoreName = $configuredVectorStoreName !== '' ? $configuredVectorStoreName : $this->vectorStoreName();
+
+        if (($vectorStoreId === null || $vectorStoreId === '') && $configuredVectorStoreId !== '') {
+            $vectorStoreId = $configuredVectorStoreId;
+        }
 
         if ($vectorStoreId === null || $vectorStoreId === '') {
             $vectorStore = $this->client->createVectorStore([

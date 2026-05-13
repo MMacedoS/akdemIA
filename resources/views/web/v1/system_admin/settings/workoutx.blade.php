@@ -14,6 +14,7 @@
         $syncProgress = $syncStatus['progress'] ?? [];
         $syncState = $syncStatus['state'] ?? 'idle';
         $syncLocked = in_array($syncState, ['queued', 'running'], true);
+        $activeVectorStore = $activeVectorStore ?? null;
     @endphp
 
     <div class="card" style="max-width: 860px;">
@@ -171,6 +172,109 @@
             </div>
 
             <div class="card" style="background: #fafafa; border-style: dashed;">
+                <h3 style="margin-top: 0;">Vector Store da OpenAI</h3>
+                <p style="margin-bottom: 10px;">Essas variaveis deixam de ficar apenas no ambiente e passam a ser controladas pelo System Admin, junto com a configuracao do catalogo de treino.</p>
+
+                <div class="card" style="margin-bottom: 14px; background: #fff; border-style: dashed;">
+                    <h3 style="margin-top: 0;">Vector Store ativa</h3>
+                    @if ($activeVectorStore)
+                        <div class="form-grid">
+                            <div class="field">
+                                <label>ID ativo</label>
+                                <strong>{{ $activeVectorStore->vector_store_id }}</strong>
+                            </div>
+                            <div class="field">
+                                <label>Nome salvo</label>
+                                <strong>{{ $activeVectorStore->vector_store_name ?: 'Sem nome salvo' }}</strong>
+                            </div>
+                            <div class="field">
+                                <label>Status</label>
+                                <strong>{{ $activeVectorStore->status ?: 'ready' }}</strong>
+                            </div>
+                            <div class="field">
+                                <label>Arquivo atual</label>
+                                <strong>{{ $activeVectorStore->storage_path }}</strong>
+                            </div>
+                            <div class="field">
+                                <label>Ultima sincronizacao</label>
+                                <strong>{{ $activeVectorStore->last_synced_at?->format('d/m/Y H:i') ?? 'Nao sincronizada ainda' }}</strong>
+                            </div>
+                            <div class="field">
+                                <label>Ultimo uso</label>
+                                <strong>{{ $activeVectorStore->last_used_at?->format('d/m/Y H:i') ?? 'Ainda nao utilizada' }}</strong>
+                            </div>
+                        </div>
+                    @else
+                        <p style="margin: 0; color: #64748b;">Nenhuma vector store foi sincronizada localmente ainda. Se voce preencher um ID existente abaixo, ele sera reutilizado no proximo sync/uso.</p>
+                    @endif
+                </div>
+
+                <div class="form-grid">
+                    <div class="field" style="grid-column: 1 / -1;">
+                        <label for="vector_store_enabled">Ativar retrieval por Vector Store</label>
+                        <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                            <input id="vector_store_enabled" name="vector_store_enabled" type="checkbox" value="1" @checked(old('vector_store_enabled', $settings->get('openai.vector_store.enabled', '1')) === '1')>
+                            <span>Usar a Vector Store da OpenAI antes do fallback local</span>
+                        </label>
+                    </div>
+
+                    <div class="field">
+                        <label for="vector_store_scope">Escopo</label>
+                        @php
+                            $vectorStoreScope = old('vector_store_scope', $settings->get('openai.vector_store.scope', 'global'));
+                        @endphp
+                        <select id="vector_store_scope" name="vector_store_scope">
+                            <option value="global" @selected($vectorStoreScope === 'global')>Global</option>
+                            <option value="tenant" @selected($vectorStoreScope === 'tenant')>Por tenant</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="vector_store_catalog_type">Catalog type</label>
+                        <input id="vector_store_catalog_type" name="vector_store_catalog_type" type="text" maxlength="80" value="{{ old('vector_store_catalog_type', $settings->get('openai.vector_store.catalog_type', 'workout_exercises')) }}" spellcheck="false">
+                    </div>
+
+                    <div class="field">
+                        <label for="vector_store_name_prefix">Prefixo do nome</label>
+                        <input id="vector_store_name_prefix" name="vector_store_name_prefix" type="text" maxlength="120" value="{{ old('vector_store_name_prefix', $settings->get('openai.vector_store.name_prefix', 'akdemia-workouts')) }}" spellcheck="false">
+                    </div>
+
+                    <div class="field">
+                        <label for="vector_store_existing_id">Vector Store ID existente</label>
+                        <input id="vector_store_existing_id" name="vector_store_existing_id" type="text" maxlength="120" value="{{ old('vector_store_existing_id', $settings->get('openai.vector_store.existing_id', '')) }}" spellcheck="false" placeholder="vs_...">
+                        <small>Cole aqui o ID mostrado no painel Storage da OpenAI para reaproveitar uma Vector Store ja criada.</small>
+                    </div>
+
+                    <div class="field">
+                        <label for="vector_store_existing_name">Nome da Vector Store existente</label>
+                        <input id="vector_store_existing_name" name="vector_store_existing_name" type="text" maxlength="160" value="{{ old('vector_store_existing_name', $settings->get('openai.vector_store.existing_name', '')) }}" spellcheck="false" placeholder="akdemia-workouts-global">
+                        <small>Opcional. Serve para manter o nome salvo localmente igual ao nome exibido no painel da OpenAI.</small>
+                    </div>
+
+                    <div class="field">
+                        <label for="vector_store_file_purpose">File purpose</label>
+                        <input id="vector_store_file_purpose" name="vector_store_file_purpose" type="text" maxlength="80" value="{{ old('vector_store_file_purpose', $settings->get('openai.vector_store.file_purpose', 'assistants')) }}" spellcheck="false">
+                    </div>
+
+                    <div class="field">
+                        <label for="vector_store_max_search_results">Maximo de resultados por busca</label>
+                        <input id="vector_store_max_search_results" name="vector_store_max_search_results" type="number" min="1" max="100" value="{{ old('vector_store_max_search_results', $settings->get('openai.vector_store.max_search_results', '24')) }}">
+                    </div>
+
+                    <div class="field">
+                        <label for="vector_store_minimum_candidates">Minimo de candidatos</label>
+                        <input id="vector_store_minimum_candidates" name="vector_store_minimum_candidates" type="number" min="1" max="100" value="{{ old('vector_store_minimum_candidates', $settings->get('openai.vector_store.minimum_candidates', '12')) }}">
+                    </div>
+
+                    <div class="field" style="grid-column: 1 / -1;">
+                        <label for="vector_store_storage_path">Arquivo JSONL do catalogo vetorial</label>
+                        <input id="vector_store_storage_path" name="vector_store_storage_path" type="text" maxlength="255" value="{{ old('vector_store_storage_path', $settings->get('internal_catalog.vector_store_storage_path', 'ai/openai-workout-catalog.jsonl')) }}" spellcheck="false">
+                        <small>Caminho relativo dentro de storage/app usado no export para upload na Vector Store.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="background: #fafafa; border-style: dashed;">
                 <h3 style="margin-top: 0;">Referencia da API</h3>
                 <p style="margin-bottom: 8px;">Campos mapeados com base na documentacao oficial:</p>
                 <ul style="margin: 0; padding-left: 18px; display: grid; gap: 4px;">
@@ -181,6 +285,7 @@
                     <li>Detalhe por exercicio: /exercises/exercise/:id</li>
                     <li>Sincronizacao local: salva id, name, gifUrl, storage_path e payload JSON</li>
                     <li>Fila paginada: processa uma pagina por vez com intervalo configuravel entre requests</li>
+                    <li>Vector Store: enable, scope, catalog_type, name_prefix, file_purpose, limites e JSONL agora ficam no System Admin</li>
                 </ul>
             </div>
 

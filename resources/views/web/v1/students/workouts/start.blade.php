@@ -10,6 +10,26 @@
 @section('content')
     @php
         $exerciseAssetBuilder = app(\App\Support\Workout\ExerciseAssetBuilder::class);
+        $normalizeExerciseMediaUrl = static function (array $exercise): string {
+            $mediaUrl = trim((string) data_get($exercise, 'exercise_media_url', ''));
+            $workoutxName = trim((string) data_get($exercise, 'workoutx_name', ''));
+
+            if ($workoutxName === '') {
+                return $mediaUrl;
+            }
+
+            if ($mediaUrl === ''
+                || $mediaUrl === $workoutxName
+                || str_contains($mediaUrl, '/storage/exercises/')
+                || (! str_contains($mediaUrl, '://')
+                    && ! str_starts_with($mediaUrl, '/')
+                    && preg_match('/^[a-z0-9-]+$/', $mediaUrl) === 1)
+            ) {
+                return route('api.workouts.exercises.media.show', ['workoutxName' => $workoutxName]);
+            }
+
+            return $mediaUrl;
+        };
         $weeklyPlan = [];
 
         if ($workout) {
@@ -19,7 +39,7 @@
             }
 
             $weeklyPlan = collect($weeklyPlan)
-                ->map(function ($dayPlan) use ($exerciseAssetBuilder) {
+                ->map(function ($dayPlan) use ($exerciseAssetBuilder, $normalizeExerciseMediaUrl) {
                     $focus = trim((string) data_get($dayPlan, 'focus', 'Treino geral'));
                     $exercises = data_get($dayPlan, 'exercises', []);
 
@@ -28,12 +48,13 @@
                     }
 
                     data_set($dayPlan, 'exercises', collect($exercises)
-                        ->map(function ($exercise) use ($exerciseAssetBuilder, $focus) {
+                        ->map(function ($exercise) use ($exerciseAssetBuilder, $focus, $normalizeExerciseMediaUrl) {
                             $name = trim((string) data_get($exercise, 'name', 'Exercicio'));
                             $notes = trim((string) data_get($exercise, 'notes', ''));
                             $steps = $exerciseAssetBuilder->normalizeSteps(data_get($exercise, 'steps'), $name, $notes);
 
                             data_set($exercise, 'steps', $steps);
+                            data_set($exercise, 'exercise_media_url', $normalizeExerciseMediaUrl(is_array($exercise) ? $exercise : []));
 
                             return $exercise;
                         })

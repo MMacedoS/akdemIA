@@ -5,6 +5,7 @@ namespace Tests\Feature\Web\V1\SystemAdmin;
 use App\Enums\Role;
 use App\Jobs\SyncWorkoutxCatalogGifJob;
 use App\Jobs\SyncWorkoutxCatalogPageJob;
+use App\Models\AI\AiVectorStore;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\ViewErrorBag;
@@ -15,6 +16,36 @@ use Tests\TestCase;
 class WorkoutxSyncQueueTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_system_admin_edit_page_shows_active_vector_store_summary(): void
+    {
+        AiVectorStore::query()->create([
+            'catalog_type' => 'workout_exercises',
+            'vector_store_id' => 'vs_active_123',
+            'vector_store_name' => 'akdemia-workouts-global',
+            'file_id' => 'file_123',
+            'storage_disk' => 'local',
+            'storage_path' => 'ai/openai-workout-catalog.jsonl',
+            'source_hash' => str_repeat('a', 64),
+            'status' => 'completed',
+            'last_synced_at' => now()->subHour(),
+            'last_used_at' => now()->subMinutes(10),
+            'metadata' => ['scope' => 'global'],
+        ]);
+
+        $user = User::factory()->create([
+            'profile_type' => Role::ADMIN->value,
+            'is_system_admin' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('system-admin.settings.workoutx.edit'))
+            ->assertOk()
+            ->assertSee('Vector Store ativa')
+            ->assertSee('vs_active_123')
+            ->assertSee('akdemia-workouts-global')
+            ->assertSee('ai/openai-workout-catalog.jsonl');
+    }
 
     public function test_system_admin_sync_route_queues_catalog_job_with_status_feedback(): void
     {

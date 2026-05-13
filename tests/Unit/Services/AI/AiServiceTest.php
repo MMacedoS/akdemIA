@@ -168,6 +168,75 @@ class AiServiceTest extends TestCase
         });
     }
 
+    public function test_generate_workout_reuses_existing_vector_store_id_from_settings(): void
+    {
+        config()->set('services.openai.api_key', 'openai-test-key');
+        config()->set('services.openai.responses_model', 'gpt-4o-mini');
+        config()->set('services.internal_catalog.storage_path', 'ai/test-openai-workout-catalog.json');
+        config()->set('services.internal_catalog.vector_store_storage_path', 'ai/test-openai-workout-catalog.jsonl');
+        config()->set('services.openai.vector_store.minimum_candidates', 5);
+        config()->set('services.openai.vector_store.existing_id', 'vs_existing_storage_123');
+        config()->set('services.openai.vector_store.existing_name', 'akdemia-workouts-global');
+        Storage::fake('local');
+
+        $user = $this->makeUser();
+        $tenant = Tenant::query()->create([
+            'name' => 'Academia Global',
+            'slug' => 'academia-global',
+            'is_active' => true,
+        ]);
+        $this->seedCatalog();
+
+        Http::fake([
+            'https://api.openai.com/v1/files' => Http::response([
+                'id' => 'file_existing_123',
+                'filename' => 'test-openai-workout-catalog.jsonl',
+            ], 200),
+            'https://api.openai.com/v1/vector_stores/vs_existing_storage_123/files' => Http::response([
+                'id' => 'vsf_existing_123',
+                'status' => 'completed',
+            ], 200),
+            'https://api.openai.com/v1/vector_stores/vs_existing_storage_123/search' => Http::response([
+                'data' => [
+                    ['content' => [['type' => 'text', 'text' => json_encode(['remote_exercise_id' => '0009', 'localized_name_pt_br' => 'Supino reto com barra', 'workoutx_name' => 'barbell-bench-press', 'focus' => 'peito', 'body_part' => 'chest', 'target' => 'pectorals', 'equipment' => 'barbell'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]],
+                    ['content' => [['type' => 'text', 'text' => json_encode(['remote_exercise_id' => '0010', 'localized_name_pt_br' => 'Supino inclinado com halteres', 'workoutx_name' => 'incline-dumbbell-bench-press', 'focus' => 'peito', 'body_part' => 'chest', 'target' => 'pectorals', 'equipment' => 'dumbbell'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]],
+                    ['content' => [['type' => 'text', 'text' => json_encode(['remote_exercise_id' => '0011', 'localized_name_pt_br' => 'Crucifixo no cabo', 'workoutx_name' => 'cable-fly', 'focus' => 'peito', 'body_part' => 'chest', 'target' => 'pectorals', 'equipment' => 'cable'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]],
+                    ['content' => [['type' => 'text', 'text' => json_encode(['remote_exercise_id' => '0012', 'localized_name_pt_br' => 'Peck deck', 'workoutx_name' => 'pec-deck-fly', 'focus' => 'peito', 'body_part' => 'chest', 'target' => 'pectorals', 'equipment' => 'machine'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]],
+                    ['content' => [['type' => 'text', 'text' => json_encode(['remote_exercise_id' => '1160', 'localized_name_pt_br' => 'Caminhada inclinada', 'workoutx_name' => 'incline-treadmill-walk', 'focus' => 'cardio', 'body_part' => 'cardio', 'target' => 'cardiovascular system', 'equipment' => 'treadmill'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]],
+                ],
+            ], 200),
+            'https://api.openai.com/v1/responses' => Http::response([
+                'id' => 'resp_existing_123',
+                'model' => 'gpt-4o-mini',
+                'output_text' => json_encode([
+                    'weekly_plan' => [[
+                        'day' => 'Segunda',
+                        'focus' => 'Peito',
+                        'exercises' => [
+                            ['name' => 'Supino reto com barra', 'category' => 'specific', 'sets' => 4, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Controle o movimento.', 'steps' => ['Ajuste a pegada', 'Desca com controle', 'Empurre ate a extensao'], 'remote_exercise_id' => '0009', 'workoutx_name' => 'barbell-bench-press'],
+                            ['name' => 'Supino inclinado com halteres', 'category' => 'specific', 'sets' => 3, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Mantenha estabilidade.', 'steps' => ['Sente e ajuste os halteres', 'Desca lentamente', 'Suba mantendo alinhamento'], 'remote_exercise_id' => '0010', 'workoutx_name' => 'incline-dumbbell-bench-press'],
+                            ['name' => 'Crucifixo no cabo', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Evite balanco.', 'steps' => ['Posicione as polias', 'Aproxime as maos', 'Retorne controlando'], 'remote_exercise_id' => '0011', 'workoutx_name' => 'cable-fly'],
+                            ['name' => 'Peck deck', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Mantenha escapulas firmes.', 'steps' => ['Ajuste o banco', 'Feche os bracos', 'Retorne sem soltar peso'], 'remote_exercise_id' => '0012', 'workoutx_name' => 'pec-deck-fly'],
+                            ['name' => 'Caminhada inclinada', 'category' => 'cardio', 'sets' => 1, 'reps' => '15 min', 'rest' => '0s', 'notes' => 'Ritmo moderado.', 'steps' => ['Inicie em ritmo leve', 'Ajuste a inclinacao', 'Mantenha a respiracao ritmada'], 'remote_exercise_id' => '1160', 'workoutx_name' => 'incline-treadmill-walk'],
+                        ],
+                    ]],
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ], 200),
+        ]);
+
+        $result = app(AiService::class)->generateWorkout($user, $tenant);
+
+        $this->assertSame('Peito', data_get($result, 'weekly_plan.0.focus'));
+        $this->assertDatabaseHas('ai_vector_stores', [
+            'vector_store_id' => 'vs_existing_storage_123',
+            'vector_store_name' => 'akdemia-workouts-global',
+        ]);
+
+        Http::assertNotSent(function (Request $request): bool {
+            return $request->url() === 'https://api.openai.com/v1/vector_stores';
+        });
+    }
+
     private function makeUser(): User
     {
         $user = User::factory()->create([

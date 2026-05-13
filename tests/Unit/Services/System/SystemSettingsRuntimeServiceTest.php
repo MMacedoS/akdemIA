@@ -97,6 +97,103 @@ class SystemSettingsRuntimeServiceTest extends TestCase
         $this->assertSame(180, config('services.workoutx.sync_page_delay_seconds'));
     }
 
+    public function test_apply_maps_vector_store_settings_to_runtime_config(): void
+    {
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.enabled',
+            'value' => '0',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.scope',
+            'value' => 'tenant',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.catalog_type',
+            'value' => 'runtime_catalog',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.name_prefix',
+            'value' => 'runtime-prefix',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.existing_id',
+            'value' => 'vs_existing_runtime_123',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.existing_name',
+            'value' => 'runtime-existing-name',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.file_purpose',
+            'value' => 'vision',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.max_search_results',
+            'value' => '18',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'openai.vector_store.minimum_candidates',
+            'value' => '9',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'workoutx',
+            'key' => 'internal_catalog.vector_store_storage_path',
+            'value' => 'ai/runtime-catalog.jsonl',
+            'is_secret' => false,
+        ]);
+
+        config()->set('services.openai.vector_store.enabled', true);
+        config()->set('services.openai.vector_store.scope', 'global');
+        config()->set('services.openai.vector_store.catalog_type', 'workout_exercises');
+        config()->set('services.openai.vector_store.name_prefix', 'akdemia-workouts');
+        config()->set('services.openai.vector_store.existing_id', '');
+        config()->set('services.openai.vector_store.existing_name', '');
+        config()->set('services.openai.vector_store.file_purpose', 'assistants');
+        config()->set('services.openai.vector_store.max_search_results', 24);
+        config()->set('services.openai.vector_store.minimum_candidates', 12);
+        config()->set('services.internal_catalog.vector_store_storage_path', 'ai/openai-workout-catalog.jsonl');
+
+        app(SystemSettingsRuntimeService::class)->apply();
+
+        $this->assertFalse(config('services.openai.vector_store.enabled'));
+        $this->assertSame('tenant', config('services.openai.vector_store.scope'));
+        $this->assertSame('runtime_catalog', config('services.openai.vector_store.catalog_type'));
+        $this->assertSame('runtime-prefix', config('services.openai.vector_store.name_prefix'));
+        $this->assertSame('vs_existing_runtime_123', config('services.openai.vector_store.existing_id'));
+        $this->assertSame('runtime-existing-name', config('services.openai.vector_store.existing_name'));
+        $this->assertSame('vision', config('services.openai.vector_store.file_purpose'));
+        $this->assertSame(18, config('services.openai.vector_store.max_search_results'));
+        $this->assertSame(9, config('services.openai.vector_store.minimum_candidates'));
+        $this->assertSame('ai/runtime-catalog.jsonl', config('services.internal_catalog.vector_store_storage_path'));
+    }
+
     public function test_apply_maps_google_auth_settings_to_runtime_config(): void
     {
         SystemSetting::query()->create([

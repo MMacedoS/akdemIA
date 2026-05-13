@@ -288,6 +288,55 @@ class WorkoutMediaServiceTest extends TestCase
         $this->assertTrue($needsRefresh);
     }
 
+    public function test_workout_plan_needs_media_refresh_when_workoutx_is_disabled_but_local_gif_exists_for_legacy_url(): void
+    {
+        $this->configureIsolatedPublicDisk();
+        $this->configureIsolatedLocalDisk();
+        Storage::disk('public')->put('exercises/dumbbell-lunge.gif', 'gif-binary');
+
+        config()->set('services.workoutx.enabled', false);
+
+        $service = new WorkoutMediaService();
+
+        $needsRefresh = $service->workoutPlanNeedsMediaRefresh([
+            'weekly_plan' => [[
+                'day' => 'Segunda',
+                'focus' => 'Pernas',
+                'exercises' => [[
+                    'name' => 'Dumbbell Lunge',
+                    'steps' => ['A', 'B'],
+                    'workoutx_name' => 'dumbbell-lunge',
+                    'exercise_media_url' => 'dumbbell-lunge',
+                ]],
+            ]],
+        ]);
+
+        $this->assertTrue($needsRefresh);
+
+        $result = $service->enrichWorkoutPlan([
+            'weekly_plan' => [[
+                'day' => 'Segunda',
+                'focus' => 'Pernas',
+                'exercises' => [[
+                    'name' => 'Dumbbell Lunge',
+                    'category' => 'specific',
+                    'sets' => 3,
+                    'reps' => '10-12',
+                    'rest' => '60s',
+                    'notes' => '',
+                    'steps' => ['A', 'B'],
+                    'workoutx_name' => 'dumbbell-lunge',
+                    'exercise_media_url' => 'dumbbell-lunge',
+                ]],
+            ]],
+        ]);
+
+        $this->assertSame(
+            route('api.workouts.exercises.media.show', ['workoutxName' => 'dumbbell-lunge']),
+            data_get($result, 'weekly_plan.0.exercises.0.exercise_media_url')
+        );
+    }
+
     public function test_lookup_exercise_by_name_downloads_gif_and_persists_cache(): void
     {
         $this->configureIsolatedPublicDisk();

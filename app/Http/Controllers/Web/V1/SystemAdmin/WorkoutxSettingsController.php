@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\V1\SystemAdmin;
 use App\Http\Controllers\Controller;
 use App\Jobs\SyncWorkoutxCatalogGifJob;
 use App\Jobs\SyncWorkoutxCatalogPageJob;
+use App\Models\AI\AiVectorStore;
 use App\Repositories\Contracts\SystemAdmin\WorkoutxSettingsRepositoryContract;
 use App\Services\System\SystemAdminAuditLogger;
 use App\Services\Workouts\ExerciseCatalogService;
@@ -26,10 +27,17 @@ class WorkoutxSettingsController extends Controller
 
     public function edit(): View
     {
+        $settings = $this->workoutxSettingsRepository->values();
+        $catalogType = (string) ($settings->get('openai.vector_store.catalog_type') ?: config('services.openai.vector_store.catalog_type', 'workout_exercises'));
+
         return view('web.v1.system_admin.settings.workoutx', [
-            'settings' => $this->workoutxSettingsRepository->values(),
+            'settings' => $settings,
             'catalogStats' => $this->workoutMediaService->catalogStats(),
             'syncStatus' => $this->workoutMediaService->workoutxSyncStatus(),
+            'activeVectorStore' => AiVectorStore::query()
+                ->where('catalog_type', $catalogType)
+                ->latest('id')
+                ->first(),
         ]);
     }
 
@@ -46,10 +54,21 @@ class WorkoutxSettingsController extends Controller
             'workoutx_default_limit' => ['nullable', 'integer', 'between:1,100'],
             'workoutx_sync_page_delay_seconds' => ['nullable', 'integer', 'between:10,3600'],
             'workoutx_allow_fallback' => ['nullable', 'in:0,1'],
+            'vector_store_enabled' => ['nullable', 'in:0,1'],
+            'vector_store_scope' => ['required', 'in:global,tenant'],
+            'vector_store_catalog_type' => ['required', 'string', 'max:80'],
+            'vector_store_name_prefix' => ['required', 'string', 'max:120'],
+            'vector_store_existing_id' => ['nullable', 'string', 'max:120'],
+            'vector_store_existing_name' => ['nullable', 'string', 'max:160'],
+            'vector_store_file_purpose' => ['required', 'string', 'max:80'],
+            'vector_store_max_search_results' => ['nullable', 'integer', 'between:1,100'],
+            'vector_store_minimum_candidates' => ['nullable', 'integer', 'between:1,100'],
+            'vector_store_storage_path' => ['required', 'string', 'max:255'],
         ]);
 
         $validated['workoutx_enabled'] = $request->boolean('workoutx_enabled') ? '1' : '0';
         $validated['workoutx_allow_fallback'] = $request->boolean('workoutx_allow_fallback') ? '1' : '0';
+        $validated['vector_store_enabled'] = $request->boolean('vector_store_enabled') ? '1' : '0';
 
         $this->workoutxSettingsRepository->update($validated);
         $this->bumpWorkoutxCacheBuster();
@@ -64,7 +83,7 @@ class WorkoutxSettingsController extends Controller
         );
 
         return redirect()->route('system-admin.settings.workoutx.edit')
-            ->with('status', 'Configuracoes da WorkoutX atualizadas.');
+            ->with('status', 'Configuracoes da WorkoutX e Vector Store atualizadas.');
     }
 
     public function sync(Request $request): RedirectResponse

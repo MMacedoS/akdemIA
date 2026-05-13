@@ -128,26 +128,26 @@ class WorkoutMediaService
                     return true;
                 }
 
-                if ($isEnabled && trim((string) data_get($exercise, 'remote_exercise_id', '')) === '') {
-                    $catalogExercise = $this->resolveCatalogExerciseForPlanExercise($exercise, $catalogLookup);
+                $catalogExercise = $this->resolveCatalogExerciseForPlanExercise($exercise, $catalogLookup);
 
+                if ($isEnabled && trim((string) data_get($exercise, 'remote_exercise_id', '')) === '') {
                     if ($catalogExercise instanceof ExerciseMediaCache && trim((string) $catalogExercise->remote_exercise_id) !== '') {
                         return true;
                     }
                 }
 
-                if (! $isEnabled) {
+                $mediaUrl = trim((string) data_get($exercise, 'exercise_media_url', ''));
+                $hasLocalMedia = $this->hasLocallyResolvableMedia($workoutxName, $catalogExercise);
+
+                if ($mediaUrl === '') {
+                    if ($isEnabled || $hasLocalMedia) {
+                        return true;
+                    }
+
                     continue;
                 }
 
-                $mediaUrl = trim((string) data_get($exercise, 'exercise_media_url', ''));
-                $hasMedia = $mediaUrl !== '';
-
-                if (! $hasMedia) {
-                    return true;
-                }
-
-                if ($mediaUrl !== $this->protectedMediaUrl($workoutxName)) {
+                if ($mediaUrl !== $this->protectedMediaUrl($workoutxName) && ($isEnabled || $hasLocalMedia)) {
                     return true;
                 }
             }
@@ -710,7 +710,7 @@ class WorkoutMediaService
             ];
         }
 
-        if ($this->migrateLegacyPrivateGifToPublic($path)) {
+        if ($path !== '' && $this->migrateLegacyPublicGifToPrivate($path)) {
             return [
                 'path' => $path,
                 'url' => $this->protectedMediaUrl($workoutxName),
@@ -1229,7 +1229,7 @@ class WorkoutMediaService
             ];
         }
 
-        if ($path !== '' && $this->migrateLegacyPrivateGifToPublic($path)) {
+        if ($path !== '' && $this->migrateLegacyPublicGifToPrivate($path)) {
             return [
                 'path' => $path,
                 'url' => $this->protectedMediaUrl((string) $cache->workoutx_name),
@@ -1257,27 +1257,47 @@ class WorkoutMediaService
         return route('api.workouts.exercises.media.show', ['workoutxName' => $workoutxName]);
     }
 
-    private function exerciseMediaDisk()
+    private function hasLocallyResolvableMedia(string $workoutxName, ?ExerciseMediaCache $catalogExercise = null): bool
     {
-        return Storage::disk('public');
-    }
-
-    private function migrateLegacyPrivateGifToPublic(string $path): bool
-    {
-        $privateDisk = Storage::disk('local');
-
-        if (! $privateDisk->exists($path)) {
+        if ($workoutxName === '') {
             return false;
         }
 
-        $contents = $privateDisk->get($path);
+        $paths = array_filter([
+            trim((string) ($catalogExercise?->storage_path ?? '')),
+            'exercises/' . $workoutxName . '.gif',
+        ]);
+
+        foreach (array_unique($paths) as $path) {
+            if (Storage::disk('public')->exists($path) || Storage::disk('local')->exists($path)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function exerciseMediaDisk()
+    {
+        return Storage::disk('local');
+    }
+
+    private function migrateLegacyPublicGifToPrivate(string $path): bool
+    {
+        $publicDisk = Storage::disk('public');
+
+        if (! $publicDisk->exists($path)) {
+            return false;
+        }
+
+        $contents = $publicDisk->get($path);
 
         if ($contents === false || $contents === '') {
             return false;
         }
 
         $this->exerciseMediaDisk()->put($path, $contents);
-        $privateDisk->delete($path);
+        $publicDisk->delete($path);
 
         return true;
     }
