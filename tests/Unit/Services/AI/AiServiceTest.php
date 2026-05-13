@@ -111,9 +111,12 @@ class AiServiceTest extends TestCase
                 && data_get($payload, 'text.format.type') === 'json_schema'
                 && data_get($payload, 'text.format.strict') === true
                 && str_contains($prompt, 'Exercicios prioritarios recuperados')
+                && str_contains($prompt, 'Exercicios do treino anterior a evitar')
+                && str_contains($prompt, 'Exercicios permitidos por foco')
+                && str_contains($prompt, 'Regra de selecao por foco')
+                && str_contains($prompt, 'Regra de variacao entre geracoes')
                 && str_contains($prompt, 'barbell-bench-press')
-                && ! str_contains($prompt, 'Exercícios disponíveis:')
-                && ! str_contains($prompt, '"peito":[{');
+                && ! str_contains($prompt, 'Exercícios disponíveis:');
         });
     }
 
@@ -164,8 +167,104 @@ class AiServiceTest extends TestCase
 
             return data_get($payload, 'tools', []) === []
                 && str_contains($prompt, 'Modo de retrieval: local_fallback')
+                && str_contains($prompt, 'Exercicios permitidos por foco')
                 && str_contains($prompt, 'barbell-bench-press');
         });
+    }
+
+    public function test_generate_workout_retries_critic_until_plan_becomes_valid(): void
+    {
+        config()->set('services.openai.api_key', 'openai-test-key');
+        config()->set('services.openai.responses_model', 'gpt-4o-mini');
+        config()->set('services.openai.vector_store.enabled', false);
+
+        $user = $this->makeUser();
+
+        foreach (
+            [
+                ['id' => '0009', 'localized' => 'Supino reto com barra', 'slug' => 'barbell-bench-press', 'name' => 'Barbell Bench Press', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'barbell'],
+                ['id' => '0010', 'localized' => 'Supino inclinado com halteres', 'slug' => 'incline-dumbbell-bench-press', 'name' => 'Incline Dumbbell Bench Press', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'dumbbell'],
+                ['id' => '0011', 'localized' => 'Crucifixo no cabo', 'slug' => 'cable-fly', 'name' => 'Cable Fly', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'cable'],
+                ['id' => '0012', 'localized' => 'Peck deck', 'slug' => 'pec-deck-fly', 'name' => 'Pec Deck Fly', 'body' => 'chest', 'target' => 'pectorals', 'equipment' => 'machine'],
+                ['id' => '0201', 'localized' => 'Rosca alternada com barra', 'slug' => 'barbell-alternate-biceps-curl', 'name' => 'Barbell Alternate Biceps Curl', 'body' => 'upper arms', 'target' => 'biceps', 'equipment' => 'barbell'],
+                ['id' => '1160', 'localized' => 'Caminhada inclinada', 'slug' => 'incline-treadmill-walk', 'name' => 'Incline Treadmill Walk', 'body' => 'cardio', 'target' => 'cardiovascular system', 'equipment' => 'treadmill'],
+            ] as $exercise
+        ) {
+            ExerciseMediaCache::query()->create([
+                'remote_exercise_id' => $exercise['id'],
+                'localized_name_pt_br' => $exercise['localized'],
+                'workoutx_name' => $exercise['slug'],
+                'query_name' => $exercise['name'],
+                'payload' => [
+                    'id' => $exercise['id'],
+                    'name' => $exercise['name'],
+                    'bodyPart' => $exercise['body'],
+                    'target' => $exercise['target'],
+                    'equipment' => $exercise['equipment'],
+                ],
+            ]);
+        }
+
+        Http::fake([
+            'https://api.openai.com/v1/responses' => Http::sequence()
+                ->push([
+                    'id' => 'resp_invalid_generation',
+                    'model' => 'gpt-4o-mini',
+                    'output_text' => json_encode([
+                        'weekly_plan' => [[
+                            'day' => 'Segunda',
+                            'focus' => 'Peito',
+                            'exercises' => [
+                                ['name' => 'Supino reto com barra', 'category' => 'specific', 'sets' => 4, 'reps' => '8-12', 'rest' => '', 'notes' => 'Controle.', 'steps' => ['Ajuste a pegada', 'Desca com controle'], 'remote_exercise_id' => '0009', 'workoutx_name' => 'barbell-bench-press'],
+                                ['name' => 'Supino inclinado com halteres', 'category' => 'specific', 'sets' => 3, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Estabilidade.', 'steps' => ['Ajuste os halteres', 'Empurre'], 'remote_exercise_id' => '0010', 'workoutx_name' => 'incline-dumbbell-bench-press'],
+                                ['name' => 'Crucifixo no cabo', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Sem balanco.', 'steps' => ['Posicione as polias', 'Aproxime as maos'], 'remote_exercise_id' => '0011', 'workoutx_name' => 'cable-fly'],
+                                ['name' => 'Peck deck', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Escapulas firmes.', 'steps' => ['Ajuste o banco', 'Feche os bracos'], 'remote_exercise_id' => '0012', 'workoutx_name' => 'pec-deck-fly'],
+                                ['name' => 'Caminhada inclinada', 'category' => 'cardio', 'sets' => 1, 'reps' => '15 min', 'rest' => '0s', 'notes' => 'Moderado.', 'steps' => ['Inicie leve', 'Mantenha ritmo'], 'remote_exercise_id' => '1160', 'workoutx_name' => 'incline-treadmill-walk'],
+                            ],
+                        ]],
+                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ], 200)
+                ->push([
+                    'id' => 'resp_invalid_critic',
+                    'model' => 'gpt-4o-mini',
+                    'output_text' => json_encode([
+                        'weekly_plan' => [[
+                            'day' => 'Segunda',
+                            'focus' => 'Peito',
+                            'exercises' => [
+                                ['name' => 'Supino reto com barra', 'category' => 'specific', 'sets' => 4, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Controle.', 'steps' => ['Ajuste a pegada', 'Desca com controle'], 'remote_exercise_id' => '0009', 'workoutx_name' => 'barbell-bench-press'],
+                                ['name' => 'Supino inclinado com halteres', 'category' => 'specific', 'sets' => 3, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Estabilidade.', 'steps' => ['Ajuste os halteres', 'Empurre'], 'remote_exercise_id' => '0010', 'workoutx_name' => 'incline-dumbbell-bench-press'],
+                                ['name' => 'Rosca alternada com barra', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Sem impulso.', 'steps' => ['Segure a barra', 'Flexione os cotovelos'], 'remote_exercise_id' => '0201', 'workoutx_name' => 'barbell-alternate-biceps-curl'],
+                                ['name' => 'Peck deck', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Escapulas firmes.', 'steps' => ['Ajuste o banco', 'Feche os bracos'], 'remote_exercise_id' => '0012', 'workoutx_name' => 'pec-deck-fly'],
+                                ['name' => 'Caminhada inclinada', 'category' => 'cardio', 'sets' => 1, 'reps' => '15 min', 'rest' => '0s', 'notes' => 'Moderado.', 'steps' => ['Inicie leve', 'Mantenha ritmo'], 'remote_exercise_id' => '1160', 'workoutx_name' => 'incline-treadmill-walk'],
+                            ],
+                        ]],
+                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ], 200)
+                ->push([
+                    'id' => 'resp_valid_critic',
+                    'model' => 'gpt-4o-mini',
+                    'output_text' => json_encode([
+                        'weekly_plan' => [[
+                            'day' => 'Segunda',
+                            'focus' => 'Peito',
+                            'exercises' => [
+                                ['name' => 'Supino reto com barra', 'category' => 'specific', 'sets' => 4, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Controle.', 'steps' => ['Ajuste a pegada', 'Desca com controle'], 'remote_exercise_id' => '0009', 'workoutx_name' => 'barbell-bench-press'],
+                                ['name' => 'Supino inclinado com halteres', 'category' => 'specific', 'sets' => 3, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Estabilidade.', 'steps' => ['Ajuste os halteres', 'Empurre'], 'remote_exercise_id' => '0010', 'workoutx_name' => 'incline-dumbbell-bench-press'],
+                                ['name' => 'Crucifixo no cabo', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Sem balanco.', 'steps' => ['Posicione as polias', 'Aproxime as maos'], 'remote_exercise_id' => '0011', 'workoutx_name' => 'cable-fly'],
+                                ['name' => 'Peck deck', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Escapulas firmes.', 'steps' => ['Ajuste o banco', 'Feche os bracos'], 'remote_exercise_id' => '0012', 'workoutx_name' => 'pec-deck-fly'],
+                                ['name' => 'Caminhada inclinada', 'category' => 'cardio', 'sets' => 1, 'reps' => '15 min', 'rest' => '0s', 'notes' => 'Moderado.', 'steps' => ['Inicie leve', 'Mantenha ritmo'], 'remote_exercise_id' => '1160', 'workoutx_name' => 'incline-treadmill-walk'],
+                            ],
+                        ]],
+                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ], 200),
+        ]);
+
+        $result = app(AiService::class)->generateWorkout($user, null);
+
+        $this->assertSame('Peito', data_get($result, 'weekly_plan.0.focus'));
+        $this->assertSame('0011', data_get($result, 'weekly_plan.0.exercises.2.remote_exercise_id'));
+        Http::assertSentCount(3);
     }
 
     public function test_generate_workout_reuses_existing_vector_store_id_from_settings(): void

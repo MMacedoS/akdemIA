@@ -89,10 +89,6 @@ class ValidationService
             ]);
         }
 
-        $localCatalogAvailable = ExerciseMediaCache::query()
-            ->whereNotNull('remote_exercise_id')
-            ->exists();
-
         foreach ($data['weekly_plan'] as $dayPlan) {
             if (! is_array($dayPlan)) {
                 continue;
@@ -181,9 +177,9 @@ class ValidationService
                 $steps = $this->normalizeSteps($exercise['steps'] ?? null, $name, $notes);
                 $remoteExerciseId = trim((string) ($exercise['remote_exercise_id'] ?? ''));
 
-                if ($localCatalogAvailable && $remoteExerciseId === '') {
+                if ($remoteExerciseId === '') {
                     throw ValidationException::withMessages([
-                        'workout' => 'Each exercise must contain remote_exercise_id from the local catalog.',
+                        'workout' => 'Each exercise must contain remote_exercise_id.',
                     ]);
                 }
 
@@ -192,12 +188,6 @@ class ValidationService
                     $exercise['workoutx_name'] ?? data_get($exercise, 'workoutx_lookup.name'),
                     $name,
                 );
-
-                if ($remoteExerciseId !== '' && $catalogExercise === null) {
-                    throw ValidationException::withMessages([
-                        'workout' => 'Exercise remote_exercise_id not found in local catalog: ' . $remoteExerciseId,
-                    ]);
-                }
 
                 $remoteExerciseId = trim((string) ($catalogExercise?->remote_exercise_id ?? $remoteExerciseId));
 

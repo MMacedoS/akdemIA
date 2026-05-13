@@ -25,7 +25,9 @@ class WorkoutPlanGeneratorService
             'candidate_ids' => array_map(static fn(array $candidate): string => (string) ($candidate['remote_exercise_id'] ?? ''), $retrieval->compactCandidates()),
         ]);
 
-        $cached = $this->cache->get($cacheKey);
+        $shouldUseCache = (bool) config('services.openai.workout_generation_cache_enabled', false);
+
+        $cached = $shouldUseCache ? $this->cache->get($cacheKey) : null;
 
         if ($cached !== null) {
             return new StructuredResponseResult(
@@ -54,13 +56,15 @@ class WorkoutPlanGeneratorService
             responseId: data_get($response, 'body.id'),
         );
 
-        $this->cache->put($cacheKey, [
-            'data' => $result->data,
-            'raw_response' => $result->rawResponse,
-            'model' => $result->model,
-            'usage' => $result->usage,
-            'response_id' => $result->responseId,
-        ]);
+        if ($shouldUseCache) {
+            $this->cache->put($cacheKey, [
+                'data' => $result->data,
+                'raw_response' => $result->rawResponse,
+                'model' => $result->model,
+                'usage' => $result->usage,
+                'response_id' => $result->responseId,
+            ]);
+        }
 
         $this->logger->log([
             'tenant_id' => $context->tenantId,
@@ -113,20 +117,41 @@ class WorkoutPlanGeneratorService
                                     'additionalProperties' => false,
                                     'required' => ['name', 'category', 'sets', 'reps', 'rest', 'notes', 'steps', 'remote_exercise_id', 'workoutx_name'],
                                     'properties' => [
-                                        'name' => ['type' => 'string'],
+                                        'name' => [
+                                            'type' => 'string',
+                                            'pattern' => '.*\\S.*',
+                                        ],
                                         'category' => ['type' => 'string', 'enum' => ['specific', 'cardio']],
                                         'sets' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 6],
-                                        'reps' => ['type' => 'string'],
-                                        'rest' => ['type' => 'string'],
-                                        'notes' => ['type' => 'string'],
+                                        'reps' => [
+                                            'type' => 'string',
+                                            'pattern' => '.*\\S.*',
+                                        ],
+                                        'rest' => [
+                                            'type' => 'string',
+                                            'pattern' => '.*\\S.*',
+                                        ],
+                                        'notes' => [
+                                            'type' => 'string',
+                                            'pattern' => '.*\\S.*',
+                                        ],
                                         'steps' => [
                                             'type' => 'array',
                                             'minItems' => 2,
                                             'maxItems' => 5,
-                                            'items' => ['type' => 'string'],
+                                            'items' => [
+                                                'type' => 'string',
+                                                'pattern' => '.*\\S.*',
+                                            ],
                                         ],
-                                        'remote_exercise_id' => ['type' => 'string'],
-                                        'workoutx_name' => ['type' => 'string'],
+                                        'remote_exercise_id' => [
+                                            'type' => 'string',
+                                            'pattern' => '.*\\S.*',
+                                        ],
+                                        'workoutx_name' => [
+                                            'type' => 'string',
+                                            'pattern' => '.*\\S.*',
+                                        ],
                                     ],
                                 ],
                             ],
@@ -162,7 +187,7 @@ class WorkoutPlanGeneratorService
                 ? [[
                     'type' => 'file_search',
                     'vector_store_ids' => [$retrieval->vectorStoreId],
-                    'max_num_results' => min(count($retrieval->candidates) + 8, 24),
+                    'max_num_results' => min(max(count($retrieval->candidates), 48), 240),
                 ]]
                 : [],
             'text' => [
@@ -182,12 +207,31 @@ class WorkoutPlanGeneratorService
             'Perfil do usuario: ' . json_encode($context->profile, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'Dias esperados no weekly_plan: ' . ($context->expectedTrainingDays ?? 'indefinido'),
             'Treino anterior resumido: ' . json_encode($this->compactPreviousWorkout($context->previousWorkoutPlan), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'Exercicios do treino anterior a evitar quando houver alternativa no mesmo foco: ' . json_encode($this->previousWorkoutExerciseIds($context->previousWorkoutPlan), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'Modo de retrieval: ' . $retrieval->mode,
             'Exercicios prioritarios recuperados: ' . json_encode($retrieval->compactCandidates(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'Exercicios permitidos por foco: ' . json_encode($retrieval->compactCandidatesByFocus(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             $context->adjustmentRequest !== null ? 'Ajustes obrigatorios do treinador: ' . $context->adjustmentRequest : null,
             $context->conservativeMode ? 'Refine com criterio conservador mantendo intensidade suficiente, eliminando redundancias e movimentos de risco.' : null,
-            'Regras obrigatorias: exatamente 5 exercicios por dia; exatamente 4 specific e 1 cardio; focus unico por dia; nao repetir exercicios no mesmo dia; nao repetir exercicios em dias consecutivos; cardio compativel com restricoes clinicas; steps de 2 a 5 itens; name em pt-BR; workoutx_name em ingles exatamente como no catalogo; remote_exercise_id valido.',
+            'Regra de selecao por foco: em cada dia, os 4 exercicios specific devem vir apenas do mesmo foco biomecanico do dia. Use cardio apenas do grupo cardio. Nunca use exercicio de bracos, pernas, costas, peito, ombros ou core em um dia de outro foco.',
+            'Regra de variacao entre geracoes: trate os remote_exercise_id do treino anterior como bloqueados. So reutilize um exercicio anterior se realmente nao houver alternativa suficiente no mesmo foco do dia.',
+            'Regras obrigatorias: exatamente 5 exercicios por dia; exatamente 4 specific e 1 cardio; focus unico por dia; nao repetir exercicios no mesmo dia; nao repetir exercicios em dias consecutivos; cardio compativel com restricoes clinicas; steps de 2 a 5 itens; name em pt-BR; workoutx_name em ingles exatamente como no catalogo; remote_exercise_id obrigatorio; reps, rest e notes nunca vazios.',
         ]));
+    }
+
+    private function previousWorkoutExerciseIds(array $previousWorkoutPlan): array
+    {
+        $weeklyPlan = is_array($previousWorkoutPlan['weekly_plan'] ?? null)
+            ? $previousWorkoutPlan['weekly_plan']
+            : [];
+
+        return collect($weeklyPlan)
+            ->flatMap(fn(mixed $day): array => is_array(data_get($day, 'exercises')) ? data_get($day, 'exercises') : [])
+            ->map(fn(mixed $exercise): string => trim((string) data_get($exercise, 'remote_exercise_id', '')))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function compactPreviousWorkout(array $previousWorkoutPlan): array

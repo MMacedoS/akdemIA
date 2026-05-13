@@ -60,8 +60,8 @@ return [
             'existing_id' => env('OPENAI_VECTOR_STORE_EXISTING_ID', ''),
             'existing_name' => env('OPENAI_VECTOR_STORE_EXISTING_NAME', ''),
             'file_purpose' => env('OPENAI_VECTOR_STORE_FILE_PURPOSE', 'assistants'),
-            'max_search_results' => (int) env('OPENAI_VECTOR_STORE_MAX_SEARCH_RESULTS', 24),
-            'minimum_candidates' => (int) env('OPENAI_VECTOR_STORE_MINIMUM_CANDIDATES', 12),
+            'max_search_results' => (int) env('OPENAI_VECTOR_STORE_MAX_SEARCH_RESULTS', 120),
+            'minimum_candidates' => (int) env('OPENAI_VECTOR_STORE_MINIMUM_CANDIDATES', 24),
         ],
     ],
 

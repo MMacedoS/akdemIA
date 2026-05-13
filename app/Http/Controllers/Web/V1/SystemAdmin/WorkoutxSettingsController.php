@@ -61,8 +61,8 @@ class WorkoutxSettingsController extends Controller
             'vector_store_existing_id' => ['nullable', 'string', 'max:120'],
             'vector_store_existing_name' => ['nullable', 'string', 'max:160'],
             'vector_store_file_purpose' => ['required', 'string', 'max:80'],
-            'vector_store_max_search_results' => ['nullable', 'integer', 'between:1,100'],
-            'vector_store_minimum_candidates' => ['nullable', 'integer', 'between:1,100'],
+            'vector_store_max_search_results' => ['nullable', 'integer', 'between:1,500'],
+            'vector_store_minimum_candidates' => ['nullable', 'integer', 'between:1,500'],
             'vector_store_storage_path' => ['required', 'string', 'max:255'],
         ]);
 

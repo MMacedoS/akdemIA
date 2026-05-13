@@ -10,7 +10,8 @@ use Illuminate\Validation\ValidationException;
 
 class AiService
 {
-    public const WORKOUT_PROMPT_VERSION = '2026-05-12-responses-api-vector-store-v1';
+    public const WORKOUT_PROMPT_VERSION = '2026-05-13-responses-api-vector-store-v2';
+    private const MAX_WORKOUT_REPAIR_ATTEMPTS = 2;
 
     public function __construct(
         private readonly WorkoutGenerationContextFactory $contextFactory,
@@ -31,20 +32,28 @@ class AiService
     ): array {
         $context = $this->contextFactory->make($user, $tenant, $conservativeMode, $adjustmentRequest);
         $retrieval = $this->retrievalService->retrieve($context);
-        $generated = $this->generatorService->generate($context, $retrieval);
+        $candidatePlan = $this->generatorService->generate($context, $retrieval)->data;
 
-        try {
-            return $this->validationService->validateWorkoutResponse($generated->data);
-        } catch (ValidationException $exception) {
-            $critic = $this->criticService->repair(
-                $context,
-                $retrieval,
-                $generated->data,
-                WorkoutValidationException::fromValidationException($exception),
-            );
+        for ($attempt = 0; $attempt <= self::MAX_WORKOUT_REPAIR_ATTEMPTS; $attempt++) {
+            try {
+                return $this->validationService->validateWorkoutResponse($candidatePlan);
+            } catch (ValidationException $exception) {
+                if ($attempt === self::MAX_WORKOUT_REPAIR_ATTEMPTS) {
+                    throw $exception;
+                }
 
-            return $this->validationService->validateWorkoutResponse($critic->data);
+                $candidatePlan = $this->criticService->repair(
+                    $context,
+                    $retrieval,
+                    $candidatePlan,
+                    WorkoutValidationException::fromValidationException($exception),
+                )->data;
+            }
         }
+
+        throw ValidationException::withMessages([
+            'workout' => 'Unable to generate a valid workout plan.',
+        ]);
     }
 
     public function generateRecommendations(User $user, ?Tenant $tenant): array

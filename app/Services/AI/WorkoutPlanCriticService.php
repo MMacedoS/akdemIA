@@ -40,8 +40,12 @@ class WorkoutPlanCriticService
                             'Problemas identificados: ' . json_encode($validationException->issues, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                             'Plano invalido: ' . json_encode($invalidPlan, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                             'Perfil do usuario: ' . json_encode($context->profile, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                            'Treino anterior resumido: ' . json_encode($context->previousWorkoutPlan, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                             'Exercicios recuperados permitidos: ' . json_encode($retrieval->compactCandidates(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                            'Regras obrigatorias: exatamente 5 exercicios por dia, 4 specific e 1 cardio, sem repeticoes desnecessarias, focus coerente, ids validos e steps de 2 a 5 itens.',
+                            'Exercicios permitidos por foco: ' . json_encode($retrieval->compactCandidatesByFocus(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                            'Regra de selecao por foco: corrija qualquer dia usando 4 exercicios specific apenas do foco biomecanico do proprio dia e 1 cardio apenas do grupo cardio. Se um exercicio do plano invalido estiver em foco errado, substitua-o.',
+                            'Regra de variacao entre geracoes: ao corrigir, trate exercicios do treino anterior como bloqueados e substitua-os por alternativas do mesmo foco que ainda nao foram usadas. So mantenha repeticao quando nao houver alternativa suficiente.',
+                            'Regras obrigatorias: exatamente 5 exercicios por dia, 4 specific e 1 cardio, sem repeticoes desnecessarias, focus coerente, ids validos, remote_exercise_id obrigatorio, reps/rest/notes nunca vazios e steps de 2 a 5 itens.',
                         ]),
                     ]],
                 ],
@@ -50,7 +54,7 @@ class WorkoutPlanCriticService
                 ? [[
                     'type' => 'file_search',
                     'vector_store_ids' => [$retrieval->vectorStoreId],
-                    'max_num_results' => min(count($retrieval->candidates) + 8, 24),
+                    'max_num_results' => min(max(count($retrieval->candidates), 48), 240),
                 ]]
                 : [],
             'text' => [

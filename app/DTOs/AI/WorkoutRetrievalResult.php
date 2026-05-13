@@ -23,4 +23,19 @@ final readonly class WorkoutRetrievalResult
             $this->candidates,
         );
     }
+
+    public function compactCandidatesByFocus(): array
+    {
+        $grouped = [];
+
+        foreach ($this->candidates as $candidate) {
+            $focus = trim($candidate->focus) !== '' ? $candidate->focus : 'geral';
+            $grouped[$focus] ??= [];
+            $grouped[$focus][] = $candidate->toArray();
+        }
+
+        ksort($grouped);
+
+        return $grouped;
+    }
 }

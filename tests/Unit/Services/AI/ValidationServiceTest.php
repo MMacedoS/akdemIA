@@ -146,7 +146,7 @@ class ValidationServiceTest extends TestCase
         $this->assertSame('crucifixo-inclinado', data_get($exercises, '1.workoutx_name'));
     }
 
-    public function test_validate_workout_response_requires_remote_id_when_local_catalog_exists(): void
+    public function test_validate_workout_response_requires_remote_id(): void
     {
         ExerciseMediaCache::query()->create([
             'remote_exercise_id' => '0025',
@@ -157,7 +157,7 @@ class ValidationServiceTest extends TestCase
         $service = new ValidationService();
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Each exercise must contain remote_exercise_id from the local catalog.');
+        $this->expectExceptionMessage('Each exercise must contain remote_exercise_id.');
 
         $service->validateWorkoutResponse([
             'weekly_plan' => [[
@@ -172,6 +172,28 @@ class ValidationServiceTest extends TestCase
                 ],
             ]],
         ]);
+    }
+
+    public function test_validate_workout_response_accepts_remote_id_not_present_in_local_catalog(): void
+    {
+        $service = new ValidationService();
+
+        $result = $service->validateWorkoutResponse([
+            'weekly_plan' => [[
+                'day' => 'Segunda',
+                'focus' => 'Pernas',
+                'exercises' => [
+                    ['name' => 'Avanco com halteres', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '60s', 'notes' => 'Controle a passada.', 'steps' => ['Posicione os pes', 'Desca com controle', 'Retorne empurrando o solo'], 'remote_exercise_id' => '9001', 'workoutx_name' => 'dumbbell-lunge'],
+                    ['name' => 'Leg press', 'category' => 'specific', 'sets' => 4, 'reps' => '10-12', 'rest' => '60s', 'notes' => 'Nao trave os joelhos.', 'steps' => ['Ajuste o assento', 'Empurre a plataforma', 'Retorne sem perder o controle'], 'remote_exercise_id' => '9002', 'workoutx_name' => 'leg-press'],
+                    ['name' => 'Mesa flexora', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Mantenha o quadril apoiado.', 'steps' => ['Ajuste o rolo', 'Flexione os joelhos', 'Retorne devagar'], 'remote_exercise_id' => '9003', 'workoutx_name' => 'lying-leg-curl'],
+                    ['name' => 'Extensora', 'category' => 'specific', 'sets' => 3, 'reps' => '12', 'rest' => '45s', 'notes' => 'Suba sem impulso.', 'steps' => ['Ajuste o encosto', 'Estenda os joelhos', 'Retorne controlando'], 'remote_exercise_id' => '9004', 'workoutx_name' => 'leg-extension'],
+                    ['name' => 'Caminhada inclinada', 'category' => 'cardio', 'sets' => 1, 'reps' => '15 min', 'rest' => '0s', 'notes' => 'Ritmo moderado.', 'steps' => ['Inicie leve', 'Ajuste a inclinacao', 'Mantenha a respiracao ritmada'], 'remote_exercise_id' => '9005', 'workoutx_name' => 'incline-treadmill-walk'],
+                ],
+            ]],
+        ]);
+
+        $this->assertSame('9001', data_get($result, 'weekly_plan.0.exercises.0.remote_exercise_id'));
+        $this->assertSame('dumbbell-lunge', data_get($result, 'weekly_plan.0.exercises.0.workoutx_name'));
     }
 
     public function test_validate_workout_response_recovers_remote_id_from_workoutx_name_when_model_sends_slug(): void
