@@ -39,10 +39,12 @@ Route::prefix('v1')->group(function () {
     Route::get('internal/catalog/exercises', [InternalExerciseCatalogController::class, 'index'])
         ->name('api.internal.catalog.exercises.index');
 
+    Route::get('workouts/exercises/media/{workoutxName}', [ExerciseMediaController::class, 'show'])
+        ->middleware('exercise.media.host')
+        ->name('api.workouts.exercises.media.show');
+
     Route::middleware(['tenant.auth', 'tenant.user'])->group(function () {
         Route::post('auth/accept-policies', [AuthController::class, 'acceptPolicies'])->name('api.auth.accept-policies');
-        Route::get('workouts/exercises/media/{workoutxName}', [ExerciseMediaController::class, 'show'])
-            ->name('api.workouts.exercises.media.show');
 
         Route::prefix('credits/requests')->group(function () {
             Route::get('/', [CreditRequestController::class, 'index'])->name('api.credits.requests.index');

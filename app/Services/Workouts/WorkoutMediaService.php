@@ -1254,8 +1254,7 @@ class WorkoutMediaService
             return '';
         }
 
-        return rtrim((string) config('filesystems.disks.public.url', '/storage'), '/')
-            . '/exercises/' . $workoutxName . '.gif';
+        return route('api.workouts.exercises.media.show', ['workoutxName' => $workoutxName]);
     }
 
     private function exerciseMediaDisk()

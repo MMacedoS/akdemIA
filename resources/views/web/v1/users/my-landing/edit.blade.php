@@ -1289,10 +1289,11 @@
                 const formData = new FormData(form);
                 const xhr = new XMLHttpRequest();
                 xhr.open((form.method || 'POST').toUpperCase(), form.action, true);
-                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
                 if (progressWrap && progressBar && progressText) {
                     progressWrap.style.display = 'block';
+                    progressBar.style.width = '0%';
+                    progressText.textContent = 'Preparando upload...';
                 }
 
                 xhr.upload.onprogress = (event) => {
@@ -1308,15 +1309,55 @@
                         progressText.textContent = 'Processando resposta...';
                     }
 
-                    if (xhr.status >= 200 && xhr.status < 500) {
+                    if (xhr.status >= 200 && xhr.status < 400) {
+                        const contentType = xhr.getResponseHeader('Content-Type') || '';
+
+                        if (contentType.includes('text/html') && xhr.responseText) {
+                            document.open();
+                            document.write(xhr.responseText);
+                            document.close();
+                            return;
+                        }
+
                         window.location.href = xhr.responseURL || window.location.href;
                         return;
                     }
 
-                    alert('Falha no upload. Tente novamente.');
+                    let errorMessage = 'Falha no upload. Tente novamente.';
+
+                    if (xhr.status === 413) {
+                        errorMessage = 'O arquivo excede o limite aceito pelo servidor.';
+                    } else if (xhr.responseText) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            const validationErrors = response.errors && typeof response.errors === 'object'
+                                ? Object.values(response.errors).flat().filter(Boolean)
+                                : [];
+
+                            errorMessage = validationErrors[0] || response.message || errorMessage;
+                        } catch (error) {
+                            errorMessage = `Falha no upload (HTTP ${xhr.status}).`;
+                        }
+                    }
+
+                    if (progressWrap && progressBar && progressText) {
+                        progressWrap.style.display = 'none';
+                        progressBar.style.width = '0%';
+                        progressText.textContent = 'Preparando upload...';
+                    }
+
+                    alert(errorMessage);
                 };
 
-                xhr.onerror = () => alert('Erro de rede durante o upload.');
+                xhr.onerror = () => {
+                    if (progressWrap && progressBar && progressText) {
+                        progressWrap.style.display = 'none';
+                        progressBar.style.width = '0%';
+                        progressText.textContent = 'Preparando upload...';
+                    }
+
+                    alert('Erro de rede durante o upload.');
+                };
                 xhr.send(formData);
             };
 

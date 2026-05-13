@@ -17,8 +17,8 @@
             --line: rgba(250, 239, 222, 0.55);
             --button-bg: #d8d0c8;
             --button-text: #2a2520;
-            --glow: rgba(255, 232, 196, 0.14);
-            --shadow: 0 28px 80px rgba(8, 5, 4, 0.28);
+            --glow: rgba(255, 232, 196, 0.08);
+            --shadow: 0 18px 44px rgba(8, 5, 4, 0.16);
         }
 
         * { box-sizing: border-box; }
@@ -28,17 +28,16 @@
             font-family: 'Manrope', 'Segoe UI', sans-serif;
             color: var(--text);
             background:
-                radial-gradient(circle at top left, rgba(255, 235, 208, 0.12), transparent 34%),
-                radial-gradient(circle at 85% 10%, rgba(255, 255, 255, 0.08), transparent 20%),
-                linear-gradient(180deg, color-mix(in srgb, var(--bg) 84%, black 16%) 0%, var(--bg) 42%, color-mix(in srgb, var(--bg) 78%, black 22%) 100%);
+                radial-gradient(circle at top left, rgba(255, 235, 208, 0.08), transparent 30%),
+                linear-gradient(180deg, color-mix(in srgb, var(--bg) 88%, black 12%) 0%, var(--bg) 48%, color-mix(in srgb, var(--bg) 82%, black 18%) 100%);
         }
         body::before {
             content: '';
             position: fixed;
             inset: 0;
             pointer-events: none;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 38%, rgba(255, 255, 255, 0.03));
-            opacity: .6;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 42%, rgba(255, 255, 255, 0.015));
+            opacity: .45;
         }
         .wrap { width: min(1380px, calc(100vw - 48px)); margin: 0 auto; }
         .page-shell { padding: 22px 0 72px; position: relative; z-index: 1; }
@@ -51,13 +50,13 @@
             justify-content: space-between;
             align-items: center;
             gap: 20px;
-            padding: 18px 22px;
+            padding: 16px 20px;
             margin-bottom: 26px;
             border: 1px solid var(--line);
-            background: rgba(26, 17, 15, 0.4);
-            backdrop-filter: blur(18px);
-            box-shadow: 0 14px 50px rgba(0, 0, 0, 0.12);
-            border-radius: 24px;
+            background: rgba(26, 17, 15, 0.28);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
+            border-radius: 20px;
         }
 
         .brand-block {
@@ -149,17 +148,17 @@
         .contact-panel,
         .post-modal-dialog {
             border: 1px solid var(--line);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.018) 100%);
             box-shadow: var(--shadow);
         }
 
         .hero-copy {
-            border-radius: 36px;
-            padding: clamp(28px, 4vw, 48px);
+            border-radius: 30px;
+            padding: clamp(26px, 3.5vw, 42px);
             min-height: 100%;
             display: grid;
             align-content: center;
-            gap: 22px;
+            gap: 18px;
             position: relative;
             overflow: hidden;
         }
@@ -173,10 +172,10 @@
         }
 
         .hero-side {
-            border-radius: 32px;
-            padding: 24px;
+            border-radius: 28px;
+            padding: 22px;
             display: grid;
-            gap: 16px;
+            gap: 14px;
             align-content: start;
         }
 
@@ -280,10 +279,11 @@
         .side-card {
             display: grid;
             gap: 8px;
-            padding: 18px;
-            border-radius: 22px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.04);
+            padding: 14px 0 0;
+            border-radius: 0;
+            border: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            background: transparent;
         }
 
         .side-card span {
@@ -313,8 +313,8 @@
         .section { padding: 30px 0 0; }
 
         .section-panel {
-            border-radius: 34px;
-            padding: clamp(24px, 3vw, 36px);
+            border-radius: 28px;
+            padding: clamp(22px, 2.8vw, 32px);
         }
 
         .section-header {
@@ -357,17 +357,17 @@
         .services {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 22px;
+            gap: 18px;
         }
 
         .service {
-            padding: 24px;
+            padding: 22px;
             text-align: left;
-            border-radius: 26px;
+            border-radius: 22px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+            background: rgba(255, 255, 255, 0.03);
             display: grid;
-            gap: 18px;
+            gap: 14px;
         }
 
         .service h3 {
@@ -500,9 +500,9 @@
             padding: 18px;
             display: grid;
             gap: 10px;
-            border-radius: 26px;
+            border-radius: 22px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(255, 255, 255, 0.03);
         }
 
         .fitness-videos .video-frame {
@@ -634,11 +634,11 @@
         }
 
         .post-card {
-            padding: 24px;
+            padding: 22px;
             text-align: left;
-            border-radius: 26px;
+            border-radius: 22px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 100%);
+            background: rgba(255, 255, 255, 0.03);
         }
 
         .post-card h3 {
@@ -762,23 +762,24 @@
         }
 
         .contact-panel {
-            border-radius: 34px;
-            padding: clamp(24px, 3vw, 34px);
+            border-radius: 28px;
+            padding: clamp(22px, 2.8vw, 30px);
             display: grid;
-            gap: 24px;
+            gap: 20px;
         }
 
         .contact-grid .services {
-            gap: 18px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
         }
 
         .contact-card {
-            border-radius: 26px;
+            border-radius: 22px;
             border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.04);
-            padding: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 22px;
             display: grid;
-            gap: 14px;
+            gap: 12px;
             align-content: start;
         }
 
@@ -821,6 +822,11 @@
             padding-top: 14px;
         }
 
+        .contact-note:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+
         .empty { color: var(--muted); }
 
         @media (max-width: 1100px) {
@@ -831,6 +837,10 @@
 
             .services,
             .post-page {
+                grid-template-columns: 1fr;
+            }
+
+            .contact-grid .services {
                 grid-template-columns: 1fr;
             }
 
@@ -1208,11 +1218,6 @@
                             @if($instagramUrl !== '')
                                 <a href="{{ $instagramUrl }}" target="_blank" rel="noopener">Abrir Instagram</a>
                             @endif
-                        </article>
-                        <article class="contact-card">
-                            <h3>Especialidades</h3>
-                            <p>{{ $profile->skills ?: 'Nutricao consciente, organizacao alimentar e evolucao progressiva com acompanhamento humano.' }}</p>
-                            <a href="#servicos">Ver servicos</a>
                         </article>
                     </div>
                     <aside class="contact-notes">

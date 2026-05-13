@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\HandleAppearance;
+use App\Http\Middleware\RestrictExerciseMediaHost;
 use App\Http\Middleware\EnsureTenantUserAssociation;
 use App\Http\Middleware\IdentifyTenant;
 use Illuminate\Foundation\Application;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => 'App\\Http\\Middleware\\CheckRole',
             'tenant.auth' => 'App\\Http\\Middleware\\AuthenticateTenantToken',
             'tenant.user' => EnsureTenantUserAssociation::class,
+            'exercise.media.host' => RestrictExerciseMediaHost::class,
             'policies.accepted' => 'App\\Http\\Middleware\\EnsurePoliciesAccepted',
             'subscription' => 'App\\Http\\Middleware\\CheckSubscription',
             'system.admin' => 'App\\Http\\Middleware\\EnsureSystemAdmin',

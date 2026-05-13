@@ -1,5 +1,19 @@
 @php
     $exerciseAssetBuilder = app(\App\Support\Workout\ExerciseAssetBuilder::class);
+    $normalizeExerciseMediaUrl = static function (array $exercise): string {
+        $mediaUrl = trim((string) data_get($exercise, 'exercise_media_url', ''));
+        $workoutxName = trim((string) data_get($exercise, 'workoutx_name', ''));
+
+        if ($workoutxName === '') {
+            return $mediaUrl;
+        }
+
+        if ($mediaUrl === '' || str_contains($mediaUrl, '/storage/exercises/')) {
+            return route('api.workouts.exercises.media.show', ['workoutxName' => $workoutxName]);
+        }
+
+        return $mediaUrl;
+    };
     $editable = (bool) ($editable ?? false);
     $updateRoute = (string) ($updateRoute ?? '');
     $regenerateRoute = (string) ($regenerateRoute ?? '');
@@ -13,7 +27,7 @@
     }
 
     $weeklyPlan = collect($weeklyPlan)
-        ->map(function ($dayPlan) use ($exerciseAssetBuilder) {
+        ->map(function ($dayPlan) use ($exerciseAssetBuilder, $normalizeExerciseMediaUrl) {
             $exercises = data_get($dayPlan, 'exercises', []);
 
             if (! is_array($exercises)) {
@@ -21,12 +35,13 @@
             }
 
             data_set($dayPlan, 'exercises', collect($exercises)
-                ->map(function ($exercise) use ($exerciseAssetBuilder) {
+                ->map(function ($exercise) use ($exerciseAssetBuilder, $normalizeExerciseMediaUrl) {
                     $name = trim((string) data_get($exercise, 'name', 'Exercicio'));
                     $notes = trim((string) data_get($exercise, 'notes', ''));
                     $steps = $exerciseAssetBuilder->normalizeSteps(data_get($exercise, 'steps'), $name, $notes);
 
                     data_set($exercise, 'steps', $steps);
+                    data_set($exercise, 'exercise_media_url', $normalizeExerciseMediaUrl(is_array($exercise) ? $exercise : []));
 
                     return $exercise;
                 })
@@ -169,29 +184,26 @@
         object-fit: contain;
     }
 
-    .catalog-picker {
+    .catalog-picker-launcher {
         min-width: 280px;
         flex: 1 1 360px;
         display: grid;
         gap: 8px;
-        padding: 12px;
-        border: 1px solid #dbe3ef;
-        border-radius: 16px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
     }
 
-    .catalog-picker input {
-        width: 100%;
+    .catalog-picker-launcher .btn {
+        justify-content: center;
     }
 
     .catalog-picker-selection {
-        min-height: 52px;
+        min-height: 72px;
         border: 1px dashed #c6d4e6;
         border-radius: 14px;
         background: #f8fafc;
         padding: 10px 12px;
-        display: grid;
-        gap: 4px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
     .catalog-picker-selection strong {
@@ -209,12 +221,112 @@
         color: #6b7280;
     }
 
+    .catalog-picker-selection-media {
+        width: 72px;
+        height: 72px;
+        flex: 0 0 72px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #d7e3f1;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .catalog-picker-selection-media img,
+    .catalog-picker-selection-media svg {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .catalog-picker-selection-body {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+    }
+
+    .catalog-picker-selection-body strong,
+    .catalog-picker-selection-body small {
+        overflow-wrap: anywhere;
+    }
+
+    .exercise-catalog-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.58);
+        z-index: 130;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+    }
+
+    .exercise-catalog-modal.open {
+        display: flex;
+    }
+
+    .exercise-catalog-modal-card {
+        width: min(1080px, 100%);
+        max-height: min(88vh, 920px);
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #dbe3ef;
+        border-radius: 20px;
+        box-shadow: 0 30px 80px rgba(15, 23, 42, 0.2);
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+    }
+
+    .exercise-catalog-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px 20px 0;
+    }
+
+    .exercise-catalog-modal-head h4 {
+        margin: 0;
+        font-size: 18px;
+        color: #102033;
+    }
+
+    .exercise-catalog-modal-toolbar {
+        padding: 14px 20px 0;
+        display: grid;
+        gap: 10px;
+    }
+
+    .exercise-catalog-modal-filters {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 220px;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .exercise-catalog-modal-toolbar input {
+        width: 100%;
+    }
+
+    .exercise-catalog-modal-toolbar select {
+        width: 100%;
+    }
+
+    .catalog-picker-status {
+        color: #5f7188;
+    }
+
     .catalog-picker-results {
         display: grid;
-        gap: 8px;
-        max-height: 240px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
         overflow: auto;
-        padding-right: 2px;
+        padding: 18px 20px 20px;
+        align-content: start;
+        min-height: 180px;
     }
 
     .catalog-picker-results:empty {
@@ -224,12 +336,13 @@
     .catalog-picker-option {
         width: 100%;
         border: 1px solid #dbe3ef;
-        border-radius: 14px;
+        border-radius: 18px;
         background: #fff;
-        padding: 10px 12px;
+        padding: 12px;
         text-align: left;
         display: grid;
-        gap: 4px;
+        grid-template-rows: 132px auto;
+        gap: 10px;
         cursor: pointer;
         transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
     }
@@ -243,6 +356,35 @@
         outline: none;
     }
 
+    .catalog-picker-option[aria-selected="true"] {
+        border-color: #2f6fb3;
+        box-shadow: 0 12px 28px rgba(27, 67, 120, 0.14);
+    }
+
+    .catalog-picker-option-media {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid #dbe3ef;
+        background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .catalog-picker-option-media img,
+    .catalog-picker-option-media svg {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .catalog-picker-option-body {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+    }
+
     .catalog-picker-option strong {
         font-size: 14px;
         color: #102033;
@@ -252,8 +394,46 @@
         color: #64748b;
     }
 
-    .catalog-picker-status {
-        color: #5f7188;
+    .catalog-picker-option-badge {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #e8f1fd;
+        color: #24548c;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+
+    .catalog-picker-empty {
+        margin: 0;
+        padding: 0 20px 20px;
+        color: #64748b;
+    }
+
+    @media (max-width: 720px) {
+        .exercise-catalog-modal {
+            padding: 10px;
+        }
+
+        .exercise-catalog-modal-card {
+            max-height: 92vh;
+        }
+
+        .catalog-picker-selection {
+            align-items: flex-start;
+        }
+
+        .catalog-picker-results {
+            grid-template-columns: 1fr;
+            padding: 14px;
+        }
+
+        .exercise-catalog-modal-filters {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 
@@ -319,11 +499,10 @@
                     <select id="exercise-day-select" @disabled(! $isWorkoutActive)>
                         <option value="">Escolha o dia</option>
                     </select>
-                    <div class="catalog-picker">
-                        <input id="exercise-search-input" type="text" placeholder="Buscar exercicio no catalogo" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="exercise-results" aria-activedescendant="">
+                    <div class="catalog-picker-launcher">
                         <div id="exercise-selected-card" class="catalog-picker-selection empty">Nenhum exercicio selecionado.</div>
-                        <div id="exercise-results" class="catalog-picker-results" role="listbox"></div>
-                        <small id="exercise-search-status" class="catalog-picker-status">Digite pelo menos 2 letras para buscar no catalogo.</small>
+                        <button id="open-exercise-catalog-modal-btn" type="button" class="btn btn-soft" @disabled(! $isWorkoutActive)>Buscar exercicio no catalogo</button>
+                        <small id="exercise-search-status" class="catalog-picker-status">Abra o catalogo para pesquisar exercicios e visualizar o GIF.</small>
                     </div>
                     <input id="exercise-sets-input" type="number" min="1" max="10" value="3" placeholder="Series">
                     <input id="exercise-reps-input" type="text" value="10-12" placeholder="Reps">
@@ -345,6 +524,33 @@
                         <button type="submit" class="btn btn-primary" @disabled(! $isWorkoutActive)>Salvar board manual</button>
                     </div>
                 </form>
+
+                <div id="exercise-catalog-modal" class="exercise-catalog-modal" aria-hidden="true">
+                    <div class="exercise-catalog-modal-card">
+                        <div class="exercise-catalog-modal-head">
+                            <div>
+                                <h4>Catalogo de exercicios</h4>
+                                <small style="color: #64748b;">Pesquise por nome, foco, equipamento ou WorkoutX name.</small>
+                            </div>
+                            <button id="close-exercise-catalog-modal-btn" type="button" class="btn btn-soft">Fechar</button>
+                        </div>
+
+                        <div class="exercise-catalog-modal-toolbar">
+                            <div class="exercise-catalog-modal-filters">
+                                <input id="exercise-search-input" type="text" placeholder="Buscar exercicio no catalogo" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="exercise-results" aria-activedescendant="">
+                                <select id="exercise-focus-filter">
+                                    <option value="">Todos os focos</option>
+                                </select>
+                            </div>
+                            <small id="exercise-catalog-modal-status" class="catalog-picker-status">Digite pelo menos 2 letras para buscar no catalogo.</small>
+                        </div>
+
+                        <div>
+                            <div id="exercise-results" class="catalog-picker-results" role="listbox"></div>
+                            <p id="exercise-results-empty" class="catalog-picker-empty">Nenhum resultado para exibir.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     @endif
@@ -446,10 +652,16 @@
             const newDayFocusInput = document.getElementById('new-day-focus');
             const addDayButton = document.getElementById('add-day-btn');
 
+            const openExerciseCatalogModalButton = document.getElementById('open-exercise-catalog-modal-btn');
+            const closeExerciseCatalogModalButton = document.getElementById('close-exercise-catalog-modal-btn');
+            const exerciseCatalogModal = document.getElementById('exercise-catalog-modal');
             const exerciseSearchInput = document.getElementById('exercise-search-input');
+            const exerciseFocusFilter = document.getElementById('exercise-focus-filter');
             const exerciseResults = document.getElementById('exercise-results');
+            const exerciseResultsEmpty = document.getElementById('exercise-results-empty');
             const exerciseSelectedCard = document.getElementById('exercise-selected-card');
             const exerciseSearchStatus = document.getElementById('exercise-search-status');
+            const exerciseCatalogModalStatus = document.getElementById('exercise-catalog-modal-status');
             const exerciseSetsInput = document.getElementById('exercise-sets-input');
             const exerciseRepsInput = document.getElementById('exercise-reps-input');
             const exerciseRestInput = document.getElementById('exercise-rest-input');
@@ -462,13 +674,170 @@
             let latestCatalogResults = [];
             let highlightedCatalogIndex = -1;
             let searchDebounceTimer = null;
+            let availableCatalogFocuses = [];
 
-            function renderExerciseMedia(mediaUrl, svgMarkup) {
+            function renderExerciseMedia(mediaUrl, svgMarkup, fallbackUrl) {
                 if (String(mediaUrl || '').trim() !== '') {
-                    return '<img src="' + String(mediaUrl).replace(/"/g, '&quot;') + '" alt="Midia do exercicio" loading="lazy">';
+                    const safeMediaUrl = String(mediaUrl).replace(/"/g, '&quot;');
+                    const safeFallbackUrl = String(fallbackUrl || '').trim().replace(/"/g, '&quot;');
+
+                    return '<img src="' + safeMediaUrl + '" alt="Midia do exercicio" loading="lazy"' + (safeFallbackUrl !== '' ? ' data-fallback-src="' + safeFallbackUrl + '"' : '') + '>';
                 }
 
                 return String(svgMarkup || '');
+            }
+
+            function normalizeCatalogText(value) {
+                return String(value || '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .trim()
+                    .toLowerCase();
+            }
+
+            function resolveCatalogPreviewUrl(exercise) {
+                const mediaUrl = String(exercise && exercise.exercise_media_url ? exercise.exercise_media_url : '').trim();
+                if (mediaUrl !== '') {
+                    return mediaUrl;
+                }
+
+                return String(exercise && exercise.remote_gif_url ? exercise.remote_gif_url : '').trim();
+            }
+
+            function getFallbackPreviewUrl(exercise) {
+                return String(exercise && exercise.remote_gif_url ? exercise.remote_gif_url : '').trim();
+            }
+
+            function setSearchStatus(message) {
+                if (exerciseSearchStatus) {
+                    exerciseSearchStatus.textContent = message;
+                }
+
+                if (exerciseCatalogModalStatus) {
+                    exerciseCatalogModalStatus.textContent = message;
+                }
+            }
+
+            function updateResultsEmptyState() {
+                if (!exerciseResultsEmpty) {
+                    return;
+                }
+
+                const hasResults = Array.isArray(latestCatalogResults) && latestCatalogResults.length > 0;
+                exerciseResultsEmpty.style.display = hasResults ? 'none' : 'block';
+            }
+
+            function renderFocusOptions() {
+                if (!exerciseFocusFilter) {
+                    return;
+                }
+
+                const previousValue = String(exerciseFocusFilter.value || '').trim();
+                const normalizedFocuses = Array.isArray(availableCatalogFocuses)
+                    ? availableCatalogFocuses.map(function (focus) {
+                        return String(focus || '').trim();
+                    }).filter(function (focus) {
+                        return focus !== '';
+                    })
+                    : [];
+
+                exerciseFocusFilter.innerHTML = '';
+
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Todos os focos';
+                exerciseFocusFilter.appendChild(defaultOption);
+
+                normalizedFocuses.forEach(function (focus) {
+                    const option = document.createElement('option');
+                    option.value = focus;
+                    option.textContent = focus.charAt(0).toUpperCase() + focus.slice(1);
+                    exerciseFocusFilter.appendChild(option);
+                });
+
+                exerciseFocusFilter.value = normalizedFocuses.indexOf(previousValue) >= 0 ? previousValue : '';
+            }
+
+            function currentSelectedDayPlan() {
+                const dayIndex = Number(daySelect && daySelect.value ? daySelect.value : '');
+
+                if (!Number.isInteger(dayIndex) || !weeklyPlan[dayIndex]) {
+                    return null;
+                }
+
+                return weeklyPlan[dayIndex];
+            }
+
+            function syncFocusFilterWithSelectedDay() {
+                if (!exerciseFocusFilter) {
+                    return;
+                }
+
+                const selectedDayPlan = currentSelectedDayPlan();
+                const dayFocus = normalizeCatalogText(selectedDayPlan && selectedDayPlan.focus ? selectedDayPlan.focus : '');
+
+                if (dayFocus === '') {
+                    return;
+                }
+
+                let matchingFocus = '';
+                const optionValues = Array.from(exerciseFocusFilter.options).map(function (option) {
+                    return String(option.value || '').trim();
+                }).filter(function (value) {
+                    return value !== '';
+                });
+
+                optionValues.some(function (focus) {
+                    const normalizedFocus = normalizeCatalogText(focus);
+                    if (normalizedFocus === dayFocus || dayFocus.indexOf(normalizedFocus) >= 0 || normalizedFocus.indexOf(dayFocus) >= 0) {
+                        matchingFocus = focus;
+                        return true;
+                    }
+
+                    return false;
+                });
+
+                if (matchingFocus === '') {
+                    matchingFocus = dayFocus;
+
+                    const alreadyExists = optionValues.some(function (focus) {
+                        return normalizeCatalogText(focus) === matchingFocus;
+                    });
+
+                    if (!alreadyExists) {
+                        const option = document.createElement('option');
+                        option.value = matchingFocus;
+                        option.textContent = String(selectedDayPlan.focus || 'Foco do dia').trim();
+                        exerciseFocusFilter.appendChild(option);
+                    }
+                }
+
+                exerciseFocusFilter.value = matchingFocus;
+            }
+
+            function openCatalogModal() {
+                if (!exerciseCatalogModal || !isEditable) {
+                    return;
+                }
+
+                exerciseCatalogModal.classList.add('open');
+                exerciseCatalogModal.setAttribute('aria-hidden', 'false');
+
+                if (exerciseSearchInput) {
+                    window.setTimeout(function () {
+                        exerciseSearchInput.focus();
+                        exerciseSearchInput.select();
+                    }, 20);
+                }
+            }
+
+            function closeCatalogModal() {
+                if (!exerciseCatalogModal) {
+                    return;
+                }
+
+                exerciseCatalogModal.classList.remove('open');
+                exerciseCatalogModal.setAttribute('aria-hidden', 'true');
             }
 
             function setResultsExpanded(isExpanded) {
@@ -509,6 +878,7 @@
                 highlightedCatalogIndex = -1;
                 setResultsExpanded(false);
                 exerciseSearchInput?.setAttribute('aria-activedescendant', '');
+                updateResultsEmptyState();
             }
 
             function selectCatalogExercise(exercise) {
@@ -521,9 +891,8 @@
 
                 resetCatalogResults();
 
-                if (exerciseSearchStatus) {
-                    exerciseSearchStatus.textContent = 'Exercicio selecionado. Ajuste series, reps e descanso para adicionar.';
-                }
+                setSearchStatus('Exercicio selecionado. Ajuste series, reps e descanso para adicionar.');
+                closeCatalogModal();
             }
 
             function renderSelectedExercise(exercise) {
@@ -540,6 +909,16 @@
                 exerciseSelectedCard.classList.remove('empty');
                 exerciseSelectedCard.innerHTML = '';
 
+                if (String(exercise.preview_url || '').trim() !== '') {
+                    const preview = document.createElement('div');
+                    preview.className = 'catalog-picker-selection-media';
+                    preview.innerHTML = renderExerciseMedia(exercise.preview_url, '', exercise.preview_fallback_url || '');
+                    exerciseSelectedCard.appendChild(preview);
+                }
+
+                const body = document.createElement('div');
+                body.className = 'catalog-picker-selection-body';
+
                 const title = document.createElement('strong');
                 title.textContent = String(exercise.name || 'Exercicio').trim();
 
@@ -552,11 +931,19 @@
                     return part !== '';
                 }).join(' | ');
 
-                exerciseSelectedCard.appendChild(title);
+                body.appendChild(title);
 
                 if (meta.textContent !== '') {
-                    exerciseSelectedCard.appendChild(meta);
+                    body.appendChild(meta);
                 }
+
+                if (String(exercise.workoutx_name || '').trim() !== '') {
+                    const workoutxName = document.createElement('small');
+                    workoutxName.textContent = 'WorkoutX: ' + String(exercise.workoutx_name).trim();
+                    body.appendChild(workoutxName);
+                }
+
+                exerciseSelectedCard.appendChild(body);
             }
 
             function setExerciseOptions(items) {
@@ -574,17 +961,34 @@
                     option.type = 'button';
                     option.className = 'catalog-picker-option';
 
+                    const previewUrl = resolveCatalogPreviewUrl(item);
+                    const fallbackPreviewUrl = getFallbackPreviewUrl(item);
+
                     const catalogExercise = {
                         id: String(item.id || '').trim(),
                         name: String(item.localized_name_pt_br || item.name || '').trim(),
                         workoutx_name: String(item.workoutx_name || '').trim(),
                         focus: String(item.focus || '').trim(),
                         equipment: String(item.equipment || '').trim(),
+                        target: String(item.target || '').trim(),
+                        preview_url: previewUrl,
+                        preview_fallback_url: fallbackPreviewUrl,
+                        storage_path: String(item.storage_path || '').trim(),
+                        remote_gif_url: String(item.remote_gif_url || '').trim(),
                     };
 
                     option.id = 'exercise-result-option-' + catalogExercise.id + '-' + exerciseResults.childElementCount;
                     option.setAttribute('role', 'option');
                     option.setAttribute('aria-selected', 'false');
+
+                    const media = document.createElement('div');
+                    media.className = 'catalog-picker-option-media';
+                    media.innerHTML = previewUrl !== ''
+                        ? renderExerciseMedia(previewUrl, '', fallbackPreviewUrl)
+                        : '<span style="padding: 12px; color: #64748b; font-size: 12px; text-align: center;">Sem preview</span>';
+
+                    const body = document.createElement('div');
+                    body.className = 'catalog-picker-option-body';
 
                     const title = document.createElement('strong');
                     title.textContent = catalogExercise.name || 'Exercicio';
@@ -592,17 +996,35 @@
                     const meta = document.createElement('small');
                     meta.textContent = [
                         catalogExercise.focus,
+                        catalogExercise.target,
                         catalogExercise.equipment,
-                        catalogExercise.workoutx_name,
                     ].filter(function (part) {
                         return part !== '';
                     }).join(' | ');
 
-                    option.appendChild(title);
+                    const workoutxName = document.createElement('small');
+                    workoutxName.textContent = catalogExercise.workoutx_name;
+
+                    const badge = document.createElement('span');
+                    badge.className = 'catalog-picker-option-badge';
+                    badge.textContent = catalogExercise.storage_path !== ''
+                        ? 'GIF local'
+                        : (catalogExercise.remote_gif_url !== '' ? 'GIF remoto' : 'Sem GIF');
+
+                    body.appendChild(title);
 
                     if (meta.textContent !== '') {
-                        option.appendChild(meta);
+                        body.appendChild(meta);
                     }
+
+                    if (workoutxName.textContent !== '') {
+                        body.appendChild(workoutxName);
+                    }
+
+                    body.appendChild(badge);
+
+                    option.appendChild(media);
+                    option.appendChild(body);
 
                     option.addEventListener('click', function () {
                         selectCatalogExercise(catalogExercise);
@@ -611,22 +1033,24 @@
                     exerciseResults.appendChild(option);
                 });
 
+                updateResultsEmptyState();
                 updateHighlightedOption(false);
             }
 
             async function searchCatalog(term) {
-                if (!exerciseResults || !exerciseSearchStatus || String(catalogSearchRoute || '').trim() === '') {
+                if (!exerciseResults || String(catalogSearchRoute || '').trim() === '') {
                     return;
                 }
 
                 const trimmedTerm = String(term || '').trim();
+                const selectedFocus = String(exerciseFocusFilter && exerciseFocusFilter.value ? exerciseFocusFilter.value : '').trim();
 
                 if (trimmedTerm.length < 2) {
-                    selectedCatalogExercise = null;
-                    renderSelectedExercise(null);
                     setExerciseOptions([]);
                     resetCatalogResults();
-                    exerciseSearchStatus.textContent = 'Digite pelo menos 2 letras para buscar no catalogo.';
+                    setSearchStatus(selectedFocus !== ''
+                        ? 'Digite pelo menos 2 letras para buscar dentro do foco selecionado.'
+                        : 'Digite pelo menos 2 letras para buscar no catalogo.');
                     return;
                 }
 
@@ -635,10 +1059,19 @@
                 }
 
                 catalogSearchAbortController = new AbortController();
-                exerciseSearchStatus.textContent = 'Buscando exercicios...';
+                setSearchStatus('Buscando exercicios...');
 
                 try {
-                    const response = await fetch(catalogSearchRoute + '?search=' + encodeURIComponent(trimmedTerm) + '&limit=12', {
+                    const query = new URLSearchParams({
+                        search: trimmedTerm,
+                        limit: '12',
+                    });
+
+                    if (selectedFocus !== '') {
+                        query.set('focus', selectedFocus);
+                    }
+
+                    const response = await fetch(catalogSearchRoute + '?' + query.toString(), {
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
                             'Accept': 'application/json',
@@ -652,11 +1085,15 @@
 
                     const payload = await response.json();
                     const items = Array.isArray(payload.data) ? payload.data : [];
+                    availableCatalogFocuses = Array.isArray(payload.meta && payload.meta.available_focuses)
+                        ? payload.meta.available_focuses
+                        : availableCatalogFocuses;
+                    renderFocusOptions();
 
                     setExerciseOptions(items);
-                    exerciseSearchStatus.textContent = items.length > 0
+                    setSearchStatus(items.length > 0
                         ? items.length + ' exercicio(s) encontrado(s).'
-                        : 'Nenhum exercicio encontrado para esta busca.';
+                        : 'Nenhum exercicio encontrado para esta busca.');
                 } catch (error) {
                     if (error && error.name === 'AbortError') {
                         return;
@@ -664,7 +1101,7 @@
 
                     setExerciseOptions([]);
                     resetCatalogResults();
-                    exerciseSearchStatus.textContent = 'Nao foi possivel buscar o catalogo agora.';
+                    setSearchStatus('Nao foi possivel buscar o catalogo agora.');
                 }
             }
 
@@ -680,9 +1117,7 @@
                     return;
                 }
 
-                if (exerciseSearchStatus) {
-                    exerciseSearchStatus.textContent = 'Digitando...';
-                }
+                setSearchStatus('Digitando...');
 
                 searchDebounceTimer = setTimeout(function () {
                     searchCatalog(trimmedTerm);
@@ -719,6 +1154,8 @@
                     workoutx_name: String(highlightedExercise.workoutx_name || '').trim(),
                     focus: String(highlightedExercise.focus || '').trim(),
                     equipment: String(highlightedExercise.equipment || '').trim(),
+                    preview_url: resolveCatalogPreviewUrl(highlightedExercise),
+                    preview_fallback_url: getFallbackPreviewUrl(highlightedExercise),
                 });
             }
 
@@ -1023,8 +1460,8 @@
                         steps: [],
                         remote_exercise_id: String(selectedCatalogExercise && selectedCatalogExercise.id ? selectedCatalogExercise.id : '').trim(),
                         workoutx_name: String(selectedCatalogExercise && selectedCatalogExercise.workoutx_name ? selectedCatalogExercise.workoutx_name : '').trim(),
-                        exercise_media_path: '',
-                        exercise_media_url: '',
+                        exercise_media_path: String(selectedCatalogExercise && selectedCatalogExercise.storage_path ? selectedCatalogExercise.storage_path : '').trim(),
+                        exercise_media_url: String(selectedCatalogExercise && selectedCatalogExercise.preview_url ? selectedCatalogExercise.preview_url : '').trim(),
                         illustration_svg: '',
                     });
 
@@ -1038,9 +1475,7 @@
                     renderSelectedExercise(null);
                     setExerciseOptions([]);
                     resetCatalogResults();
-                    if (exerciseSearchStatus) {
-                        exerciseSearchStatus.textContent = 'Digite pelo menos 2 letras para buscar no catalogo.';
-                    }
+                    setSearchStatus('Abra o catalogo para pesquisar exercicios e visualizar o GIF.');
                     exerciseSetsInput.value = '3';
                     exerciseRepsInput.value = '10-12';
                     exerciseRestInput.value = '60s';
@@ -1086,9 +1521,8 @@
                             exerciseResults.innerHTML = '';
                         }
                         resetCatalogResults();
-                        if (exerciseSearchStatus) {
-                            exerciseSearchStatus.textContent = 'Busca fechada.';
-                        }
+                        setSearchStatus('Busca fechada.');
+                        closeCatalogModal();
                     }
                 });
 
@@ -1100,22 +1534,71 @@
                 });
             }
 
-            document.addEventListener('click', function (event) {
-                const pickerRoot = event.target instanceof Node ? event.target.closest('.catalog-picker') : null;
-                if (pickerRoot) {
+            if (exerciseFocusFilter) {
+                exerciseFocusFilter.addEventListener('change', function () {
+                    scheduleCatalogSearch(exerciseSearchInput ? exerciseSearchInput.value : '');
+                });
+            }
+
+            if (openExerciseCatalogModalButton) {
+                openExerciseCatalogModalButton.addEventListener('click', function () {
+                    syncFocusFilterWithSelectedDay();
+                    if (exerciseSearchInput && String(exerciseSearchInput.value || '').trim().length >= 2) {
+                        scheduleCatalogSearch(exerciseSearchInput.value);
+                    }
+                    openCatalogModal();
+                });
+            }
+
+            if (daySelect) {
+                daySelect.addEventListener('change', function () {
+                    if (exerciseCatalogModal && exerciseCatalogModal.classList.contains('open')) {
+                        syncFocusFilterWithSelectedDay();
+                        scheduleCatalogSearch(exerciseSearchInput ? exerciseSearchInput.value : '');
+                    }
+                });
+            }
+
+            document.addEventListener('error', function (event) {
+                const target = event.target;
+
+                if (!(target instanceof HTMLImageElement)) {
                     return;
                 }
 
-                if (exerciseResults) {
-                    exerciseResults.innerHTML = '';
+                const fallbackSrc = String(target.getAttribute('data-fallback-src') || '').trim();
+                if (fallbackSrc === '' || target.src === fallbackSrc) {
+                    return;
                 }
 
-                resetCatalogResults();
+                target.src = fallbackSrc;
+            }, true);
+
+            if (closeExerciseCatalogModalButton) {
+                closeExerciseCatalogModalButton.addEventListener('click', function () {
+                    closeCatalogModal();
+                });
+            }
+
+            if (exerciseCatalogModal) {
+                exerciseCatalogModal.addEventListener('click', function (event) {
+                    if (event.target === exerciseCatalogModal) {
+                        closeCatalogModal();
+                    }
+                });
+            }
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && exerciseCatalogModal && exerciseCatalogModal.classList.contains('open')) {
+                    closeCatalogModal();
+                }
             });
 
             renderBoard();
+            renderFocusOptions();
             renderSelectedExercise(null);
             setExerciseOptions([]);
+            setSearchStatus('Abra o catalogo para pesquisar exercicios e visualizar o GIF.');
         })();
     </script>
 @endif
