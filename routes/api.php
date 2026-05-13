@@ -33,6 +33,7 @@ Route::prefix('v1')->group(function () {
             ->middleware(['signed', 'throttle:6,1'])
             ->name('api.auth.verify-email');
         Route::post('login', [AuthController::class, 'login'])->name('api.auth.login');
+        Route::post('google', [AuthController::class, 'googleLogin'])->name('api.auth.google');
         Route::post('select-tenant', [AuthController::class, 'selectTenant'])->name('api.auth.select-tenant');
     });
 

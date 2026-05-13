@@ -20,7 +20,15 @@ interface TenantManagementRepositoryContract
 
     public function create(string $name, ?string $slug, string $accessEmail, string $defaultPassword): Tenant;
 
-    public function createForExistingAdmin(User $accessUser, string $name, ?string $slug, ?string $contactEmail = null): Tenant;
+    public function createForExistingAdmin(
+        User $accessUser,
+        string $name,
+        ?string $slug,
+        ?string $contactEmail = null,
+        ?string $contactPhone = null,
+        ?string $documentNumber = null,
+        ?string $notes = null,
+    ): Tenant;
 
     public function findById(int $id): ?Tenant;
 

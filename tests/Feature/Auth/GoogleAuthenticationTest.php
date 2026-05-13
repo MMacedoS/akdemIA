@@ -45,7 +45,7 @@ class GoogleAuthenticationTest extends TestCase
 
         $response = $this->get(route('auth.google.callback'));
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertRedirect(route('onboarding.policies.edit'));
         $this->assertAuthenticated();
         $this->assertDatabaseHas('users', [
             'email' => 'google-user@example.com',
@@ -53,6 +53,30 @@ class GoogleAuthenticationTest extends TestCase
             'auth_provider' => 'google',
             'profile_type' => null,
         ]);
+    }
+
+    public function test_user_can_accept_policies_after_google_callback(): void
+    {
+        $socialiteUser = Mockery::mock(SocialiteUserContract::class);
+        $socialiteUser->shouldReceive('getId')->andReturn('google-user-3');
+        $socialiteUser->shouldReceive('getEmail')->andReturn('google-terms@example.com');
+        $socialiteUser->shouldReceive('getName')->andReturn('Google Terms');
+
+        Socialite::shouldReceive('driver->user')
+            ->once()
+            ->andReturn($socialiteUser);
+
+        $this->get(route('auth.google.callback'));
+
+        $user = User::query()->where('email', 'google-terms@example.com')->firstOrFail();
+
+        $response = $this->actingAs($user)->post(route('onboarding.policies.update'), [
+            'terms_of_use' => true,
+            'privacy_policy' => true,
+        ]);
+
+        $response->assertRedirect(route('onboarding.profile.edit'));
+        $this->assertTrue($user->fresh()->hasAcceptedRequiredPolicies());
     }
 
     public function test_google_callback_links_existing_user_by_email(): void

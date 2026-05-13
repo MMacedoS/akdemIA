@@ -22,7 +22,7 @@ class ProfileOnboardingTest extends TestCase
             'profile_type' => Role::TRAINER->value,
         ]);
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertRedirect(route('dashboard', [], false));
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'profile_type' => Role::TRAINER->value,
@@ -48,7 +48,7 @@ class ProfileOnboardingTest extends TestCase
             'profile_type' => Role::STUDENT->value,
         ]);
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertRedirect(route('dashboard', absolute: false));
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'profile_type' => Role::STUDENT->value,
@@ -85,13 +85,20 @@ class ProfileOnboardingTest extends TestCase
             'name' => 'Studio Norte',
             'slug' => 'studio-norte',
             'contact_email' => 'contato@studio.test',
+            'contact_phone' => '11988887777',
+            'document_number' => '52998224725',
+            'notes' => 'Operacao piloto do onboarding.',
         ]);
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertStatus(302);
+        $response->assertSessionHas('status', 'Tenant criado e vinculado com sucesso.');
         $this->assertDatabaseHas('tenants', [
             'name' => 'Studio Norte',
             'slug' => 'studio-norte',
             'contact_email' => 'contato@studio.test',
+            'contact_phone' => '(11) 98888-7777',
+            'document_number' => '529.982.247-25',
+            'notes' => 'Operacao piloto do onboarding.',
         ]);
 
         $tenantId = (int) \App\Models\Tenant\Tenant::query()

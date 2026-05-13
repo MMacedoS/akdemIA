@@ -103,6 +103,9 @@ class ProfileOnboardingController extends Controller
             'name' => FormPatterns::name(true, 120),
             'slug' => FormPatterns::slug(false, 120),
             'contact_email' => FormPatterns::looseEmail(false, 190),
+            'contact_phone' => FormPatterns::phone(),
+            'document_number' => FormPatterns::document(),
+            'notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $tenant = $this->tenantManagementRepository->createForExistingAdmin(
@@ -110,6 +113,9 @@ class ProfileOnboardingController extends Controller
             (string) $validated['name'],
             isset($validated['slug']) ? (string) $validated['slug'] : null,
             $validated['contact_email'] ?? null,
+            $validated['contact_phone'] ?? null,
+            $validated['document_number'] ?? null,
+            $validated['notes'] ?? null,
         );
 
         if ($request->hasSession()) {
@@ -118,6 +124,39 @@ class ProfileOnboardingController extends Controller
 
         return redirect()->route('dashboard')
             ->with('status', 'Tenant criado e vinculado com sucesso.');
+    }
+
+    public function policies(Request $request): View|RedirectResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (! $user->needsPolicyAcceptance()) {
+            return $this->redirectAfterPolicies($user);
+        }
+
+        return view('auth.policy-acceptance', [
+            'termsUrl' => route('legal.terms'),
+            'privacyUrl' => route('legal.privacy'),
+        ]);
+    }
+
+    public function acceptPolicies(Request $request): RedirectResponse
+    {
+        $user = $this->resolveUser($request);
+
+        if (! $user->needsPolicyAcceptance()) {
+            return $this->redirectAfterPolicies($user);
+        }
+
+        $request->validate([
+            'terms_of_use' => ['accepted'],
+            'privacy_policy' => ['accepted'],
+        ]);
+
+        $user->acceptRequiredPolicies();
+
+        return $this->redirectAfterPolicies($user->fresh())
+            ->with('status', 'Aceite registrado com sucesso.');
     }
 
     private function resolveUser(Request $request): User
@@ -143,5 +182,18 @@ class ProfileOnboardingController extends Controller
         }
 
         return $redirect;
+    }
+
+    private function redirectAfterPolicies(User $user): RedirectResponse
+    {
+        if ($user->needsProfileSelection()) {
+            return redirect()->route('onboarding.profile.edit');
+        }
+
+        if ($user->profileType() === Role::ADMIN && ! $user->tenants()->where('is_active', true)->exists()) {
+            return redirect()->route('onboarding.contractor');
+        }
+
+        return redirect()->route('dashboard');
     }
 }

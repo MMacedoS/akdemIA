@@ -17,11 +17,22 @@ class RegistrationTest extends TestCase
         $this->skipUnlessFortifyHas(Features::registration());
     }
 
-    public function test_registration_screen_can_be_rendered()
+    public function test_registration_screen_redirects_to_login_when_google_auth_is_unavailable()
     {
         $response = $this->get(route('register'));
 
-        $response->assertOk();
+        $response->assertRedirect(route('login'));
+    }
+
+    public function test_registration_screen_redirects_to_google_when_google_auth_is_available()
+    {
+        config()->set('services.google.client_id', 'google-client-id');
+        config()->set('services.google.client_secret', 'google-client-secret');
+        config()->set('services.google.redirect', 'http://localhost/auth/google/callback');
+
+        $response = $this->get(route('register'));
+
+        $response->assertRedirect(route('auth.google.redirect'));
     }
 
     public function test_new_users_can_register()

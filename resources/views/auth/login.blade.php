@@ -93,9 +93,5 @@
         @if (!empty($canResetPassword))
             <a href="{{ route('password.request') }}">Esqueci minha senha</a>
         @endif
-
-        @if (!empty($canRegister))
-            <a href="{{ route('register') }}">Criar conta</a>
-        @endif
     </div>
 @endsection

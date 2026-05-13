@@ -154,9 +154,13 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::registerView(fn() => view('auth.register', [
-            'canLoginWithGoogle' => $this->canLoginWithGoogle(),
-        ]));
+        Fortify::registerView(function () {
+            if ($this->canLoginWithGoogle()) {
+                return redirect()->route('auth.google.redirect');
+            }
+
+            return redirect()->route('login');
+        });
 
         Fortify::twoFactorChallengeView(fn() => view('auth.two-factor-challenge'));
 

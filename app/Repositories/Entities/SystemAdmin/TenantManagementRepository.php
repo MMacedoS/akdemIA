@@ -54,13 +54,23 @@ class TenantManagementRepository implements TenantManagementRepositoryContract
         });
     }
 
-    public function createForExistingAdmin(User $accessUser, string $name, ?string $slug, ?string $contactEmail = null): Tenant
-    {
-        return DB::transaction(function () use ($accessUser, $name, $slug, $contactEmail): Tenant {
+    public function createForExistingAdmin(
+        User $accessUser,
+        string $name,
+        ?string $slug,
+        ?string $contactEmail = null,
+        ?string $contactPhone = null,
+        ?string $documentNumber = null,
+        ?string $notes = null,
+    ): Tenant {
+        return DB::transaction(function () use ($accessUser, $name, $slug, $contactEmail, $contactPhone, $documentNumber, $notes): Tenant {
             $tenant = $this->createTenantRecord(
                 $name,
                 $slug,
                 FormPatterns::normalizeEmail($contactEmail) ?? FormPatterns::normalizeEmail($accessUser->email),
+                FormPatterns::formatPhone($contactPhone),
+                FormPatterns::formatDocument($documentNumber),
+                $this->nullableString($notes),
             );
 
             $tenant->users()->syncWithoutDetaching([
@@ -111,8 +121,14 @@ class TenantManagementRepository implements TenantManagementRepositoryContract
         return $slug;
     }
 
-    private function createTenantRecord(string $name, ?string $slug, ?string $contactEmail): Tenant
-    {
+    private function createTenantRecord(
+        string $name,
+        ?string $slug,
+        ?string $contactEmail,
+        ?string $contactPhone = null,
+        ?string $documentNumber = null,
+        ?string $notes = null,
+    ): Tenant {
         $rawSlug = trim((string) $slug);
         $baseSlug = $rawSlug !== '' ? Str::lower($rawSlug) : Str::slug($name);
         $baseSlug = $baseSlug !== '' ? $baseSlug : 'tenant';
@@ -121,6 +137,9 @@ class TenantManagementRepository implements TenantManagementRepositoryContract
             'name' => trim($name),
             'slug' => $this->ensureUniqueSlug($baseSlug),
             'contact_email' => $contactEmail,
+            'contact_phone' => $contactPhone,
+            'document_number' => $documentNumber,
+            'notes' => $notes,
             'is_active' => true,
         ]);
     }

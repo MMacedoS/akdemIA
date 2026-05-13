@@ -19,6 +19,8 @@ use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -92,6 +94,23 @@ class AuthController extends Controller
                     'body' => [
                         'email' => 'aluno@example.com',
                         'password' => 'password123',
+                    ],
+                ],
+                [
+                    'name' => 'google_login',
+                    'description' => 'Login social do app com Google. Mantem o perfil estudante e pode exigir aceite explicito na primeira autenticacao.',
+                    'endpoint' => '/api/v1/auth/google',
+                    'method' => 'POST',
+                    'auth_required' => false,
+                    'body' => [
+                        'access_token' => 'google-access-token',
+                        'terms_of_use' => true,
+                        'privacy_policy' => true,
+                    ],
+                    'response' => [
+                        'authenticated' => true,
+                        'profile' => 'student',
+                        'token' => 'string',
                     ],
                 ],
                 [
@@ -191,6 +210,21 @@ class AuthController extends Controller
                     'response' => [
                         'token' => 'string',
                         'tenant' => ['id' => 1, 'name' => 'Tenant', 'slug' => 'tenant'],
+                    ],
+                ],
+                [
+                    'name' => 'google_first_login_without_policies',
+                    'description' => 'Primeiro login Google sem aceite explicito. O app deve exibir o consentimento e reenviar o mesmo endpoint com os checkboxes marcados.',
+                    'endpoint' => '/api/v1/auth/google',
+                    'method' => 'POST',
+                    'body' => [
+                        'access_token' => 'google-access-token',
+                    ],
+                    'response' => [
+                        'message' => 'Aceite dos termos de uso e da politica de privacidade obrigatorio para continuar.',
+                        'code' => 'policy_acceptance_required',
+                        'requiresPolicyAcceptance' => true,
+                        'profile' => 'student',
                     ],
                 ],
             ],
@@ -299,6 +333,94 @@ class AuthController extends Controller
         ]);
     }
 
+    public function googleLogin(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'access_token' => ['required', 'string'],
+            'terms_of_use' => ['nullable', 'boolean'],
+            'privacy_policy' => ['nullable', 'boolean'],
+        ]);
+
+        try {
+            $googleUser = Socialite::driver('google')
+                ->stateless()
+                ->userFromToken((string) $validated['access_token']);
+        } catch (\Throwable) {
+            return response()->json([
+                'message' => 'Nao foi possivel autenticar com o Google.',
+            ], 422);
+        }
+
+        $email = FormPatterns::normalizeEmail($googleUser->getEmail());
+        $googleId = trim((string) $googleUser->getId());
+
+        if ($email === null || $googleId === '') {
+            return response()->json([
+                'message' => 'A conta Google nao retornou um e-mail valido.',
+            ], 422);
+        }
+
+        $platformTrainee = $this->platformTenantService->resolvePlatformTrainee();
+        $user = User::query()
+            ->where('google_id', $googleId)
+            ->orWhere('email', $email)
+            ->first();
+
+        $acceptPoliciesInline = (bool) ($validated['terms_of_use'] ?? false) && (bool) ($validated['privacy_policy'] ?? false);
+
+        if (! $user instanceof User) {
+            $user = $this->traineeStudentRepository->createForTrainee(null, $platformTrainee->id, [
+                'name' => trim((string) ($googleUser->getName() ?: 'Aluno Google')),
+                'email' => $email,
+                'password' => Str::password(32),
+                'terms_of_use' => $acceptPoliciesInline,
+                'privacy_policy' => $acceptPoliciesInline,
+            ]);
+        } else {
+            if (! (bool) $user->is_active) {
+                return response()->json([
+                    'message' => 'Conta inativa para login no app.',
+                ], 403);
+            }
+
+            if ($user->profileType() === null) {
+                $user->profile_type = Role::STUDENT->value;
+            }
+
+            if ($user->profileType() !== Role::STUDENT) {
+                return response()->json([
+                    'message' => 'Esta conta nao pode usar o login Google do app porque nao pertence ao perfil estudante.',
+                ], 403);
+            }
+
+            $user->forceFill([
+                'google_id' => $googleId,
+                'auth_provider' => 'google',
+                'email_verified_at' => $user->email_verified_at ?? now(),
+            ])->save();
+
+            if ($acceptPoliciesInline && $user->needsPolicyAcceptance()) {
+                $user->acceptRequiredPolicies();
+            }
+
+            if ($this->traineeStudentRepository->assignedTraineeForStudent(null, (int) $user->id) === null) {
+                $this->traineeStudentRepository->reassignStudentTrainee(null, (int) $user->id, (int) $platformTrainee->id, (int) $platformTrainee->id);
+            }
+        }
+
+        $user->forceFill([
+            'google_id' => $googleId,
+            'auth_provider' => 'google',
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ])->save();
+
+        if ($user->needsPolicyAcceptance()) {
+            return $this->policyAcceptanceRequiredResponse($user);
+        }
+
+        return $this->standaloneStudentResponse($user->fresh(), 200, 'Aluno autenticado com Google sem vinculo de tenant.');
+    }
+
     public function selectTenant(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -391,6 +513,22 @@ class AuthController extends Controller
             ],
             'assigned_trainer' => $assignedTrainee === null ? null : $this->studentTrainerTransformer->transformAssigned($assignedTrainee),
         ], $status);
+    }
+
+    private function policyAcceptanceRequiredResponse(User $user): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Aceite dos termos de uso e da politica de privacidade obrigatorio para continuar.',
+            'code' => 'policy_acceptance_required',
+            'requiresPolicyAcceptance' => true,
+            'profile' => Role::STUDENT->value,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+            'policies' => $this->policyStatus($user),
+        ], 409);
     }
 
     /**

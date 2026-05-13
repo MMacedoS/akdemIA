@@ -12,6 +12,9 @@ use App\Services\Tenant\PlatformTenantService;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Socialite\Contracts\User as SocialiteUserContract;
+use Laravel\Socialite\Facades\Socialite;
+use Mockery;
 use Tests\TestCase;
 
 class ApiStudentStandaloneAuthTest extends TestCase
@@ -85,10 +88,70 @@ class ApiStudentStandaloneAuthTest extends TestCase
             ->assertJsonPath('audience', 'student-mobile')
             ->assertJsonPath('public_endpoints.0.endpoint', '/api/v1/auth/register')
             ->assertJsonPath('public_endpoints.1.endpoint', '/api/v1/auth/login')
-            ->assertJsonPath('public_endpoints.2.endpoint', '/termos-de-uso')
-            ->assertJsonPath('public_endpoints.3.endpoint', '/politica-de-privacidade')
+            ->assertJsonPath('public_endpoints.2.endpoint', '/api/v1/auth/google')
+            ->assertJsonPath('public_endpoints.3.endpoint', '/termos-de-uso')
+            ->assertJsonPath('public_endpoints.4.endpoint', '/politica-de-privacidade')
             ->assertJsonPath('authenticated_endpoints.0.endpoint', '/api/v1/auth/accept-policies')
             ->assertJsonPath('authenticated_endpoints.1.endpoint', '/api/v1/me');
+    }
+
+    public function test_google_login_requires_explicit_policy_acceptance_on_first_access(): void
+    {
+        config()->set('services.google.client_id', 'google-client-id');
+        config()->set('services.google.client_secret', 'google-client-secret');
+        config()->set('services.google.redirect', 'http://localhost/auth/google/callback');
+
+        $socialiteUser = Mockery::mock(SocialiteUserContract::class);
+        $socialiteUser->shouldReceive('getId')->andReturn('google-api-user-1');
+        $socialiteUser->shouldReceive('getEmail')->andReturn('google-api-user@example.com');
+        $socialiteUser->shouldReceive('getName')->andReturn('Google Api User');
+
+        Socialite::shouldReceive('driver->stateless->userFromToken')
+            ->once()
+            ->andReturn($socialiteUser);
+
+        $response = $this->postJson('/api/v1/auth/google', [
+            'access_token' => 'google-access-token',
+        ]);
+
+        $response->assertStatus(409)
+            ->assertJsonPath('code', 'policy_acceptance_required')
+            ->assertJsonPath('requiresPolicyAcceptance', true)
+            ->assertJsonPath('profile', Role::STUDENT->value);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'google-api-user@example.com',
+            'profile_type' => Role::STUDENT->value,
+            'auth_provider' => 'google',
+        ]);
+    }
+
+    public function test_google_login_can_accept_policies_inline_and_return_student_token(): void
+    {
+        config()->set('services.google.client_id', 'google-client-id');
+        config()->set('services.google.client_secret', 'google-client-secret');
+        config()->set('services.google.redirect', 'http://localhost/auth/google/callback');
+
+        $socialiteUser = Mockery::mock(SocialiteUserContract::class);
+        $socialiteUser->shouldReceive('getId')->andReturn('google-api-user-2');
+        $socialiteUser->shouldReceive('getEmail')->andReturn('google-inline@example.com');
+        $socialiteUser->shouldReceive('getName')->andReturn('Google Inline');
+
+        Socialite::shouldReceive('driver->stateless->userFromToken')
+            ->once()
+            ->andReturn($socialiteUser);
+
+        $response = $this->postJson('/api/v1/auth/google', [
+            'access_token' => 'google-access-token',
+            'terms_of_use' => true,
+            'privacy_policy' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('profile', Role::STUDENT->value)
+            ->assertJsonPath('policies.accepted', true)
+            ->assertJsonPath('user.email', 'google-inline@example.com')
+            ->assertJsonStructure(['token']);
     }
 
     public function test_student_can_login_without_tenant_and_change_trainer(): void

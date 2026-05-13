@@ -81,13 +81,15 @@ Route::prefix('auth/google')->name('auth.google.')->middleware('guest:web')->gro
 });
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('onboarding/policies', [ProfileOnboardingController::class, 'policies'])->name('onboarding.policies.edit');
+    Route::post('onboarding/policies', [ProfileOnboardingController::class, 'acceptPolicies'])->name('onboarding.policies.update');
     Route::get('onboarding/profile', [ProfileOnboardingController::class, 'edit'])->name('onboarding.profile.edit');
     Route::post('onboarding/profile', [ProfileOnboardingController::class, 'update'])->name('onboarding.profile.update');
     Route::get('onboarding/contractor', [ProfileOnboardingController::class, 'contractor'])->name('onboarding.contractor');
     Route::post('onboarding/contractor', [ProfileOnboardingController::class, 'storeContractor'])->name('onboarding.contractor.store');
 });
 
-Route::middleware(['auth', 'verified', 'profile.selected'])->group(function () {
+Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selected'])->group(function () {
     Route::get('my-landing', [MyLandingController::class, 'edit'])->name('my-landing.edit');
     Route::put('my-landing', [MyLandingController::class, 'update'])->name('my-landing.update');
     Route::post('my-landing/media', [MyLandingController::class, 'storeMedia'])->name('my-landing.media.store');

@@ -110,6 +110,21 @@
                     <span class="contractor-label">E-mail de contato</span>
                     <input id="contact_email" name="contact_email" type="email" value="{{ $defaultContactEmail }}" class="field-control" placeholder="contato@empresa.com">
                 </label>
+
+                <label class="contractor-field" for="contact_phone">
+                    <span class="contractor-label">Telefone</span>
+                    <input id="contact_phone" name="contact_phone" type="text" value="{{ old('contact_phone') }}" class="field-control" placeholder="(11) 99999-9999">
+                </label>
+
+                <label class="contractor-field" for="document_number">
+                    <span class="contractor-label">Documento</span>
+                    <input id="document_number" name="document_number" type="text" value="{{ old('document_number') }}" class="field-control" placeholder="CPF ou CNPJ">
+                </label>
+
+                <label class="contractor-field contractor-field-full" for="notes">
+                    <span class="contractor-label">Observacoes</span>
+                    <textarea id="notes" name="notes" class="field-control" rows="4" placeholder="Anote contexto comercial, unidade ou preferencia de implantacao.">{{ old('notes') }}</textarea>
+                </label>
             </div>
 
             <p class="contractor-helper">Se o slug ficar vazio, o sistema gera automaticamente a partir do nome. Se o slug escolhido ja existir, um sufixo numerico sera aplicado.</p>

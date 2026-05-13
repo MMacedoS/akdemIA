@@ -285,7 +285,7 @@
         $heroDescription = $setting?->hero_description ?: 'Centralize operacao, prescricao de treinos, comunicacao e acompanhamento de resultados em uma experiencia moderna, multi-tenant e pronta para escalar.';
         $heroImageUrl = $setting?->hero_image_url;
         $primaryCtaText = $setting?->primary_cta_text ?: 'Comecar agora';
-        $primaryCtaUrl = $setting?->primary_cta_url ?: route('register');
+        $primaryCtaUrl = $setting?->primary_cta_url ?: route('login');
         $secondaryCtaText = $setting?->secondary_cta_text ?: 'Ver como funciona';
         $secondaryCtaUrl = $setting?->secondary_cta_url ?: '#sobre';
         $aboutTitle = $setting?->about_title ?: 'Uma plataforma unica para simplificar a gestao de treinos e acelerar a operacao da academia.';

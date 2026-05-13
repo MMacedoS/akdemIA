@@ -77,7 +77,9 @@ class GoogleAuthController extends Controller
         $this->auth->guard('web')->login($user, true);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        return $user->needsPolicyAcceptance()
+            ? redirect()->route('onboarding.policies.edit')
+            : redirect()->route('dashboard');
     }
 
     private function isGoogleConfigured(): bool
