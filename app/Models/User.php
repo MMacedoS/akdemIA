@@ -116,7 +116,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     public function needsPolicyAcceptance(): bool
     {
-        return ! $this->hasAcceptedRequiredPolicies();
+        return ! $this->isSystemAdmin() && ! $this->hasAcceptedRequiredPolicies();
     }
 
     public function isTrainer(): bool

@@ -15,6 +15,7 @@ use App\Http\Controllers\Web\V1\SystemAdmin\AuthController as SystemAdminAuthCon
 use App\Http\Controllers\Web\V1\SystemAdmin\SystemLandingController as SystemAdminSystemLandingController;
 use App\Http\Controllers\Web\V1\SystemAdmin\CreditOverviewController as SystemAdminCreditOverviewController;
 use App\Http\Controllers\Web\V1\SystemAdmin\EmailSettingsController as SystemAdminEmailSettingsController;
+use App\Http\Controllers\Web\V1\SystemAdmin\GoogleAuthSettingsController as SystemAdminGoogleAuthSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\LegalSettingsController as SystemAdminLegalSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\LogViewerController as SystemAdminLogViewerController;
 use App\Http\Controllers\Web\V1\SystemAdmin\PaymentSettingsController as SystemAdminPaymentSettingsController;
@@ -267,6 +268,9 @@ Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selecte
 
         Route::get('/settings/email', [SystemAdminEmailSettingsController::class, 'edit'])->name('settings.email.edit');
         Route::put('/settings/email', [SystemAdminEmailSettingsController::class, 'update'])->name('settings.email.update');
+
+        Route::get('/settings/google-auth', [SystemAdminGoogleAuthSettingsController::class, 'edit'])->name('settings.google-auth.edit');
+        Route::put('/settings/google-auth', [SystemAdminGoogleAuthSettingsController::class, 'update'])->name('settings.google-auth.update');
 
         Route::get('/settings/logs', [SystemAdminLogViewerController::class, 'index'])->name('settings.logs.index');
         Route::post('/settings/logs/clear', [SystemAdminLogViewerController::class, 'clear'])->name('settings.logs.clear');

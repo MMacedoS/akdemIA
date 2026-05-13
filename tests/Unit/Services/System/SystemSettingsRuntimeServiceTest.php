@@ -96,4 +96,38 @@ class SystemSettingsRuntimeServiceTest extends TestCase
 
         $this->assertSame(180, config('services.workoutx.sync_page_delay_seconds'));
     }
+
+    public function test_apply_maps_google_auth_settings_to_runtime_config(): void
+    {
+        SystemSetting::query()->create([
+            'domain' => 'google',
+            'key' => 'google.client_id',
+            'value' => 'runtime-client-id',
+            'is_secret' => false,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'google',
+            'key' => 'google.client_secret',
+            'value' => 'runtime-client-secret',
+            'is_secret' => true,
+        ]);
+
+        SystemSetting::query()->create([
+            'domain' => 'google',
+            'key' => 'google.redirect_uri',
+            'value' => 'https://runtime.exemplo.com/auth/google/callback',
+            'is_secret' => false,
+        ]);
+
+        config()->set('services.google.client_id', 'env-client-id');
+        config()->set('services.google.client_secret', 'env-client-secret');
+        config()->set('services.google.redirect', 'https://env.exemplo.com/auth/google/callback');
+
+        app(SystemSettingsRuntimeService::class)->apply();
+
+        $this->assertSame('runtime-client-id', config('services.google.client_id'));
+        $this->assertSame('runtime-client-secret', config('services.google.client_secret'));
+        $this->assertSame('https://runtime.exemplo.com/auth/google/callback', config('services.google.redirect'));
+    }
 }
