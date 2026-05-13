@@ -527,7 +527,9 @@ class AuthController extends Controller
             'message' => 'Aceite dos termos de uso e da politica de privacidade obrigatorio para continuar.',
             'code' => 'policy_acceptance_required',
             'requiresPolicyAcceptance' => true,
+            'requiresTenantSelection' => false,
             'profile' => Role::STUDENT->value,
+            'token' => $this->tenantAuthService->generateStandaloneToken($user),
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,

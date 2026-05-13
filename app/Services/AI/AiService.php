@@ -6,11 +6,13 @@ use App\DTOs\AI\StructuredResponseResult;
 use App\Exceptions\AI\WorkoutValidationException;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
+use App\Services\Workout\Planning\WorkoutPlanningEngine;
+use App\Services\Workout\Planning\WorkoutRepairEngine;
 use Illuminate\Validation\ValidationException;
 
 class AiService
 {
-    public const WORKOUT_PROMPT_VERSION = '2026-05-13-responses-api-vector-store-v2';
+    public const WORKOUT_PROMPT_VERSION = '2026-05-13-deterministic-planning-v1';
     private const MAX_WORKOUT_REPAIR_ATTEMPTS = 2;
 
     public function __construct(
@@ -19,6 +21,8 @@ class AiService
         private readonly WorkoutPlanGeneratorService $generatorService,
         private readonly WorkoutPlanCriticService $criticService,
         private readonly ValidationService $validationService,
+        private readonly WorkoutPlanningEngine $planningEngine,
+        private readonly WorkoutRepairEngine $repairEngine,
         private readonly OpenAIResponsesClient $client,
         private readonly AiResponseCacheService $cache,
         private readonly AiRequestLogger $logger,
@@ -32,22 +36,28 @@ class AiService
     ): array {
         $context = $this->contextFactory->make($user, $tenant, $conservativeMode, $adjustmentRequest);
         $retrieval = $this->retrievalService->retrieve($context);
-        $candidatePlan = $this->generatorService->generate($context, $retrieval)->data;
+        $planningPayload = $this->planningEngine->plan($context, $retrieval);
+        $candidatePlan = $this->generatorService->generate($context, $retrieval, $planningPayload)->data;
 
         for ($attempt = 0; $attempt <= self::MAX_WORKOUT_REPAIR_ATTEMPTS; $attempt++) {
             try {
-                return $this->validationService->validateWorkoutResponse($candidatePlan);
+                $validated = $this->validationService->validateWorkoutResponse($candidatePlan, $planningPayload);
+
+                return array_merge($validated, [
+                    'quality_scores' => $planningPayload['quality_scores'] ?? [],
+                ]);
             } catch (ValidationException $exception) {
                 if ($attempt === self::MAX_WORKOUT_REPAIR_ATTEMPTS) {
                     throw $exception;
                 }
 
-                $candidatePlan = $this->criticService->repair(
+                $candidatePlan = $this->repairEngine->repair(
                     $context,
                     $retrieval,
+                    $planningPayload,
                     $candidatePlan,
                     WorkoutValidationException::fromValidationException($exception),
-                )->data;
+                );
             }
         }
 

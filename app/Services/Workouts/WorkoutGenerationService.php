@@ -9,7 +9,6 @@ use App\Services\AI\AiService;
 use App\Services\AI\ValidationService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Validation\ValidationException;
 
 class WorkoutGenerationService
 {
@@ -57,34 +56,12 @@ class WorkoutGenerationService
 
         $this->validationService->validateUserForWorkout($user);
         $wellbeingResponse = $this->aiService->generateRecommendations($user, $tenant);
-        $safeWorkoutData = null;
-        $acceptedWorkoutResponse = null;
-        $lastValidationException = null;
-
-        for ($attempt = 1; $attempt <= 2; $attempt++) {
-            $useConservativePrompt = $attempt > 1;
-
-            $workoutResponse = $this->aiService->generateWorkout(
-                $user,
-                $tenant,
-                $useConservativePrompt,
-                $adjustmentRequest,
-            );
-
-            try {
-                $safeWorkoutData = $this->validationService->validateWorkoutResponse($workoutResponse);
-                $acceptedWorkoutResponse = $workoutResponse;
-                break;
-            } catch (ValidationException $validationException) {
-                $lastValidationException = $validationException;
-            }
-        }
-
-        if (! is_array($safeWorkoutData) || ! is_array($acceptedWorkoutResponse)) {
-            throw $lastValidationException ?? ValidationException::withMessages([
-                'workout' => 'Unable to generate a safe workout response.',
-            ]);
-        }
+        $safeWorkoutData = $this->aiService->generateWorkout(
+            $user,
+            $tenant,
+            false,
+            $adjustmentRequest,
+        );
 
         $workoutPlan = $this->workoutMediaService->enrichWorkoutPlan($safeWorkoutData);
 

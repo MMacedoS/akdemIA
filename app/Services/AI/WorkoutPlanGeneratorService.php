@@ -14,15 +14,16 @@ class WorkoutPlanGeneratorService
         private readonly AiRequestLogger $logger,
     ) {}
 
-    public function generate(WorkoutGenerationContext $context, WorkoutRetrievalResult $retrieval): StructuredResponseResult
+    public function generate(WorkoutGenerationContext $context, WorkoutRetrievalResult $retrieval, array $planningPayload = []): StructuredResponseResult
     {
-        $payload = $this->buildPayload($context, $retrieval);
+        $payload = $this->buildPayload($context, $retrieval, $planningPayload);
         $cacheKey = $this->cache->buildKey('workout_generation', [
             'prompt_version' => AiService::WORKOUT_PROMPT_VERSION,
             'context' => $context->promptFingerprint(),
             'retrieval_mode' => $retrieval->mode,
             'vector_store_id' => $retrieval->vectorStoreId,
             'candidate_ids' => array_map(static fn(array $candidate): string => (string) ($candidate['remote_exercise_id'] ?? ''), $retrieval->compactCandidates()),
+            'planning_hash' => hash('sha256', json_encode($planningPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
         ]);
 
         $shouldUseCache = (bool) config('services.openai.workout_generation_cache_enabled', false);
@@ -162,24 +163,24 @@ class WorkoutPlanGeneratorService
         ];
     }
 
-    private function buildPayload(WorkoutGenerationContext $context, WorkoutRetrievalResult $retrieval): array
+    private function buildPayload(WorkoutGenerationContext $context, WorkoutRetrievalResult $retrieval, array $planningPayload = []): array
     {
         return [
             'model' => (string) config('services.openai.responses_model', 'gpt-4o-mini'),
-            'temperature' => 0.15,
+            'temperature' => 0.1,
             'input' => [
                 [
                     'role' => 'system',
                     'content' => [[
                         'type' => 'input_text',
-                        'text' => 'Voce e um especialista em treino, biomecanica e seguranca. Responda apenas com JSON valido que obedece exatamente ao schema. Nunca invente exercicios, ids, workoutx_name ou cardio fora do catalogo recuperado. Use apenas exercicios semanticamente relevantes ao perfil do usuario.',
+                        'text' => 'Voce e uma camada assistiva de treino. O backend ja definiu split, distribuicao biomecanica, selecao principal e limites de fadiga. Sua funcao e apenas organizar, contextualizar, suavizar linguagem e completar campos textuais sem alterar a estrutura deterministica. Responda apenas com JSON valido que obedece exatamente ao schema. Nunca invente exercicios, ids, workoutx_name ou cardio fora do catalogo recuperado.',
                     ]],
                 ],
                 [
                     'role' => 'user',
                     'content' => [[
                         'type' => 'input_text',
-                        'text' => $this->userInstruction($context, $retrieval),
+                        'text' => $this->userInstruction($context, $retrieval, $planningPayload),
                     ]],
                 ],
             ],
@@ -201,7 +202,7 @@ class WorkoutPlanGeneratorService
         ];
     }
 
-    private function userInstruction(WorkoutGenerationContext $context, WorkoutRetrievalResult $retrieval): string
+    private function userInstruction(WorkoutGenerationContext $context, WorkoutRetrievalResult $retrieval, array $planningPayload = []): string
     {
         return implode("\n\n", array_filter([
             'Perfil do usuario: ' . json_encode($context->profile, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -211,12 +212,42 @@ class WorkoutPlanGeneratorService
             'Modo de retrieval: ' . $retrieval->mode,
             'Exercicios prioritarios recuperados: ' . json_encode($retrieval->compactCandidates(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'Exercicios permitidos por foco: ' . json_encode($retrieval->compactCandidatesByFocus(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $planningPayload !== [] ? 'Plano deterministico obrigatório: ' . json_encode($this->deterministicPlanForPrompt($planningPayload), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
             $context->adjustmentRequest !== null ? 'Ajustes obrigatorios do treinador: ' . $context->adjustmentRequest : null,
             $context->conservativeMode ? 'Refine com criterio conservador mantendo intensidade suficiente, eliminando redundancias e movimentos de risco.' : null,
-            'Regra de selecao por foco: em cada dia, os 4 exercicios specific devem vir apenas do mesmo foco biomecanico do dia. Use cardio apenas do grupo cardio. Nunca use exercicio de bracos, pernas, costas, peito, ombros ou core em um dia de outro foco.',
+            'Regra de selecao por foco: siga exatamente o plano deterministico do backend para split, foco, ordem e identidades dos exercicios. Use cardio apenas do grupo cardio. Nao introduza exercicios fora dos ids planejados.',
             'Regra de variacao entre geracoes: trate os remote_exercise_id do treino anterior como bloqueados. So reutilize um exercicio anterior se realmente nao houver alternativa suficiente no mesmo foco do dia.',
-            'Regras obrigatorias: exatamente 5 exercicios por dia; exatamente 4 specific e 1 cardio; focus unico por dia; nao repetir exercicios no mesmo dia; nao repetir exercicios em dias consecutivos; cardio compativel com restricoes clinicas; steps de 2 a 5 itens; name em pt-BR; workoutx_name em ingles exatamente como no catalogo; remote_exercise_id obrigatorio; reps, rest e notes nunca vazios.',
+            'Regras obrigatorias: exatamente 5 exercicios por dia; exatamente 4 specific e 1 cardio; use o focus definido no plano deterministico; nao repetir exercicios no mesmo dia; nao repetir exercicios em dias consecutivos; cardio compativel com restricoes clinicas; steps de 2 a 5 itens; name em pt-BR; workoutx_name em ingles exatamente como no catalogo; remote_exercise_id obrigatorio; reps, rest e notes nunca vazios.',
+            'Voce nao decide volume, progressao, distribuicao biomecanica ou selecao principal. Apenas converta o plano base em um weekly_plan final legivel e seguro.',
         ]));
+    }
+
+    private function deterministicPlanForPrompt(array $planningPayload): array
+    {
+        return [
+            'weekly_frequency' => $planningPayload['weekly_frequency'] ?? null,
+            'quality_scores' => $planningPayload['quality_scores'] ?? [],
+            'weekly_plan_base' => array_map(function (array $day): array {
+                return [
+                    'day' => $day['label'] ?? $day['day'] ?? 'Dia',
+                    'focus' => $day['focus'] ?? $day['focus_label'] ?? 'Treino',
+                    'focuses' => $day['focuses'] ?? [],
+                    'patterns' => $day['patterns'] ?? [],
+                    'exercises' => array_map(static fn(array $exercise): array => [
+                        'name' => $exercise['name'] ?? null,
+                        'category' => $exercise['category'] ?? null,
+                        'sets' => $exercise['sets'] ?? null,
+                        'reps' => $exercise['reps'] ?? null,
+                        'rest' => $exercise['rest'] ?? null,
+                        'notes' => $exercise['notes'] ?? null,
+                        'steps' => $exercise['steps'] ?? null,
+                        'remote_exercise_id' => $exercise['remote_exercise_id'] ?? null,
+                        'workoutx_name' => $exercise['workoutx_name'] ?? null,
+                        'reason' => $exercise['reason'] ?? null,
+                    ], $day['selected_exercises'] ?? []),
+                ];
+            }, $planningPayload['selected_days'] ?? []),
+        ];
     }
 
     private function previousWorkoutExerciseIds(array $previousWorkoutPlan): array

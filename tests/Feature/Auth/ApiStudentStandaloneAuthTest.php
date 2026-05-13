@@ -113,10 +113,21 @@ class ApiStudentStandaloneAuthTest extends TestCase
             'access_token' => 'google-access-token',
         ]);
 
+        $token = (string) $response->json('token');
+
         $response->assertStatus(409)
             ->assertJsonPath('code', 'policy_acceptance_required')
             ->assertJsonPath('requiresPolicyAcceptance', true)
-            ->assertJsonPath('profile', Role::STUDENT->value);
+            ->assertJsonPath('requiresTenantSelection', false)
+            ->assertJsonPath('profile', Role::STUDENT->value)
+            ->assertJsonStructure(['token']);
+
+        $this->postJson('/api/v1/auth/accept-policies', [
+            'terms_of_use' => true,
+            'privacy_policy' => true,
+        ], [
+            'Authorization' => 'Bearer ' . $token,
+        ])->assertOk()->assertJsonPath('policies.accepted', true);
 
         $this->assertDatabaseHas('users', [
             'email' => 'google-api-user@example.com',

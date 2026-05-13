@@ -42,33 +42,6 @@ class WorkoutGenerationServiceTest extends TestCase
             'role' => Role::STUDENT->value,
         ]);
 
-        $validatedWorkoutPlan = [
-            'weekly_plan' => [
-                [
-                    'day' => 'Segunda',
-                    'focus' => 'Costas',
-                    'exercises' => [
-                        [
-                            'name' => 'Puxada frontal',
-                            'category' => 'specific',
-                            'sets' => 4,
-                            'reps' => '8-12',
-                            'rest' => '60s',
-                            'notes' => 'Mantenha o tronco firme.',
-                            'steps' => ['Ajuste a pegada', 'Puxe ate a linha do peito', 'Retorne de forma controlada'],
-                            'workoutx_name' => 'barbell-bench-press',
-                            'illustration_svg' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>',
-                        ],
-                    ],
-                ],
-            ],
-        ];
-
-        $validationService = Mockery::mock(ValidationService::class);
-        $validationService->shouldReceive('validateUserForWorkout')->once()->with($user);
-        $validationService->shouldReceive('validateWorkoutResponse')->once()->andReturn($validatedWorkoutPlan);
-        $validationService->shouldReceive('safetyFlags')->once()->andReturn(['beginner' => true]);
-
         $aiWorkoutResponse = [
             'weekly_plan' => [
                 [
@@ -83,13 +56,18 @@ class WorkoutGenerationServiceTest extends TestCase
                             'rest' => '60s',
                             'notes' => 'Mantenha o tronco firme.',
                             'steps' => ['Ajuste a pegada', 'Puxe ate a linha do peito', 'Retorne de forma controlada'],
-                            'workoutx_name' => 'barbell bench press',
+                            'workoutx_name' => 'barbell-bench-press',
+                            'remote_exercise_id' => '0001',
                             'illustration_svg' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>',
                         ],
                     ],
                 ],
             ],
         ];
+
+        $validationService = Mockery::mock(ValidationService::class);
+        $validationService->shouldReceive('validateUserForWorkout')->once()->with($user);
+        $validationService->shouldReceive('safetyFlags')->once()->andReturn(['beginner' => true]);
 
         $aiService = Mockery::mock(AiService::class);
         $aiService->shouldReceive('workoutPromptVersion')->andReturn(AiService::WORKOUT_PROMPT_VERSION);
@@ -130,7 +108,7 @@ class WorkoutGenerationServiceTest extends TestCase
         ];
 
         $workoutMediaService = Mockery::mock(WorkoutMediaService::class);
-        $workoutMediaService->shouldReceive('enrichWorkoutPlan')->once()->with($validatedWorkoutPlan)->andReturn($enrichedWorkoutPlan);
+        $workoutMediaService->shouldReceive('enrichWorkoutPlan')->once()->with($aiWorkoutResponse)->andReturn($enrichedWorkoutPlan);
 
         $service = new WorkoutGenerationService($validationService, $aiService, $workoutMediaService);
 

@@ -113,6 +113,7 @@ class AiServiceTest extends TestCase
                 && str_contains($prompt, 'Exercicios prioritarios recuperados')
                 && str_contains($prompt, 'Exercicios do treino anterior a evitar')
                 && str_contains($prompt, 'Exercicios permitidos por foco')
+                && str_contains($prompt, 'Plano deterministico obrigatório')
                 && str_contains($prompt, 'Regra de selecao por foco')
                 && str_contains($prompt, 'Regra de variacao entre geracoes')
                 && str_contains($prompt, 'barbell-bench-press')
@@ -264,7 +265,7 @@ class AiServiceTest extends TestCase
 
         $this->assertSame('Peito', data_get($result, 'weekly_plan.0.focus'));
         $this->assertSame('0011', data_get($result, 'weekly_plan.0.exercises.2.remote_exercise_id'));
-        Http::assertSentCount(3);
+        Http::assertSentCount(1);
     }
 
     public function test_generate_workout_reuses_existing_vector_store_id_from_settings(): void
