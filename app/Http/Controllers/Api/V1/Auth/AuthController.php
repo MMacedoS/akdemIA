@@ -18,9 +18,9 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -341,36 +341,42 @@ class AuthController extends Controller
             'privacy_policy' => ['nullable', 'boolean'],
         ]);
 
-        try {
-            $googleUser = Socialite::driver('google')
-                ->stateless()
-                ->userFromToken((string) $validated['access_token']);
-        } catch (\Throwable) {
+        $googleUser = Http::withToken((string) $validated['access_token'])
+            ->acceptJson()
+            ->get('https://openidconnect.googleapis.com/v1/userinfo');
+
+        if (! $googleUser->successful()) {
             return response()->json([
                 'message' => 'Nao foi possivel autenticar com o Google.',
             ], 422);
         }
 
-        $email = FormPatterns::normalizeEmail($googleUser->getEmail());
-        $googleId = trim((string) $googleUser->getId());
+        $profile = $googleUser->json();
+        $email = FormPatterns::normalizeEmail($profile['email'] ?? null);
+        $googleId = trim((string) ($profile['sub'] ?? ''));
+        $googleName = trim((string) ($profile['name'] ?? $profile['given_name'] ?? 'Aluno Google'));
+        $emailVerified = filter_var($profile['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-        if ($email === null || $googleId === '') {
+        if ($email === null) {
             return response()->json([
                 'message' => 'A conta Google nao retornou um e-mail valido.',
             ], 422);
         }
 
         $platformTrainee = $this->platformTenantService->resolvePlatformTrainee();
-        $user = User::query()
-            ->where('google_id', $googleId)
-            ->orWhere('email', $email)
-            ->first();
+        $userQuery = User::query()->where('email', $email);
+
+        if ($googleId !== '') {
+            $userQuery->orWhere('google_id', $googleId);
+        }
+
+        $user = $userQuery->first();
 
         $acceptPoliciesInline = (bool) ($validated['terms_of_use'] ?? false) && (bool) ($validated['privacy_policy'] ?? false);
 
         if (! $user instanceof User) {
             $user = $this->traineeStudentRepository->createForTrainee(null, $platformTrainee->id, [
-                'name' => trim((string) ($googleUser->getName() ?: 'Aluno Google')),
+                'name' => $googleName,
                 'email' => $email,
                 'password' => Str::password(32),
                 'terms_of_use' => $acceptPoliciesInline,
@@ -394,9 +400,9 @@ class AuthController extends Controller
             }
 
             $user->forceFill([
-                'google_id' => $googleId,
+                'google_id' => $googleId !== '' ? $googleId : $user->google_id,
                 'auth_provider' => 'google',
-                'email_verified_at' => $user->email_verified_at ?? now(),
+                'email_verified_at' => $user->email_verified_at ?? ($emailVerified ? now() : null),
             ])->save();
 
             if ($acceptPoliciesInline && $user->needsPolicyAcceptance()) {
@@ -409,9 +415,9 @@ class AuthController extends Controller
         }
 
         $user->forceFill([
-            'google_id' => $googleId,
+            'google_id' => $googleId !== '' ? $googleId : $user->google_id,
             'auth_provider' => 'google',
-            'email_verified_at' => $user->email_verified_at ?? now(),
+            'email_verified_at' => $user->email_verified_at ?? ($emailVerified ? now() : null),
         ])->save();
 
         if ($user->needsPolicyAcceptance()) {

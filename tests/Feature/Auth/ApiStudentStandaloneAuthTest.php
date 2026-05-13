@@ -11,9 +11,8 @@ use App\Models\User;
 use App\Services\Tenant\PlatformTenantService;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Socialite\Contracts\User as SocialiteUserContract;
-use Laravel\Socialite\Facades\Socialite;
 use Mockery;
 use Tests\TestCase;
 
@@ -101,14 +100,14 @@ class ApiStudentStandaloneAuthTest extends TestCase
         config()->set('services.google.client_secret', 'google-client-secret');
         config()->set('services.google.redirect', 'http://localhost/auth/google/callback');
 
-        $socialiteUser = Mockery::mock(SocialiteUserContract::class);
-        $socialiteUser->shouldReceive('getId')->andReturn('google-api-user-1');
-        $socialiteUser->shouldReceive('getEmail')->andReturn('google-api-user@example.com');
-        $socialiteUser->shouldReceive('getName')->andReturn('Google Api User');
-
-        Socialite::shouldReceive('driver->stateless->userFromToken')
-            ->once()
-            ->andReturn($socialiteUser);
+        Http::fake([
+            'https://openidconnect.googleapis.com/v1/userinfo' => Http::response([
+                'sub' => 'google-api-user-1',
+                'email' => 'google-api-user@example.com',
+                'name' => 'Google Api User',
+                'email_verified' => true,
+            ]),
+        ]);
 
         $response = $this->postJson('/api/v1/auth/google', [
             'access_token' => 'google-access-token',
@@ -132,14 +131,14 @@ class ApiStudentStandaloneAuthTest extends TestCase
         config()->set('services.google.client_secret', 'google-client-secret');
         config()->set('services.google.redirect', 'http://localhost/auth/google/callback');
 
-        $socialiteUser = Mockery::mock(SocialiteUserContract::class);
-        $socialiteUser->shouldReceive('getId')->andReturn('google-api-user-2');
-        $socialiteUser->shouldReceive('getEmail')->andReturn('google-inline@example.com');
-        $socialiteUser->shouldReceive('getName')->andReturn('Google Inline');
-
-        Socialite::shouldReceive('driver->stateless->userFromToken')
-            ->once()
-            ->andReturn($socialiteUser);
+        Http::fake([
+            'https://openidconnect.googleapis.com/v1/userinfo' => Http::response([
+                'sub' => 'google-api-user-2',
+                'email' => 'google-inline@example.com',
+                'name' => 'Google Inline',
+                'email_verified' => true,
+            ]),
+        ]);
 
         $response = $this->postJson('/api/v1/auth/google', [
             'access_token' => 'google-access-token',
@@ -152,6 +151,22 @@ class ApiStudentStandaloneAuthTest extends TestCase
             ->assertJsonPath('policies.accepted', true)
             ->assertJsonPath('user.email', 'google-inline@example.com')
             ->assertJsonStructure(['token']);
+    }
+
+    public function test_google_login_returns_validation_error_when_google_userinfo_rejects_token(): void
+    {
+        Http::fake([
+            'https://openidconnect.googleapis.com/v1/userinfo' => Http::response([
+                'error' => 'invalid_token',
+            ], 401),
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/google', [
+            'access_token' => 'invalid-google-access-token',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Nao foi possivel autenticar com o Google.');
     }
 
     public function test_student_can_login_without_tenant_and_change_trainer(): void
