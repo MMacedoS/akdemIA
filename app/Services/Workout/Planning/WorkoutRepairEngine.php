@@ -122,12 +122,15 @@ class WorkoutRepairEngine
 
     private function materializeExercise(array $exercise): array
     {
+        $category = (string) ($exercise['category'] ?? 'specific');
+        $defaultRest = $category === 'cardio' ? '0s' : '60s';
+
         return [
             'name' => (string) ($exercise['name'] ?? 'Exercicio'),
-            'category' => (string) ($exercise['category'] ?? 'specific'),
+            'category' => $category,
             'sets' => max(1, min(6, (int) ($exercise['sets'] ?? 3))),
             'reps' => trim((string) ($exercise['reps'] ?? '10-12')) ?: '10-12',
-            'rest' => trim((string) ($exercise['rest'] ?? ($exercise['category'] ?? 'specific') === 'cardio' ? '0s' : '60s')) ?: (($exercise['category'] ?? 'specific') === 'cardio' ? '0s' : '60s'),
+            'rest' => trim((string) ($exercise['rest'] ?? $defaultRest)) ?: $defaultRest,
             'notes' => trim((string) ($exercise['notes'] ?? 'Execute de forma controlada e sem perder a tecnica.')) ?: 'Execute de forma controlada e sem perder a tecnica.',
             'steps' => $this->normalizeSteps($exercise['steps'] ?? null),
             'remote_exercise_id' => trim((string) ($exercise['remote_exercise_id'] ?? $exercise['exercise_id'] ?? '')),

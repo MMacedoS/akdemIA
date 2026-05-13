@@ -7,10 +7,32 @@ use App\Models\PhysicalData\PhysicalData;
 use App\Models\Preferences\Preference;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\File;
 use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('services.openai.prompt_log_path', 'framework/testing/ai-prompts.log');
+
+        File::delete(storage_path('framework/testing/ai-prompts.log'));
+    }
+
+    protected function isolateLocalStorage(string $name = 'local'): string
+    {
+        $root = storage_path('framework/testing/runtime/' . $name . '-' . bin2hex(random_bytes(6)));
+
+        File::deleteDirectory($root);
+        File::ensureDirectoryExists($root);
+
+        config()->set('filesystems.disks.local.root', $root);
+
+        return $root;
+    }
+
     public function mockCreateUserTotal(array $overrides = []): User
     {
         $user = User::factory()->create(array_merge([

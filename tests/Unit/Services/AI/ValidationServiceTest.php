@@ -174,6 +174,34 @@ class ValidationServiceTest extends TestCase
         ]);
     }
 
+    public function test_validate_workout_response_rejects_empty_reps(): void
+    {
+        ExerciseMediaCache::query()->create([
+            'remote_exercise_id' => '0025',
+            'workoutx_name' => 'barbell-bench-press',
+            'payload' => ['id' => '0025', 'name' => 'Barbell Bench Press'],
+        ]);
+
+        $service = new ValidationService();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Invalid reps format for exercise: Supino reto');
+
+        $service->validateWorkoutResponse([
+            'weekly_plan' => [[
+                'day' => 'Segunda',
+                'focus' => 'Peito',
+                'exercises' => [
+                    ['name' => 'Supino reto', 'category' => 'specific', 'sets' => 4, 'reps' => '', 'rest' => '60s', 'workoutx_name' => 'Barbell Bench Press', 'remote_exercise_id' => '0025'],
+                    ['name' => 'Crucifixo reto', 'category' => 'specific', 'sets' => 3, 'reps' => '10-12', 'rest' => '45s', 'workoutx_name' => 'Incline Fly', 'remote_exercise_id' => '0201'],
+                    ['name' => 'Flexao', 'category' => 'specific', 'sets' => 3, 'reps' => '12', 'rest' => '45s', 'workoutx_name' => 'Push Up', 'remote_exercise_id' => '0202'],
+                    ['name' => 'Peck deck', 'category' => 'specific', 'sets' => 3, 'reps' => '12', 'rest' => '45s', 'workoutx_name' => 'Pec Deck', 'remote_exercise_id' => '0203'],
+                    ['name' => 'Caminhada leve', 'category' => 'cardio', 'sets' => 1, 'reps' => '15 min', 'rest' => '0s', 'workoutx_name' => 'Walk', 'remote_exercise_id' => '1160'],
+                ],
+            ]],
+        ]);
+    }
+
     public function test_validate_workout_response_accepts_remote_id_not_present_in_local_catalog(): void
     {
         $service = new ValidationService();

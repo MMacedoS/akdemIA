@@ -273,6 +273,14 @@ class StructuralValidator
             return true;
         }
 
+        if (preg_match('/^(\d{1,3})\s*-\s*(\d{1,3})$/', $reps, $matches) === 1) {
+            return (int) $matches[1] > 0 && (int) $matches[2] >= (int) $matches[1];
+        }
+
+        if (preg_match('/^(\d{1,3})\s*(a|ate|até)\s*(\d{1,3})$/i', $reps, $matches) === 1) {
+            return (int) $matches[1] > 0 && (int) $matches[3] >= (int) $matches[1];
+        }
+
         if (preg_match('/^\d{1,3}\s*(s|sec|secs|seg|segs|segundo|segundos|min|mins|minuto|minutos)$/i', $reps) === 1) {
             return true;
         }

@@ -19,7 +19,6 @@ class AiService
         private readonly WorkoutGenerationContextFactory $contextFactory,
         private readonly WorkoutExerciseRetrievalService $retrievalService,
         private readonly WorkoutPlanGeneratorService $generatorService,
-        private readonly WorkoutPlanCriticService $criticService,
         private readonly ValidationService $validationService,
         private readonly WorkoutPlanningEngine $planningEngine,
         private readonly WorkoutRepairEngine $repairEngine,

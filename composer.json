@@ -70,7 +70,13 @@
         "test": [
             "@php artisan config:clear --ansi",
             "@lint:check",
-            "@php artisan test"
+            "@php vendor/bin/phpunit --configuration phpunit.xml"
+        ],
+        "test:unit": [
+            "@php vendor/bin/phpunit --configuration phpunit.xml tests/Unit"
+        ],
+        "test:feature": [
+            "@php vendor/bin/phpunit --configuration phpunit.xml tests/Feature"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
