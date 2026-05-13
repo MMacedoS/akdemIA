@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Role;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
 use App\Services\Tenant\TenantManager;
@@ -60,9 +61,21 @@ class IdentifyTenant
 
         if (
             $request->user() !== null
-            && ! $request->routeIs('api.tenants.select', 'api.tenants.select.store', 'tenants.select', 'tenants.select.store')
+            && ! $request->routeIs(
+                'api.tenants.select',
+                'api.tenants.select.store',
+                'tenants.select',
+                'tenants.select.store',
+                'onboarding.profile.edit',
+                'onboarding.profile.update',
+                'onboarding.contractor'
+            )
         ) {
             $user = $request->user();
+
+            if ($user instanceof User && $user->needsProfileSelection()) {
+                return $next($request);
+            }
 
             if ($user instanceof User && $user->isTrainee()) {
                 $defaultTenant = $this->platformTenantService->resolvePreferredTenantForTrainee($user);
@@ -80,7 +93,7 @@ class IdentifyTenant
                 return redirect()->route('tenants.select');
             }
 
-            if ($user?->profileType() === \App\Enums\Role::STUDENT) {
+            if ($user?->profileType() === Role::STUDENT || $user?->profileType() === Role::ADMIN) {
                 return $next($request);
             }
 

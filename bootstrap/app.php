@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => 'App\\Http\\Middleware\\CheckRole',
             'tenant.auth' => 'App\\Http\\Middleware\\AuthenticateTenantToken',
             'tenant.user' => EnsureTenantUserAssociation::class,
+            'profile.selected' => 'App\\Http\\Middleware\\EnsureProfileSelection',
             'exercise.media.host' => RestrictExerciseMediaHost::class,
             'policies.accepted' => 'App\\Http\\Middleware\\EnsurePoliciesAccepted',
             'subscription' => 'App\\Http\\Middleware\\CheckSubscription',

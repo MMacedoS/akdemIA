@@ -3,6 +3,8 @@
 use App\Enums\Role;
 use App\Http\Controllers\Web\V1\Admin\DashboardController;
 use App\Http\Controllers\Web\V1\Admin\CreditRequestController as AdminCreditRequestController;
+use App\Http\Controllers\Web\V1\Auth\GoogleAuthController;
+use App\Http\Controllers\Web\V1\Auth\ProfileOnboardingController;
 use App\Http\Controllers\Web\V1\Admin\TenantLandingController;
 use App\Http\Controllers\Web\V1\Admin\TraineesController;
 use App\Http\Controllers\Web\V1\Landing\PublicLandingController;
@@ -73,7 +75,19 @@ Route::prefix('system-admin')->name('system-admin.')->middleware('guest:web')->g
     Route::post('/login', [SystemAdminAuthController::class, 'login'])->name('login.store');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::prefix('auth/google')->name('auth.google.')->middleware('guest:web')->group(function () {
+    Route::get('/redirect', [GoogleAuthController::class, 'redirect'])->name('redirect');
+    Route::get('/callback', [GoogleAuthController::class, 'callback'])->name('callback');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('onboarding/profile', [ProfileOnboardingController::class, 'edit'])->name('onboarding.profile.edit');
+    Route::post('onboarding/profile', [ProfileOnboardingController::class, 'update'])->name('onboarding.profile.update');
+    Route::get('onboarding/contractor', [ProfileOnboardingController::class, 'contractor'])->name('onboarding.contractor');
+    Route::post('onboarding/contractor', [ProfileOnboardingController::class, 'storeContractor'])->name('onboarding.contractor.store');
+});
+
+Route::middleware(['auth', 'verified', 'profile.selected'])->group(function () {
     Route::get('my-landing', [MyLandingController::class, 'edit'])->name('my-landing.edit');
     Route::put('my-landing', [MyLandingController::class, 'update'])->name('my-landing.update');
     Route::post('my-landing/media', [MyLandingController::class, 'storeMedia'])->name('my-landing.media.store');
@@ -90,6 +104,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return redirect()->route('system-admin.dashboard');
         }
 
+        if ($request->user()?->needsProfileSelection()) {
+            return redirect()->route('onboarding.profile.edit');
+        }
+
         $tenant = $request->attributes->get('tenant');
 
         if (! $tenant instanceof Tenant) {
@@ -99,6 +117,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             if ($request->user()?->profileType() === Role::STUDENT) {
                 return redirect()->route('students.dashboard');
+            }
+
+            if ($request->user()?->profileType() === Role::ADMIN) {
+                $hasActiveTenants = $request->user()?->tenants()->where('is_active', true)->exists();
+
+                return $hasActiveTenants
+                    ? redirect()->route('tenants.select')
+                    : redirect()->route('onboarding.contractor');
             }
 
             return redirect()->route('tenants.select');

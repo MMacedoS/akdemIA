@@ -37,9 +37,15 @@ class RegistrationTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'email' => 'test@example.com',
-            'profile_type' => 'trainer',
+            'profile_type' => null,
             'terms_version' => config('legal.terms.version'),
             'privacy_policy_version' => config('legal.privacy_policy.version'),
+        ]);
+
+        $userId = (int) \App\Models\User::query()->where('email', 'test@example.com')->value('id');
+
+        $this->assertDatabaseMissing('tenant_trainee', [
+            'trainee_user_id' => $userId,
         ]);
 
         $this->assertAuthenticated();

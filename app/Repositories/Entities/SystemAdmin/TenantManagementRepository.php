@@ -32,20 +32,9 @@ class TenantManagementRepository implements TenantManagementRepositoryContract
     public function create(string $name, ?string $slug, string $accessEmail, string $defaultPassword): Tenant
     {
         return DB::transaction(function () use ($name, $slug, $accessEmail, $defaultPassword): Tenant {
-            $rawSlug = trim((string) $slug);
-            $baseSlug = $rawSlug !== '' ? Str::lower($rawSlug) : Str::slug($name);
-            $baseSlug = $baseSlug !== '' ? $baseSlug : 'tenant';
-
-            $resolvedSlug = $this->ensureUniqueSlug($baseSlug);
-
             $normalizedEmail = FormPatterns::normalizeEmail($accessEmail);
 
-            $tenant = Tenant::query()->create([
-                'name' => trim($name),
-                'slug' => $resolvedSlug,
-                'contact_email' => $normalizedEmail,
-                'is_active' => true,
-            ]);
+            $tenant = $this->createTenantRecord($name, $slug, $normalizedEmail);
 
             $accessUser = User::query()->create([
                 'name' => trim($name),
@@ -56,6 +45,23 @@ class TenantManagementRepository implements TenantManagementRepositoryContract
                 'credits_balance' => 0,
                 'profile_type' => null,
             ]);
+
+            $tenant->users()->syncWithoutDetaching([
+                $accessUser->id => ['role' => Role::ADMIN->value],
+            ]);
+
+            return $tenant;
+        });
+    }
+
+    public function createForExistingAdmin(User $accessUser, string $name, ?string $slug, ?string $contactEmail = null): Tenant
+    {
+        return DB::transaction(function () use ($accessUser, $name, $slug, $contactEmail): Tenant {
+            $tenant = $this->createTenantRecord(
+                $name,
+                $slug,
+                FormPatterns::normalizeEmail($contactEmail) ?? FormPatterns::normalizeEmail($accessUser->email),
+            );
 
             $tenant->users()->syncWithoutDetaching([
                 $accessUser->id => ['role' => Role::ADMIN->value],
@@ -103,6 +109,20 @@ class TenantManagementRepository implements TenantManagementRepositoryContract
         }
 
         return $slug;
+    }
+
+    private function createTenantRecord(string $name, ?string $slug, ?string $contactEmail): Tenant
+    {
+        $rawSlug = trim((string) $slug);
+        $baseSlug = $rawSlug !== '' ? Str::lower($rawSlug) : Str::slug($name);
+        $baseSlug = $baseSlug !== '' ? $baseSlug : 'tenant';
+
+        return Tenant::query()->create([
+            'name' => trim($name),
+            'slug' => $this->ensureUniqueSlug($baseSlug),
+            'contact_email' => $contactEmail,
+            'is_active' => true,
+        ]);
     }
 
     private function ensureUniqueSlugForTenant(string $baseSlug, int $tenantId): string

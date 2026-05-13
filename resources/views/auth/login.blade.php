@@ -3,8 +3,59 @@
 @section('title', 'Login')
 
 @section('content')
+    <style>
+        .social-auth-stack {
+            display: grid;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .social-auth-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 48px;
+            width: 100%;
+            border-radius: 999px;
+            border: 1px solid rgba(24, 54, 46, 0.14);
+            background: linear-gradient(180deg, #ffffff, #f2f6f4);
+            color: #18362e;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .social-auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #617068;
+            font-size: 12px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+
+        .social-auth-divider::before,
+        .social-auth-divider::after {
+            content: '';
+            height: 1px;
+            flex: 1;
+            background: rgba(24, 54, 46, 0.12);
+        }
+    </style>
+
     <h1 class="auth-title">Entrar</h1>
     <p class="auth-subtitle">Acesse sua conta.</p>
+
+    @if (!empty($canLoginWithGoogle))
+        <div class="social-auth-stack">
+            <a href="{{ route('auth.google.redirect') }}" class="social-auth-btn">
+                <span>Google</span>
+                <span>Continuar com Google</span>
+            </a>
+            <div class="social-auth-divider">ou entre com e-mail</div>
+        </div>
+    @endif
 
     <form method="POST" action="{{ route('login') }}">
         @csrf

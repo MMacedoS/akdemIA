@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Enums\Role;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
 use App\Services\Tenant\PlatformTenantService;
@@ -84,6 +85,10 @@ class FortifyServiceProvider extends ServiceProvider
             $tenantSlug = trim((string) $request->input('tenant_slug', ''));
 
             if ($tenantSlug === '') {
+                if ($user->needsProfileSelection() || $user->profileType() === Role::ADMIN) {
+                    return $user;
+                }
+
                 if ($user->isTrainee()) {
                     $defaultTenant = app(PlatformTenantService::class)->resolvePreferredTenantForTrainee($user);
 
@@ -128,6 +133,7 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::loginView(fn(Request $request) => view('auth.login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'canRegister' => Features::enabled(Features::registration()),
+            'canLoginWithGoogle' => $this->canLoginWithGoogle(),
             'status' => $request->session()->get('status'),
             'tenants' => Tenant::query()
                 ->where('is_active', true)
@@ -148,7 +154,9 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::registerView(fn() => view('auth.register'));
+        Fortify::registerView(fn() => view('auth.register', [
+            'canLoginWithGoogle' => $this->canLoginWithGoogle(),
+        ]));
 
         Fortify::twoFactorChallengeView(fn() => view('auth.two-factor-challenge'));
 
@@ -183,5 +191,12 @@ class FortifyServiceProvider extends ServiceProvider
                 ],
             );
         });
+    }
+
+    private function canLoginWithGoogle(): bool
+    {
+        return filled(config('services.google.client_id'))
+            && filled(config('services.google.client_secret'))
+            && filled(config('services.google.redirect'));
     }
 }

@@ -37,4 +37,16 @@ class DashboardTest extends TestCase
         $response = $this->get(route('dashboard'));
         $response->assertRedirect(route('trainee.dashboard'));
     }
+
+    public function test_users_with_pending_profile_are_redirected_to_profile_onboarding()
+    {
+        $user = User::factory()->create([
+            'profile_type' => null,
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->get(route('dashboard'));
+        $response->assertRedirect(route('onboarding.profile.edit'));
+    }
 }

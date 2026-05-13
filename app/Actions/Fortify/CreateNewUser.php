@@ -4,20 +4,14 @@ namespace App\Actions\Fortify;
 
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
-use App\Enums\Role;
 use App\Models\User;
 use App\Support\LegalDocuments;
-use App\Services\Tenant\PlatformTenantService;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
 {
     use PasswordValidationRules, ProfileValidationRules;
-
-    public function __construct(
-        private readonly PlatformTenantService $platformTenantService,
-    ) {}
 
     /**
      * Validate and create a newly registered user.
@@ -37,11 +31,9 @@ class CreateNewUser implements CreatesNewUsers
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
-            'profile_type' => Role::TRAINER->value,
+            'profile_type' => null,
             ...LegalDocuments::acceptanceAttributes(),
         ]);
-
-        $this->platformTenantService->attachTraineeToPlatform($user);
 
         return $user;
     }

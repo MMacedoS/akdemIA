@@ -31,6 +31,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 #[Fillable([
     'name',
     'email',
+    'google_id',
+    'auth_provider',
     'phone',
     'password',
     'birth_date',
@@ -105,6 +107,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function profileType(): ?Role
     {
         return Role::tryFrom((string) $this->profile_type);
+    }
+
+    public function needsProfileSelection(): bool
+    {
+        return $this->profileType() === null && ! $this->isSystemAdmin();
     }
 
     public function isTrainer(): bool

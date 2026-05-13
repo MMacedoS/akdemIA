@@ -88,6 +88,22 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
+    public function test_users_with_pending_profile_can_authenticate_without_tenant_slug()
+    {
+        $user = User::factory()->create([
+            'profile_type' => null,
+        ]);
+
+        $response = $this->from(route('login'))->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'password',
+            'tenant_slug' => '',
+        ]);
+
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect(route('dashboard', absolute: false));
+    }
+
     public function test_users_can_logout()
     {
         $user = User::factory()->create();
