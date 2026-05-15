@@ -25,7 +25,7 @@
                 <article class="user-card">
                     <h4>{{ $catalog->name }}</h4>
                     <p>{{ \Illuminate\Support\Str::limit((string) $catalog->description, 140) }}</p>
-                    <p>Exercicios: {{ (int) $catalog->quantity_exercises }} | Preco: {{ (int) $catalog->price }}</p>
+                    <p>Exercicios: {{ (int) $catalog->quantity_exercises }}</p>
                     <p>Visibilidade: {{ (bool) $catalog->is_public ? 'Publico' : 'Privado' }}</p>
                     <p>Status: {{ (bool) $catalog->status ? 'Ativo' : 'Inativo' }}</p>
                     <p>Responsavel: {{ $catalog->owner?->name ?? 'Sistema' }}</p>

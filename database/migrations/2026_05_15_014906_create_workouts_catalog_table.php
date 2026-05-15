@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name', 60)->unique();
             $table->text('description');
             $table->integer('quantity_exercises')->default(0);
-            $table->integer('price')->default(1);
+            $table->integer('price')->default(0);
             $table->foreignId('user_id')->nullable()->constrained('users');
             $table->string('path_image', 100)->nullable();
             $table->boolean('is_public')->default(0);

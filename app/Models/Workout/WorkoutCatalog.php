@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class WorkoutCatalog extends Model
 {
+    protected $table = 'workouts_catalogs';
+
     protected function casts(): array
     {
         return [

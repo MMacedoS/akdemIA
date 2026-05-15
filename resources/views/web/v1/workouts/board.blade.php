@@ -492,7 +492,7 @@
 
     @if ($editable && $isWorkoutDone && $updateRoute !== '')
         <div id="manual-board-root" class="plan-editor-panel">
-            <p style="margin-top: 0;">Arraste os exercicios entre os dias, crie novos exercicios e salve sem consultar a IA.</p>
+            <p style="margin-top: 0;">Arraste os exercicios entre os dias, crie novos exercicios e salve sem consultar .</p>
 
             @if (! $isWorkoutActive)
                 <p style="color: #ea5455; font-weight: 600;">Este treino esta inativo e nao pode ser editado.</p>

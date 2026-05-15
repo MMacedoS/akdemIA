@@ -21,6 +21,7 @@ use App\Http\Controllers\Web\V1\SystemAdmin\LogViewerController as SystemAdminLo
 use App\Http\Controllers\Web\V1\SystemAdmin\PaymentSettingsController as SystemAdminPaymentSettingsController;
 use App\Http\Controllers\Web\LegalDocumentController as WebLegalDocumentController;
 use App\Http\Controllers\Web\V1\SystemAdmin\WorkoutRulesSettingsController as SystemAdminWorkoutRulesSettingsController;
+use App\Http\Controllers\Web\V1\SystemAdmin\WorkoutCatalogPricingController as SystemAdminWorkoutCatalogPricingController;
 use App\Http\Controllers\Web\V1\SystemAdmin\WorkoutxSettingsController as SystemAdminWorkoutxSettingsController;
 use App\Http\Controllers\Web\V1\SystemAdmin\TraineeManagementController as SystemAdminTraineeManagementController;
 use App\Http\Controllers\Web\V1\SystemAdmin\TenantManagementController as SystemAdminTenantManagementController;
@@ -182,6 +183,7 @@ Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selecte
         Route::get('/students/{id}/edit', [TrainerStudentsController::class, 'edit'])->name('students.edit');
         Route::put('/students/{id}', [TrainerStudentsController::class, 'update'])->name('students.update');
         Route::get('/workouts/catalog', [WorkoutCatalogController::class, 'indexTrainer'])->name('workouts.catalogs');
+        Route::get('/workouts/catalog/exercises/options', [WorkoutCatalogController::class, 'optionsTrainer'])->name('workouts.catalogs.options');
         Route::get('/workouts/catalog/create', [WorkoutCatalogController::class, 'createTrainer'])->name('workouts.catalogs.create');
         Route::post('/workouts/catalog', [WorkoutCatalogController::class, 'storeTrainer'])->name('workouts.catalogs.store');
         Route::get('/workouts/catalog/{catalog}/edit', [WorkoutCatalogController::class, 'editTrainer'])->name('workouts.catalogs.edit');
@@ -247,6 +249,7 @@ Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selecte
         });
 
         Route::get('/workouts/catalog', [WorkoutCatalogController::class, 'indexAdmin'])->name('workouts.catalogs');
+        Route::get('/workouts/catalog/exercises/options', [WorkoutCatalogController::class, 'optionsAdmin'])->name('workouts.catalogs.options');
         Route::get('/workouts/catalog/create', [WorkoutCatalogController::class, 'createAdmin'])->name('workouts.catalogs.create');
         Route::post('/workouts/catalog', [WorkoutCatalogController::class, 'storeAdmin'])->name('workouts.catalogs.store');
         Route::get('/workouts/catalog/{catalog}/edit', [WorkoutCatalogController::class, 'editAdmin'])->name('workouts.catalogs.edit');
@@ -273,6 +276,8 @@ Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selecte
         Route::post('/trainees/links', [SystemAdminTraineeManagementController::class, 'linkTenant'])->name('trainees.links.store');
 
         Route::get('/credits', [SystemAdminCreditOverviewController::class, 'index'])->name('credits.index');
+        Route::get('/workouts/catalogs', [SystemAdminWorkoutCatalogPricingController::class, 'index'])->name('workouts.catalogs.index');
+        Route::put('/workouts/catalogs/{catalog}/price', [SystemAdminWorkoutCatalogPricingController::class, 'updatePrice'])->name('workouts.catalogs.price.update');
 
         Route::get('/settings/payment', [SystemAdminPaymentSettingsController::class, 'edit'])->name('settings.payment.edit');
         Route::put('/settings/payment', [SystemAdminPaymentSettingsController::class, 'update'])->name('settings.payment.update');
