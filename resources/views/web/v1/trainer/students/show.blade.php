@@ -5,7 +5,7 @@
 
 @section('headerAction')
     <div class="actions">
-        <button id="open-generate-modal-btn" class="btn btn-primary" type="button">Gerar treino + dieta</button>
+        <button id="open-generate-modal-btn" class="btn btn-primary" type="button">Gerar treino</button>
         <a class="btn btn-soft" href="{{ route('trainer.students.edit', $student->id) }}">Editar saude</a>
     </div>
 @endsection
@@ -17,6 +17,15 @@
             <p>{{ $student->email }}</p>
             <p style="margin-top: 8px;">Objetivo: {{ $student->goal ?: 'Nao informado' }}</p>
         </div>
+
+        @if (($latestWorkoutInsights['has_content'] ?? false) === true)
+            <div class="card">
+                <h3>Resumo do ultimo treino</h3>
+                <p>Baseado no treino #{{ $latestWorkout?->id }} mais recente disponivel para este aluno.</p>
+            </div>
+
+            @include('web.v1.workouts._insights', ['insights' => $latestWorkoutInsights])
+        @endif
 
         <div class="stats">
             <div class="card">
@@ -55,12 +64,6 @@
                         <p>Criado em: {{ optional($workout->created_at)?->format('d/m/Y H:i') }}</p>
                         <div class="actions">
                             <a class="btn btn-soft" href="{{ route('trainer.students.workouts.show', [$student->id, $workout->id]) }}">Visualizar board</a>
-                            @if ((string) $workout->status === 'error')
-                                <form method="POST" action="{{ route('trainer.students.workouts.retry', [$student->id, $workout->id]) }}">
-                                    @csrf
-                                    <button class="btn btn-primary" type="submit">Reenviar transacao</button>
-                                </form>
-                            @endif
                         </div>
                     </article>
                 @empty

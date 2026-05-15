@@ -8,6 +8,7 @@ use App\Jobs\GenerateWorkoutJob;
 use App\Models\Tenant\Tenant;
 use App\Models\Workout\Workout;
 use App\Services\Credits\CreditService;
+use App\Services\Workouts\WorkoutGenerationCooldownService;
 use App\Services\Workouts\WorkoutLifecycleService;
 use App\Services\Workouts\WorkoutMediaService;
 use App\Services\Workouts\WorkoutRulesService;
@@ -21,6 +22,7 @@ class WorkoutController extends Controller
     public function __construct(
         private readonly WorkoutMediaService $workoutMediaService,
         private readonly CreditService $creditService,
+        private readonly WorkoutGenerationCooldownService $workoutGenerationCooldownService,
         private readonly WorkoutRulesService $workoutRulesService,
         private readonly WorkoutLifecycleService $workoutLifecycleService,
     ) {}
@@ -183,7 +185,14 @@ class WorkoutController extends Controller
         }
 
         try {
-            $this->creditService->consumeCredits(
+            $this->workoutGenerationCooldownService->assertGenerationAllowed($tenant, (int) $user->id, 'voce');
+        } catch (RuntimeException $exception) {
+            return redirect()->route('students.workout.show')
+                ->withErrors(['workout' => $exception->getMessage()]);
+        }
+
+        try {
+            $creditTransaction = $this->creditService->consumeCredits(
                 $user,
                 $this->workoutRulesService->generationCredits(),
                 'consume_generation',
@@ -207,7 +216,7 @@ class WorkoutController extends Controller
             'meal_plan' => [],
             'recommendations' => [],
             'cardio_plan' => [],
-            'safety_flags' => [],
+            'safety_flags' => $this->workoutGenerationCooldownService->withCreditChargeMetadata([], $creditTransaction),
         ], $this->workoutLifecycleService->activeAttributes()));
 
         GenerateWorkoutJob::dispatch($workout->id, (int) $user->id, $tenant->id, null, (int) $user->id);

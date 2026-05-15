@@ -48,7 +48,7 @@ class WorkoutGenerationService
         return $this->generateAndStore($user, $tenant);
     }
 
-    private function generateAndStore(User $user, ?Tenant $tenant, ?string $adjustmentRequest = null): Workout
+    public function generatePayload(User $user, ?Tenant $tenant, ?string $adjustmentRequest = null): array
     {
         if ($tenant instanceof Tenant && ! $user->belongsToTenant($tenant)) {
             throw new AuthorizationException('Forbidden for tenant context.');
@@ -63,16 +63,31 @@ class WorkoutGenerationService
             $adjustmentRequest,
         );
 
-        $workoutPlan = $this->workoutMediaService->enrichWorkoutPlan($safeWorkoutData);
-
-        $workout = Workout::query()->create([
-            'tenant_id' => $tenant?->id,
-            'user_id' => $user->id,
-            'workout_plan' => $workoutPlan,
+        return [
+            'workout_plan' => $this->workoutMediaService->enrichWorkoutPlan($safeWorkoutData),
             'meal_plan' => [],
             'recommendations' => $wellbeingResponse['recommendations'] ?? [],
             'cardio_plan' => $wellbeingResponse['cardio_plan'] ?? [],
             'safety_flags' => $this->validationService->safetyFlags(),
+        ];
+    }
+
+    private function generateAndStore(User $user, ?Tenant $tenant, ?string $adjustmentRequest = null): Workout
+    {
+        if ($tenant instanceof Tenant && ! $user->belongsToTenant($tenant)) {
+            throw new AuthorizationException('Forbidden for tenant context.');
+        }
+
+        $payload = $this->generatePayload($user, $tenant, $adjustmentRequest);
+
+        $workout = Workout::query()->create([
+            'tenant_id' => $tenant?->id,
+            'user_id' => $user->id,
+            'workout_plan' => $payload['workout_plan'],
+            'meal_plan' => $payload['meal_plan'],
+            'recommendations' => $payload['recommendations'],
+            'cardio_plan' => $payload['cardio_plan'],
+            'safety_flags' => $payload['safety_flags'],
         ]);
 
         if (trim((string) $adjustmentRequest) === '') {

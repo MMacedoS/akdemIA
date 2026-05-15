@@ -42,6 +42,16 @@ if (! function_exists('landing_root_domain')) {
     }
 }
 
+if (! function_exists('api_route')) {
+    function api_route(string $name, array $parameters = []): string
+    {
+        $root = rtrim((string) config('app.api_url', 'https://api.academai.com.br'), '/');
+        $path = route($name, $parameters, false);
+
+        return $root . '/' . ltrim($path, '/');
+    }
+}
+
 if (! function_exists('reserved_public_subdomains')) {
     function reserved_public_subdomains(): array
     {

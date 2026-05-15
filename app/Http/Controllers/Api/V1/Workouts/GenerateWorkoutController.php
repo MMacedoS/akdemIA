@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
 use App\Models\Workout\Workout;
 use App\Services\Credits\CreditService;
+use App\Services\Workouts\WorkoutGenerationCooldownService;
 use App\Services\Workouts\WorkoutLifecycleService;
 use App\Services\Workouts\WorkoutRulesService;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,7 @@ class GenerateWorkoutController extends Controller
 {
     public function __construct(
         private readonly CreditService $creditService,
+        private readonly WorkoutGenerationCooldownService $workoutGenerationCooldownService,
         private readonly WorkoutRulesService $workoutRulesService,
         private readonly WorkoutLifecycleService $workoutLifecycleService,
     ) {}
@@ -56,7 +58,15 @@ class GenerateWorkoutController extends Controller
         }
 
         try {
-            $this->creditService->consumeCredits(
+            $this->workoutGenerationCooldownService->assertGenerationAllowed($tenant instanceof Tenant ? $tenant : null, (int) $user->id, 'voce');
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        try {
+            $creditTransaction = $this->creditService->consumeCredits(
                 $user,
                 $this->workoutRulesService->generationCredits(),
                 'consume_generation',
@@ -80,7 +90,7 @@ class GenerateWorkoutController extends Controller
             'meal_plan' => [],
             'recommendations' => [],
             'cardio_plan' => [],
-            'safety_flags' => [],
+            'safety_flags' => $this->workoutGenerationCooldownService->withCreditChargeMetadata([], $creditTransaction),
         ], $this->workoutLifecycleService->activeAttributes()));
 
         $workout = $this->workoutLifecycleService->activateWorkout(

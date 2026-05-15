@@ -8,10 +8,13 @@ use App\Jobs\GenerateWorkoutJob;
 use App\Models\Tenant\Tenant;
 use App\Models\Workout\Workout;
 use App\Services\Credits\CreditService;
+use App\Services\Workouts\WorkoutGenerationCooldownService;
+use App\Services\Workouts\WorkoutInsightsService;
 use App\Services\Workouts\WorkoutLifecycleService;
 use App\Services\Workouts\WorkoutMediaService;
 use App\Services\Workouts\WorkoutRulesService;
 use App\Transformers\Workout\StudentWorkoutTransformer;
+use App\Transformers\Workout\WorkoutInsightsTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -21,9 +24,12 @@ class WorkoutController extends Controller
     public function __construct(
         private readonly WorkoutMediaService $workoutMediaService,
         private readonly CreditService $creditService,
+        private readonly WorkoutGenerationCooldownService $workoutGenerationCooldownService,
         private readonly WorkoutRulesService $workoutRulesService,
         private readonly WorkoutLifecycleService $workoutLifecycleService,
+        private readonly WorkoutInsightsService $workoutInsightsService,
         private readonly StudentWorkoutTransformer $studentWorkoutTransformer,
+        private readonly WorkoutInsightsTransformer $workoutInsightsTransformer,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -54,6 +60,9 @@ class WorkoutController extends Controller
             'current_workout' => $currentWorkout === null
                 ? null
                 : $this->studentWorkoutTransformer->transform($currentWorkout),
+            'statistics' => $this->workoutInsightsTransformer->transformAggregate(
+                $this->workoutInsightsService->aggregate($workouts),
+            ),
             'data' => $this->studentWorkoutTransformer->transformCollection($workouts),
         ]);
     }
@@ -104,7 +113,15 @@ class WorkoutController extends Controller
         }
 
         try {
-            $this->creditService->consumeCredits(
+            $this->workoutGenerationCooldownService->assertGenerationAllowed($tenant instanceof Tenant ? $tenant : null, (int) $user->id, 'voce');
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        try {
+            $creditTransaction = $this->creditService->consumeCredits(
                 $user,
                 $this->workoutRulesService->generationCredits(),
                 'consume_generation',
@@ -129,7 +146,7 @@ class WorkoutController extends Controller
             'meal_plan' => [],
             'recommendations' => [],
             'cardio_plan' => [],
-            'safety_flags' => [],
+            'safety_flags' => $this->workoutGenerationCooldownService->withCreditChargeMetadata([], $creditTransaction),
         ], $this->workoutLifecycleService->activeAttributes()));
 
         $workout = $this->workoutLifecycleService->activateWorkout(
@@ -200,7 +217,15 @@ class WorkoutController extends Controller
         }
 
         try {
-            $this->creditService->consumeCredits(
+            $this->workoutGenerationCooldownService->assertGenerationAllowed($tenant instanceof Tenant ? $tenant : null, (int) $user->id, 'voce');
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        try {
+            $creditTransaction = $this->creditService->consumeCredits(
                 $user,
                 $this->workoutRulesService->reuseCredits(),
                 'consume_regeneration',
@@ -231,7 +256,7 @@ class WorkoutController extends Controller
             'meal_plan' => [],
             'recommendations' => [],
             'cardio_plan' => [],
-            'safety_flags' => [],
+            'safety_flags' => $this->workoutGenerationCooldownService->withCreditChargeMetadata([], $creditTransaction),
         ], $this->workoutLifecycleService->activeAttributes()));
 
         GenerateWorkoutJob::dispatch($workout->id, (int) $user->id, $tenantId, $normalizedAdjustmentRequest, (int) $user->id);

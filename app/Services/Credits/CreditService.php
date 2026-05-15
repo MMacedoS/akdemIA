@@ -15,13 +15,13 @@ class CreditService
 
     public const WORKOUT_REUSE_COST = 3;
 
-    public function consumeCredits(User $user, int $amount, string $type, array $metadata = [], ?Tenant $tenant = null): void
+    public function consumeCredits(User $user, int $amount, string $type, array $metadata = [], ?Tenant $tenant = null): CreditTransaction
     {
         if ($amount <= 0) {
             throw new RuntimeException('Invalid credit amount for consumption.');
         }
 
-        DB::transaction(function () use ($user, $amount, $type, $metadata, $tenant): void {
+        return DB::transaction(function () use ($user, $amount, $type, $metadata, $tenant): CreditTransaction {
             $lockedUser = User::query()->lockForUpdate()->find($user->id);
 
             if ($lockedUser === null) {
@@ -37,7 +37,7 @@ class CreditService
             $lockedUser->credits_balance = $currentBalance - $amount;
             $lockedUser->save();
 
-            CreditTransaction::query()->create([
+            return CreditTransaction::query()->create([
                 'user_id' => $lockedUser->id,
                 'actor_user_id' => null,
                 'tenant_id' => $tenant?->id,
@@ -58,12 +58,12 @@ class CreditService
         array $metadata = [],
         ?Tenant $tenant = null,
         ?CreditRequest $creditRequest = null,
-    ): void {
+    ): CreditTransaction {
         if ($amount <= 0) {
             throw new RuntimeException('Invalid credit amount for grant.');
         }
 
-        DB::transaction(function () use ($targetUser, $amount, $actor, $type, $description, $metadata, $tenant, $creditRequest): void {
+        return DB::transaction(function () use ($targetUser, $amount, $actor, $type, $description, $metadata, $tenant, $creditRequest): CreditTransaction {
             $lockedUser = User::query()->lockForUpdate()->find($targetUser->id);
 
             if ($lockedUser === null) {
@@ -73,7 +73,7 @@ class CreditService
             $lockedUser->credits_balance = (int) $lockedUser->credits_balance + $amount;
             $lockedUser->save();
 
-            CreditTransaction::query()->create([
+            return CreditTransaction::query()->create([
                 'user_id' => $lockedUser->id,
                 'actor_user_id' => $actor?->id,
                 'tenant_id' => $tenant?->id,

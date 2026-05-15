@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\Tenant;
 use App\Models\Workout\Workout;
 use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
+use App\Services\Workouts\WorkoutInsightsService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -13,6 +14,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private readonly TraineeStudentRepositoryContract $traineeStudentRepository,
+        private readonly WorkoutInsightsService $workoutInsightsService,
     ) {}
 
     public function index(Request $request): View
@@ -25,8 +27,17 @@ class DashboardController extends Controller
             ->where('tenant_id', $tenant->id)
             ->where('user_id', $user->id)
             ->orderByDesc('id')
-            ->first(['id', 'status', 'created_at'])
+            ->first(['id', 'status', 'created_at', 'workout_plan'])
             : null;
+        $recentDoneWorkouts = $tenant instanceof Tenant
+            ? Workout::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('user_id', $user->id)
+            ->where('status', 'done')
+            ->orderByDesc('id')
+            ->limit(3)
+            ->get(['id', 'status', 'created_at', 'workout_plan'])
+            : collect();
 
         $completedProfileItems = collect([
             $user->goal,
@@ -45,6 +56,7 @@ class DashboardController extends Controller
                 'has_tenant' => $tenant instanceof Tenant,
             ],
             'assignedTrainee' => $assignedTrainee,
+            'workoutStatistics' => $this->workoutInsightsService->aggregate($recentDoneWorkouts),
         ]);
     }
 

@@ -67,6 +67,10 @@
         $cardioPlan = [];
     }
 
+    $workoutInsights = app(\App\Services\Workouts\WorkoutInsightsService::class)->summarize(
+        is_array(data_get($workout, 'workout_plan')) ? data_get($workout, 'workout_plan') : []
+    );
+
     $statusColor = match ((string) $workout->status) {
         'done' => 'success',
         'processing' => 'warning',
@@ -577,9 +581,6 @@
                 <div class="field" style="max-width: 100%;">
                     <label for="adjustment_request">O que deve mudar no treino</label>
                     <textarea id="adjustment_request" name="adjustment_request" rows="3" maxlength="1500" placeholder="Ex: remover mistura de pernas com ombro e manter 4 especificos + 1 cardio por dia." @disabled(! $canRefazer)>{{ old('adjustment_request') }}</textarea>
-                </div>
-                <div class="actions">
-                    <button type="submit" class="btn btn-primary" @disabled(! $canRefazer)>Refazer com IA</button>
                 </div>
             </form>
 
@@ -1616,6 +1617,8 @@
     </div>
 @else
     <div class="content-stack">
+        @include('web.v1.workouts._insights', ['insights' => $workoutInsights])
+
         <div class="card">
             <h3>Treino semanal (kanban)</h3>
             <p>Visualizacao por dia para facilitar acompanhamento.</p>

@@ -39,6 +39,7 @@ use App\Http\Controllers\Web\V1\Trainee\StudentsController as TraineeStudentsCon
 use App\Http\Controllers\Web\V1\Trainer\DashboardController as TrainerDashboardController;
 use App\Http\Controllers\Web\V1\Trainer\StudentsController as TrainerStudentsController;
 use App\Http\Controllers\Web\V1\Users\MyLandingController;
+use App\Http\Controllers\Web\V1\Workouts\CatalogController as WorkoutCatalogController;
 use App\Models\Tenant\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -180,6 +181,12 @@ Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selecte
         Route::post('/students/{id}/workouts/{workoutId}/regenerate', [TrainerStudentsController::class, 'regenerateWorkout'])->name('students.workouts.regenerate');
         Route::get('/students/{id}/edit', [TrainerStudentsController::class, 'edit'])->name('students.edit');
         Route::put('/students/{id}', [TrainerStudentsController::class, 'update'])->name('students.update');
+        Route::get('/workouts/catalog', [WorkoutCatalogController::class, 'indexTrainer'])->name('workouts.catalogs');
+        Route::get('/workouts/catalog/create', [WorkoutCatalogController::class, 'createTrainer'])->name('workouts.catalogs.create');
+        Route::post('/workouts/catalog', [WorkoutCatalogController::class, 'storeTrainer'])->name('workouts.catalogs.store');
+        Route::get('/workouts/catalog/{catalog}/edit', [WorkoutCatalogController::class, 'editTrainer'])->name('workouts.catalogs.edit');
+        Route::put('/workouts/catalog/{catalog}', [WorkoutCatalogController::class, 'updateTrainer'])->name('workouts.catalogs.update');
+        Route::delete('/workouts/catalog/{catalog}', [WorkoutCatalogController::class, 'destroyTrainer'])->name('workouts.catalogs.destroy');
     });
 
     Route::prefix('students')->name('students.')->middleware(['role:student'])->group(function () {
@@ -238,6 +245,13 @@ Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selecte
             Route::get('/{id}/edit', 'edit')->name('edit');
             Route::put('/{id}', 'update')->name('update');
         });
+
+        Route::get('/workouts/catalog', [WorkoutCatalogController::class, 'indexAdmin'])->name('workouts.catalogs');
+        Route::get('/workouts/catalog/create', [WorkoutCatalogController::class, 'createAdmin'])->name('workouts.catalogs.create');
+        Route::post('/workouts/catalog', [WorkoutCatalogController::class, 'storeAdmin'])->name('workouts.catalogs.store');
+        Route::get('/workouts/catalog/{catalog}/edit', [WorkoutCatalogController::class, 'editAdmin'])->name('workouts.catalogs.edit');
+        Route::put('/workouts/catalog/{catalog}', [WorkoutCatalogController::class, 'updateAdmin'])->name('workouts.catalogs.update');
+        Route::delete('/workouts/catalog/{catalog}', [WorkoutCatalogController::class, 'destroyAdmin'])->name('workouts.catalogs.destroy');
     });
 
     Route::prefix('system-admin')->name('system-admin.')->middleware(['system.admin'])->group(function () {

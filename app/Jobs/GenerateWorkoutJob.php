@@ -6,7 +6,9 @@ use App\Models\Tenant\Tenant;
 use App\Models\User;
 use App\Models\Workout\Workout;
 use App\Notifications\WorkoutGenerationFinishedNotification;
+use App\Services\Credits\CreditService;
 use App\Services\System\SystemSettingsRuntimeService;
+use App\Services\Workouts\WorkoutGenerationCooldownService;
 use App\Services\Workouts\WorkoutGenerationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -32,6 +34,7 @@ class GenerateWorkoutJob implements ShouldQueue
     public function handle(
         WorkoutGenerationService $workoutGenerationService,
         SystemSettingsRuntimeService $systemSettingsRuntimeService,
+        CreditService $creditService,
     ): void {
         $systemSettingsRuntimeService->apply();
 
@@ -51,31 +54,28 @@ class GenerateWorkoutJob implements ShouldQueue
             : ($targetWorkout->tenant_id !== null || (int) $targetWorkout->user_id !== $user->id);
 
         if ($hasInvalidContext) {
-            $targetWorkout->status = 'error';
-            $targetWorkout->safety_flags = [
-                'generation_error' => 'Invalid workout context for generation.',
-            ];
-            $targetWorkout->save();
-            $this->notifyFailure($requester, $targetWorkout, 'Falha de contexto na geracao do treino.');
+            $this->refundCreditsAndDeleteFailedWorkout(
+                $targetWorkout,
+                $tenant,
+                $creditService,
+                $requester,
+                'Falha de contexto na geracao do treino.'
+            );
             return;
         }
 
         try {
-            $generatedWorkout = $workoutGenerationService->generate($user, $tenant, $this->adjustmentRequest);
+            $generatedWorkout = $workoutGenerationService->generatePayload($user, $tenant, $this->adjustmentRequest);
 
             $targetWorkout->fill([
                 'status' => 'done',
-                'workout_plan' => $generatedWorkout->workout_plan,
-                'meal_plan' => $generatedWorkout->meal_plan,
-                'recommendations' => $generatedWorkout->recommendations,
-                'cardio_plan' => $generatedWorkout->cardio_plan,
-                'safety_flags' => $generatedWorkout->safety_flags,
+                'workout_plan' => $generatedWorkout['workout_plan'],
+                'meal_plan' => $generatedWorkout['meal_plan'],
+                'recommendations' => $generatedWorkout['recommendations'],
+                'cardio_plan' => $generatedWorkout['cardio_plan'],
+                'safety_flags' => $generatedWorkout['safety_flags'],
             ]);
             $targetWorkout->save();
-
-            if ($generatedWorkout->id !== $targetWorkout->id) {
-                $generatedWorkout->delete();
-            }
 
             $this->notifySuccess($requester, $targetWorkout);
         } catch (Throwable $exception) {
@@ -85,15 +85,11 @@ class GenerateWorkoutJob implements ShouldQueue
                 throw $exception;
             }
 
-            $targetWorkout->status = 'error';
-            $targetWorkout->safety_flags = [
-                'generation_error' => Str::limit($exception->getMessage(), 500),
-            ];
-            $targetWorkout->save();
-
-            $this->notifyFailure(
-                $requester,
+            $this->refundCreditsAndDeleteFailedWorkout(
                 $targetWorkout,
+                $tenant,
+                $creditService,
+                $requester,
                 (string) Str::limit($exception->getMessage(), 500)
             );
         }
@@ -103,21 +99,18 @@ class GenerateWorkoutJob implements ShouldQueue
     {
         $targetWorkout = Workout::query()->find($this->workoutId);
         $user = User::query()->find($this->userId);
+        $tenant = $this->tenantId !== null ? Tenant::query()->find($this->tenantId) : null;
         $requester = $this->resolveRequester($user);
 
         if ($targetWorkout === null) {
             return;
         }
 
-        $targetWorkout->status = 'error';
-        $targetWorkout->safety_flags = [
-            'generation_error' => Str::limit($exception->getMessage(), 500),
-        ];
-        $targetWorkout->save();
-
-        $this->notifyFailure(
-            $requester,
+        $this->refundCreditsAndDeleteFailedWorkout(
             $targetWorkout,
+            $tenant,
+            app(CreditService::class),
+            $requester,
             (string) Str::limit($exception->getMessage(), 500)
         );
     }
@@ -157,16 +150,78 @@ class GenerateWorkoutJob implements ShouldQueue
         ));
     }
 
-    private function notifyFailure(?User $requester, Workout $workout, string $errorMessage): void
+    private function notifyFailure(?User $requester, int $workoutId, string $errorMessage): void
     {
         if (! $requester instanceof User) {
             return;
         }
 
         $requester->notify(new WorkoutGenerationFinishedNotification(
-            workoutId: $workout->id,
+            workoutId: $workoutId,
             status: 'error',
-            message: 'A geracao do treino #' . $workout->id . ' falhou: ' . $errorMessage
+            message: 'A geracao do treino #' . $workoutId . ' falhou: ' . $errorMessage . ' Os creditos foram devolvidos e o treino foi removido.'
         ));
+    }
+
+    private function refundCreditsAndDeleteFailedWorkout(
+        Workout $workout,
+        ?Tenant $tenant,
+        CreditService $creditService,
+        ?User $requester,
+        string $errorMessage,
+    ): void {
+        $workoutId = (int) $workout->id;
+        $friendlyErrorMessage = app(WorkoutGenerationCooldownService::class)->localizeFailureMessage($errorMessage);
+
+        $this->refundCreditsIfNeeded($workout, $tenant, $creditService, $friendlyErrorMessage);
+        $workout->delete();
+
+        $this->notifyFailure($requester, $workoutId, $friendlyErrorMessage);
+    }
+
+    private function refundCreditsIfNeeded(Workout $workout, ?Tenant $tenant, CreditService $creditService, string $errorMessage): void
+    {
+        $transactionId = (int) data_get($workout->safety_flags, 'credit_charge.transaction_id', 0);
+
+        if ($transactionId <= 0) {
+            return;
+        }
+
+        $chargeTransaction = \App\Models\Credits\CreditTransaction::query()->find($transactionId);
+
+        if (! $chargeTransaction instanceof \App\Models\Credits\CreditTransaction) {
+            return;
+        }
+
+        $alreadyRefunded = \App\Models\Credits\CreditTransaction::query()
+            ->where('type', 'refund_workout_error')
+            ->get()
+            ->contains(fn(\App\Models\Credits\CreditTransaction $transaction): bool => (int) data_get($transaction->metadata, 'refunded_transaction_id', 0) === $chargeTransaction->id);
+
+        if ($alreadyRefunded) {
+            return;
+        }
+
+        $chargedUser = User::query()->find($chargeTransaction->user_id);
+
+        if (! $chargedUser instanceof User) {
+            return;
+        }
+
+        $cooldownService = app(WorkoutGenerationCooldownService::class);
+
+        $creditService->addCredits(
+            $chargedUser,
+            abs((int) $chargeTransaction->amount),
+            null,
+            'refund_workout_error',
+            'Estorno automatico por falha na geracao do treino.',
+            array_merge([
+                'workout_id' => $workout->id,
+                'refunded_transaction_id' => $chargeTransaction->id,
+                'refunded_transaction_type' => $chargeTransaction->type,
+            ], $cooldownService->cooldownMetadata($tenant, (int) $workout->user_id, $errorMessage)),
+            $tenant,
+        );
     }
 }

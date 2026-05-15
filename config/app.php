@@ -53,6 +53,7 @@ return [
     */
 
     'url' => env('APP_URL', 'http://localhost'),
+    'api_url' => env('APP_API_URL', 'https://api.academai.com.br'),
     'landing_root_domain' => env('APP_LANDING_ROOT_DOMAIN'),
 
     /*

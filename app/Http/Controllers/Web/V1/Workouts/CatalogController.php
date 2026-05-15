@@ -1,0 +1,291 @@
+<?php
+
+namespace App\Http\Controllers\Web\V1\Workouts;
+
+use App\Http\Controllers\Controller;
+use App\Models\Workout\ExerciseMediaCache;
+use App\Models\Workout\WorkoutCatalog;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+class CatalogController extends Controller
+{
+    public function indexTrainer(Request $request): View
+    {
+        return $this->index($request, 'trainer');
+    }
+
+    public function createTrainer(Request $request): View
+    {
+        return $this->create($request, 'trainer');
+    }
+
+    public function storeTrainer(Request $request): RedirectResponse
+    {
+        return $this->store($request, 'trainer');
+    }
+
+    public function editTrainer(Request $request, WorkoutCatalog $catalog): View
+    {
+        return $this->edit($request, $catalog, 'trainer');
+    }
+
+    public function updateTrainer(Request $request, WorkoutCatalog $catalog): RedirectResponse
+    {
+        return $this->update($request, $catalog, 'trainer');
+    }
+
+    public function destroyTrainer(Request $request, WorkoutCatalog $catalog): RedirectResponse
+    {
+        return $this->destroy($request, $catalog, 'trainer');
+    }
+
+    public function indexAdmin(Request $request): View
+    {
+        return $this->index($request, 'admin');
+    }
+
+    public function createAdmin(Request $request): View
+    {
+        return $this->create($request, 'admin');
+    }
+
+    public function storeAdmin(Request $request): RedirectResponse
+    {
+        return $this->store($request, 'admin');
+    }
+
+    public function editAdmin(Request $request, WorkoutCatalog $catalog): View
+    {
+        return $this->edit($request, $catalog, 'admin');
+    }
+
+    public function updateAdmin(Request $request, WorkoutCatalog $catalog): RedirectResponse
+    {
+        return $this->update($request, $catalog, 'admin');
+    }
+
+    public function destroyAdmin(Request $request, WorkoutCatalog $catalog): RedirectResponse
+    {
+        return $this->destroy($request, $catalog, 'admin');
+    }
+
+    private function index(Request $request, string $panel): View
+    {
+        $search = trim((string) $request->query('q', ''));
+        $user = $request->user();
+
+        $catalogs = WorkoutCatalog::query()
+            ->withCount('exercises')
+            ->with('owner:id,name')
+            ->when($panel === 'trainer', function (Builder $query) use ($user): void {
+                $query->where(function (Builder $innerQuery) use ($user): void {
+                    $innerQuery->where('user_id', $user?->id)
+                        ->orWhere('is_public', true);
+                });
+            })
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $innerQuery) use ($search): void {
+                    $innerQuery->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('description', 'like', '%' . $search . '%');
+                });
+            })
+            ->orderByDesc('id')
+            ->paginate(12)
+            ->withQueryString();
+
+        return view('web.v1.workouts.catalog.index', [
+            'catalogs' => $catalogs,
+            'search' => $search,
+            'panel' => $panel,
+            'routePrefix' => $this->routePrefix($panel),
+        ]);
+    }
+
+    private function create(Request $request, string $panel): View
+    {
+        $exerciseSearch = trim((string) $request->query('exercise_search', ''));
+        $selectedExerciseIds = [];
+
+        return view('web.v1.workouts.catalog.form', [
+            'panel' => $panel,
+            'routePrefix' => $this->routePrefix($panel),
+            'catalog' => new WorkoutCatalog(),
+            'exerciseOptions' => $this->loadExerciseOptions($exerciseSearch, $selectedExerciseIds),
+            'selectedExerciseIds' => $selectedExerciseIds,
+            'exerciseSearch' => $exerciseSearch,
+            'submitLabel' => 'Salvar catalogo',
+        ]);
+    }
+
+    private function store(Request $request, string $panel): RedirectResponse
+    {
+        $payload = $this->validatedPayload($request);
+        $user = $request->user();
+
+        $catalog = DB::transaction(function () use ($payload, $user): WorkoutCatalog {
+            $exerciseIds = array_values(array_unique(array_map('intval', $payload['exercise_media_cache_ids'] ?? [])));
+
+            $catalog = WorkoutCatalog::query()->create([
+                'name' => $payload['name'],
+                'description' => $payload['description'],
+                'quantity_exercises' => count($exerciseIds),
+                'price' => (int) $payload['price'],
+                'user_id' => $user?->id,
+                'path_image' => $payload['path_image'] ?? null,
+                'is_public' => (bool) ($payload['is_public'] ?? false),
+                'status' => (bool) ($payload['status'] ?? true),
+            ]);
+
+            $catalog->exercises()->sync($this->exerciseSyncMap($exerciseIds));
+
+            return $catalog;
+        });
+
+        return redirect()->route($this->routePrefix($panel) . '.edit', $catalog->id)
+            ->with('status', 'Catalogo salvo com sucesso. Treino pronto para uso interno.');
+    }
+
+    private function edit(Request $request, WorkoutCatalog $catalog, string $panel): View
+    {
+        $this->assertCanManage($request, $catalog, $panel);
+
+        $exerciseSearch = trim((string) $request->query('exercise_search', ''));
+        $selectedExerciseIds = $catalog->exercises()
+            ->pluck('exercise_media_caches.id')
+            ->map(static fn(mixed $id): int => (int) $id)
+            ->all();
+
+        return view('web.v1.workouts.catalog.form', [
+            'panel' => $panel,
+            'routePrefix' => $this->routePrefix($panel),
+            'catalog' => $catalog,
+            'exerciseOptions' => $this->loadExerciseOptions($exerciseSearch, $selectedExerciseIds),
+            'selectedExerciseIds' => $selectedExerciseIds,
+            'exerciseSearch' => $exerciseSearch,
+            'submitLabel' => 'Atualizar catalogo',
+        ]);
+    }
+
+    private function update(Request $request, WorkoutCatalog $catalog, string $panel): RedirectResponse
+    {
+        $this->assertCanManage($request, $catalog, $panel);
+
+        $payload = $this->validatedPayload($request, $catalog->id);
+
+        DB::transaction(function () use ($catalog, $payload): void {
+            $exerciseIds = array_values(array_unique(array_map('intval', $payload['exercise_media_cache_ids'] ?? [])));
+
+            $catalog->fill([
+                'name' => $payload['name'],
+                'description' => $payload['description'],
+                'quantity_exercises' => count($exerciseIds),
+                'price' => (int) $payload['price'],
+                'path_image' => $payload['path_image'] ?? null,
+                'is_public' => (bool) ($payload['is_public'] ?? false),
+                'status' => (bool) ($payload['status'] ?? true),
+            ]);
+            $catalog->save();
+
+            $catalog->exercises()->sync($this->exerciseSyncMap($exerciseIds));
+        });
+
+        return redirect()->route($this->routePrefix($panel) . '.edit', $catalog->id)
+            ->with('status', 'Catalogo atualizado com sucesso.');
+    }
+
+    private function destroy(Request $request, WorkoutCatalog $catalog, string $panel): RedirectResponse
+    {
+        $this->assertCanManage($request, $catalog, $panel);
+
+        $catalog->delete();
+
+        return redirect()->route($this->routePrefix($panel))
+            ->with('status', 'Catalogo removido com sucesso.');
+    }
+
+    private function validatedPayload(Request $request, ?int $catalogId = null): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:60', Rule::unique('workouts_catalogs', 'name')->ignore($catalogId)],
+            'description' => ['required', 'string', 'max:4000'],
+            'price' => ['required', 'integer', 'min:1', 'max:999999'],
+            'path_image' => ['nullable', 'string', 'max:100'],
+            'is_public' => ['nullable', 'boolean'],
+            'status' => ['nullable', 'boolean'],
+            'exercise_media_cache_ids' => ['required', 'array', 'min:1'],
+            'exercise_media_cache_ids.*' => ['integer', Rule::exists('exercise_media_caches', 'id')],
+        ]);
+    }
+
+    private function exerciseSyncMap(array $exerciseIds): array
+    {
+        $sync = [];
+
+        foreach (array_values($exerciseIds) as $index => $exerciseId) {
+            $sync[$exerciseId] = ['order' => $index + 1];
+        }
+
+        return $sync;
+    }
+
+    private function loadExerciseOptions(string $search, array $selectedIds): Collection
+    {
+        $baseQuery = ExerciseMediaCache::query()
+            ->select(['id', 'localized_name_pt_br', 'query_name', 'workoutx_name', 'payload'])
+            ->whereNotNull('remote_exercise_id');
+
+        $searched = (clone $baseQuery)
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $innerQuery) use ($search): void {
+                    $innerQuery->where('localized_name_pt_br', 'like', '%' . $search . '%')
+                        ->orWhere('query_name', 'like', '%' . $search . '%')
+                        ->orWhere('workoutx_name', 'like', '%' . $search . '%');
+                });
+            })
+            ->limit(80)
+            ->get();
+
+        $selected = empty($selectedIds)
+            ? collect()
+            : (clone $baseQuery)->whereIn('id', $selectedIds)->get();
+
+        return $selected
+            ->concat($searched)
+            ->unique('id')
+            ->map(function (ExerciseMediaCache $exercise): array {
+                $payload = is_array($exercise->payload) ? $exercise->payload : [];
+                $name = trim((string) ($exercise->localized_name_pt_br ?: $exercise->query_name ?: $exercise->workoutx_name));
+
+                return [
+                    'id' => (int) $exercise->id,
+                    'name' => $name !== '' ? $name : 'Exercicio sem nome',
+                    'focus' => (string) ($payload['focus'] ?? 'geral'),
+                    'target' => (string) ($payload['target'] ?? ''),
+                ];
+            })
+            ->sortBy(static fn(array $row): string => mb_strtolower((string) $row['name']))
+            ->values();
+    }
+
+    private function assertCanManage(Request $request, WorkoutCatalog $catalog, string $panel): void
+    {
+        if ($panel === 'admin') {
+            return;
+        }
+
+        if ((int) $catalog->user_id !== (int) $request->user()?->id) {
+            abort(403, 'Voce nao tem permissao para gerenciar este catalogo.');
+        }
+    }
+
+    private function routePrefix(string $panel): string
+    {
+        return $panel . '.workouts.catalogs';
+    }
+}

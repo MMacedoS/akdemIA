@@ -190,4 +190,72 @@ class WorkoutGenerationServiceTest extends TestCase
 
         $this->assertSame($legacyWorkout->workout_plan, $workout->workout_plan);
     }
+
+    public function test_generate_payload_returns_enriched_data_without_persisting_temporary_workout(): void
+    {
+        $user = User::factory()->create([
+            'profile_type' => Role::STUDENT->value,
+        ]);
+
+        $tenant = Tenant::query()->create([
+            'name' => 'Academia Teste',
+            'slug' => 'academia-payload',
+            'is_active' => true,
+        ]);
+
+        $tenant->users()->attach($user->id, [
+            'role' => Role::STUDENT->value,
+        ]);
+
+        $aiWorkoutResponse = [
+            'weekly_plan' => [
+                [
+                    'day' => 'Segunda',
+                    'focus' => 'Costas',
+                    'exercises' => [
+                        [
+                            'name' => 'Puxada frontal',
+                            'category' => 'specific',
+                            'sets' => 4,
+                            'reps' => '8-12',
+                            'rest' => '60s',
+                            'notes' => 'Controle a escapula.',
+                            'steps' => ['Ajuste a pegada', 'Puxe ao peito'],
+                            'workoutx_name' => 'lat-pulldown',
+                            'remote_exercise_id' => 'lat-001',
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $validationService = Mockery::mock(ValidationService::class);
+        $validationService->shouldReceive('validateUserForWorkout')->once()->with($user);
+        $validationService->shouldReceive('safetyFlags')->once()->andReturn(['shoulder_sensitive' => true]);
+
+        $aiService = Mockery::mock(AiService::class);
+        $aiService->shouldReceive('generateRecommendations')->once()->with($user, $tenant)->andReturn([
+            'recommendations' => ['Mantenha aquecimento de ombros antes das sessoes.'],
+            'cardio_plan' => [
+                [
+                    'type' => 'Caminhada',
+                    'duration' => '15 minutos',
+                    'frequency' => '2x por semana',
+                ],
+            ],
+        ]);
+        $aiService->shouldReceive('generateWorkout')->once()->with($user, $tenant, false, null)->andReturn($aiWorkoutResponse);
+
+        $workoutMediaService = Mockery::mock(WorkoutMediaService::class);
+        $workoutMediaService->shouldReceive('enrichWorkoutPlan')->once()->with($aiWorkoutResponse)->andReturn($aiWorkoutResponse);
+
+        $service = new WorkoutGenerationService($validationService, $aiService, $workoutMediaService);
+
+        $payload = $service->generatePayload($user, $tenant);
+
+        $this->assertSame($aiWorkoutResponse, $payload['workout_plan']);
+        $this->assertSame(['Mantenha aquecimento de ombros antes das sessoes.'], $payload['recommendations']);
+        $this->assertSame(['shoulder_sensitive' => true], $payload['safety_flags']);
+        $this->assertSame(0, Workout::query()->count());
+    }
 }

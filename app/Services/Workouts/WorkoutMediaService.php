@@ -1254,7 +1254,7 @@ class WorkoutMediaService
             return '';
         }
 
-        return route('api.workouts.exercises.media.show', ['workoutxName' => $workoutxName]);
+        return \api_route('api.workouts.exercises.media.show', ['workoutxName' => $workoutxName]);
     }
 
     private function hasLocallyResolvableMedia(string $workoutxName, ?ExerciseMediaCache $catalogExercise = null): bool

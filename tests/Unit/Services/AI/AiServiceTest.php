@@ -117,14 +117,18 @@ class AiServiceTest extends TestCase
             return data_get($payload, 'model') === 'gpt-4o-mini'
                 && data_get($payload, 'tools.0.type') === 'file_search'
                 && data_get($payload, 'tools.0.vector_store_ids.0') === 'vs_test_123'
+                && data_get($payload, 'temperature') === 0.15
                 && data_get($payload, 'text.format.type') === 'json_schema'
                 && data_get($payload, 'text.format.strict') === true
+                && data_get($payload, 'text.format.schema.properties.weekly_plan.minItems') === 1
+                && data_get($payload, 'text.format.schema.properties.weekly_plan.maxItems') === 1
                 && str_contains($prompt, 'Exercicios prioritarios recuperados')
                 && str_contains($prompt, 'Exercicios do treino anterior a evitar')
                 && str_contains($prompt, 'Exercicios permitidos por foco')
                 && str_contains($prompt, 'Plano deterministico obrigatório')
                 && str_contains($prompt, 'Regra de selecao por foco')
                 && str_contains($prompt, 'Regra de variacao entre geracoes')
+                && str_contains($prompt, 'weekly_plan deve conter exatamente 1 dias')
                 && str_contains($prompt, 'barbell-bench-press')
                 && ! str_contains($prompt, 'Exercícios disponíveis:');
         });
@@ -295,6 +299,48 @@ class AiServiceTest extends TestCase
         $this->assertSame('Full Body', data_get($result, 'weekly_plan.0.focus'));
         $this->assertSame('10-12', data_get($benchExercise, 'reps'));
         $this->assertSame('60s', data_get($benchExercise, 'rest'));
+        Http::assertSentCount(1);
+    }
+
+    public function test_generate_workout_falls_back_to_planning_base_when_a_day_has_less_than_five_exercises(): void
+    {
+        $this->useAiPipelineValidationProfile();
+
+        config()->set('services.openai.api_key', 'openai-test-key');
+        config()->set('services.openai.responses_model', 'gpt-4o-mini');
+        config()->set('services.openai.vector_store.enabled', false);
+
+        $user = $this->makeUser();
+        $this->seedCatalog();
+
+        Http::fake([
+            'https://api.openai.com/v1/responses' => Http::response([
+                'id' => 'resp_invalid_generation_missing_exercise',
+                'model' => 'gpt-4o-mini',
+                'output_text' => json_encode([
+                    'weekly_plan' => [[
+                        'day' => 'Segunda',
+                        'focus' => 'Peito',
+                        'exercises' => [
+                            ['name' => 'Supino reto com barra', 'category' => 'specific', 'sets' => 5, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Controle.', 'steps' => ['Ajuste a pegada', 'Desca com controle'], 'remote_exercise_id' => '0009', 'workoutx_name' => 'barbell-bench-press'],
+                            ['name' => 'Supino inclinado com halteres', 'category' => 'specific', 'sets' => 5, 'reps' => '8-12', 'rest' => '60s', 'notes' => 'Estabilidade.', 'steps' => ['Ajuste os halteres', 'Empurre'], 'remote_exercise_id' => '0010', 'workoutx_name' => 'incline-dumbbell-bench-press'],
+                            ['name' => 'Crucifixo no cabo', 'category' => 'specific', 'sets' => 5, 'reps' => '10-12', 'rest' => '45s', 'notes' => 'Sem balanco.', 'steps' => ['Posicione as polias', 'Aproxime as maos'], 'remote_exercise_id' => '0011', 'workoutx_name' => 'cable-crossover'],
+                            ['name' => 'Caminhada inclinada', 'category' => 'cardio', 'sets' => 1, 'reps' => '15 min', 'rest' => '0s', 'notes' => 'Moderado.', 'steps' => ['Inicie leve', 'Mantenha ritmo'], 'remote_exercise_id' => '1160', 'workoutx_name' => 'incline-treadmill-walk'],
+                        ],
+                    ]],
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ], 200),
+        ]);
+
+        $result = app(AiService::class)->generateWorkout($user, null);
+
+        $exerciseIds = collect(data_get($result, 'weekly_plan.0.exercises', []))
+            ->pluck('remote_exercise_id')
+            ->all();
+
+        $this->assertSame('Full Body', data_get($result, 'weekly_plan.0.focus'));
+        $this->assertCount(5, data_get($result, 'weekly_plan.0.exercises', []));
+        $this->assertEqualsCanonicalizing(['0009', '0010', '0011', '0012', '1160'], $exerciseIds);
         Http::assertSentCount(1);
     }
 

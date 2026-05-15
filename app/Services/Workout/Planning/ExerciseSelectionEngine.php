@@ -20,12 +20,15 @@ class ExerciseSelectionEngine
         $candidatePool = $this->buildCandidatePool($retrieval);
         $previousExerciseIds = $this->previousExerciseIds($context);
         $overusedMovements = array_fill_keys($trainingMemory['overused_movements'] ?? [], true);
+        $selectionBiases = $this->selectionBiases($context, $trainingMemory);
         $selectedDays = [];
         $usedAcrossWeek = [];
+        $previousDayExerciseIds = [];
 
         foreach ($splitPlan['split'] as $day) {
             $sessionPatterns = [];
             $sessionEquipment = [];
+            $sessionExerciseIds = [];
             $specificExercises = [];
 
             foreach ($day['preferred_order'] as $pattern) {
@@ -38,10 +41,13 @@ class ExerciseSelectionEngine
                     $day['allowed_focus_tokens'],
                     $pattern,
                     $usedAcrossWeek,
+                    $previousDayExerciseIds,
                     $previousExerciseIds,
                     $overusedMovements,
                     $sessionPatterns,
                     $sessionEquipment,
+                    $sessionExerciseIds,
+                    $selectionBiases,
                     (int) ($day['max_same_pattern_per_session'] ?? 2),
                 );
 
@@ -58,7 +64,8 @@ class ExerciseSelectionEngine
                 );
 
                 $specificExercises[] = $exercise;
-                $usedAcrossWeek[$candidate->remoteExerciseId] = true;
+                $sessionExerciseIds[$candidate->remoteExerciseId] = true;
+                $usedAcrossWeek[$candidate->remoteExerciseId] = ($usedAcrossWeek[$candidate->remoteExerciseId] ?? 0) + 1;
                 $sessionPatterns[] = $pattern;
                 $sessionEquipment[$candidate->equipment] = true;
             }
@@ -73,11 +80,25 @@ class ExerciseSelectionEngine
                         continue;
                     }
 
-                    if (isset($usedAcrossWeek[$candidate->remoteExerciseId])) {
+                    if (
+                        isset($usedAcrossWeek[$candidate->remoteExerciseId])
+                        || isset($sessionExerciseIds[$candidate->remoteExerciseId])
+                        || isset($previousDayExerciseIds[$candidate->remoteExerciseId])
+                    ) {
                         continue;
                     }
 
-                    $pattern = $this->inferPatterns($candidate)[0] ?? 'bilateral';
+                    $patterns = $this->inferPatterns($candidate);
+
+                    if (($selectionBiases['shoulder_sensitive'] ?? false) === true
+                        && isset($previousExerciseIds[$candidate->remoteExerciseId])
+                        && in_array('horizontal_push', $patterns, true)
+                        && $candidate->equipment === 'barbell'
+                    ) {
+                        continue;
+                    }
+
+                    $pattern = $patterns[0] ?? 'bilateral';
                     $specificExercises[] = $this->buildExercisePrescription(
                         $candidate,
                         'specific',
@@ -85,18 +106,19 @@ class ExerciseSelectionEngine
                         $volumeDistribution,
                         $day['allowed_focus_tokens'],
                     );
-                    $usedAcrossWeek[$candidate->remoteExerciseId] = true;
+                    $sessionExerciseIds[$candidate->remoteExerciseId] = true;
+                    $usedAcrossWeek[$candidate->remoteExerciseId] = ($usedAcrossWeek[$candidate->remoteExerciseId] ?? 0) + 1;
                 }
             }
 
-            $cardioCandidate = $this->pickCardioCandidate($candidatePool, $usedAcrossWeek, $previousExerciseIds);
+            $cardioCandidate = $this->pickCardioCandidate($candidatePool, $usedAcrossWeek, $previousDayExerciseIds, $previousExerciseIds);
             $cardioExercise = $this->buildCardioPrescription($cardioCandidate);
 
             if ($cardioCandidate !== null) {
-                $usedAcrossWeek[$cardioCandidate->remoteExerciseId] = true;
+                $usedAcrossWeek[$cardioCandidate->remoteExerciseId] = ($usedAcrossWeek[$cardioCandidate->remoteExerciseId] ?? 0) + 1;
             }
 
-            $selectedDays[] = array_merge($day, [
+            $selectedDay = array_merge($day, [
                 'focus' => $day['focus_label'],
                 'selected_exercises' => array_merge($specificExercises, [$cardioExercise]),
                 'volume_target' => $this->resolveVolumeTarget($day['allowed_focus_tokens'], $volumeDistribution),
@@ -105,6 +127,9 @@ class ExerciseSelectionEngine
                     'cardio_position' => $fatiguePlan['cardio_position'] ?? 'last',
                 ],
             ]);
+
+            $selectedDays[] = $selectedDay;
+            $previousDayExerciseIds = $this->selectedExerciseIds($selectedDay['selected_exercises']);
         }
 
         return $selectedDays;
@@ -121,22 +146,22 @@ class ExerciseSelectionEngine
             $pool[$candidate->remoteExerciseId] = $candidate;
         }
 
-        if (count($pool) < 24) {
-            $catalogCandidates = ExerciseMediaCache::query()->get()->map(function (ExerciseMediaCache $exercise): WorkoutExerciseCandidate {
-                $payload = is_array($exercise->payload) ? $exercise->payload : [];
+        $catalogCandidates = ExerciseMediaCache::query()->get()->map(function (ExerciseMediaCache $exercise): WorkoutExerciseCandidate {
+            $payload = is_array($exercise->payload) ? $exercise->payload : [];
 
-                return new WorkoutExerciseCandidate(
-                    remoteExerciseId: (string) $exercise->remote_exercise_id,
-                    localizedNamePtBr: (string) ($exercise->localized_name_pt_br ?: $payload['name'] ?? $exercise->workoutx_name),
-                    workoutxName: (string) $exercise->workoutx_name,
-                    focus: $this->normalizeFocusToken((string) ($payload['bodyPart'] ?? $payload['target'] ?? '')) ?? 'geral',
-                    bodyPart: (string) ($payload['bodyPart'] ?? ''),
-                    target: (string) ($payload['target'] ?? ''),
-                    equipment: (string) ($payload['equipment'] ?? ''),
-                );
-            });
+            return new WorkoutExerciseCandidate(
+                remoteExerciseId: (string) $exercise->remote_exercise_id,
+                localizedNamePtBr: (string) ($exercise->localized_name_pt_br ?: $payload['name'] ?? $exercise->workoutx_name),
+                workoutxName: (string) $exercise->workoutx_name,
+                focus: $this->normalizeFocusToken((string) ($payload['bodyPart'] ?? $payload['target'] ?? '')) ?? 'geral',
+                bodyPart: (string) ($payload['bodyPart'] ?? ''),
+                target: (string) ($payload['target'] ?? ''),
+                equipment: (string) ($payload['equipment'] ?? ''),
+            );
+        });
 
-            foreach ($catalogCandidates as $candidate) {
+        foreach ($catalogCandidates as $candidate) {
+            if (! isset($pool[$candidate->remoteExerciseId])) {
                 $pool[$candidate->remoteExerciseId] = $candidate;
             }
         }
@@ -146,21 +171,27 @@ class ExerciseSelectionEngine
 
     /**
      * @param  array<int, WorkoutExerciseCandidate>  $candidatePool
-     * @param  array<string, true>  $usedAcrossWeek
+     * @param  array<string, int>  $usedAcrossWeek
+     * @param  array<string, true>  $previousDayExerciseIds
      * @param  array<string, true>  $previousExerciseIds
      * @param  array<string, true>  $overusedMovements
      * @param  array<int, string>  $sessionPatterns
      * @param  array<string, true>  $sessionEquipment
+     * @param  array<string, true>  $sessionExerciseIds
+     * @param  array<string, bool>  $selectionBiases
      */
     private function pickBestCandidate(
         array $candidatePool,
         array $allowedFocusTokens,
         string $desiredPattern,
         array $usedAcrossWeek,
+        array $previousDayExerciseIds,
         array $previousExerciseIds,
         array $overusedMovements,
         array $sessionPatterns,
         array $sessionEquipment,
+        array $sessionExerciseIds,
+        array $selectionBiases,
         int $maxSamePatternPerSession,
     ): ?WorkoutExerciseCandidate {
         $scored = [];
@@ -170,11 +201,25 @@ class ExerciseSelectionEngine
                 continue;
             }
 
+            $patterns = $this->inferPatterns($candidate);
+
+            if (($selectionBiases['shoulder_sensitive'] ?? false) === true
+                && $desiredPattern === 'horizontal_push'
+                && in_array('horizontal_push', $patterns, true)
+                && isset($previousExerciseIds[$candidate->remoteExerciseId])
+                && $candidate->equipment === 'barbell'
+            ) {
+                continue;
+            }
+
+            if (isset($sessionExerciseIds[$candidate->remoteExerciseId]) || isset($previousDayExerciseIds[$candidate->remoteExerciseId])) {
+                continue;
+            }
+
             if (isset($usedAcrossWeek[$candidate->remoteExerciseId])) {
                 continue;
             }
 
-            $patterns = $this->inferPatterns($candidate);
             $score = 0;
             $samePatternCount = count(array_filter($sessionPatterns, static fn(string $pattern): bool => $pattern === $desiredPattern));
 
@@ -196,6 +241,27 @@ class ExerciseSelectionEngine
                 $score += 6;
             }
 
+            $score += 10;
+
+            if (($selectionBiases['shoulder_sensitive'] ?? false) === true) {
+                if ($desiredPattern === 'horizontal_push' && in_array('horizontal_push', $patterns, true)) {
+                    $score += match ($candidate->equipment) {
+                        'machine', 'cable' => 12,
+                        'dumbbell' => 6,
+                        'barbell' => -18,
+                        default => 0,
+                    };
+                }
+
+                if (in_array('vertical_push', $patterns, true)) {
+                    $score -= 12;
+                }
+            }
+
+            if (($selectionBiases['prefer_vertical_pull'] ?? false) === true && in_array('vertical_pull', $patterns, true)) {
+                $score += $desiredPattern === 'vertical_pull' ? 16 : 6;
+            }
+
             if ($samePatternCount >= $maxSamePatternPerSession && in_array($desiredPattern, $patterns, true)) {
                 $score -= 20;
             }
@@ -214,18 +280,44 @@ class ExerciseSelectionEngine
     }
 
     /**
+     * @return array<string, bool>
+     */
+    private function selectionBiases(WorkoutGenerationContext $context, array $trainingMemory): array
+    {
+        $imbalanceFlags = $trainingMemory['imbalance_flags'] ?? [];
+        $injuryRestrictions = mb_strtolower(trim(
+            (string) ($context->profile['injuries'] ?? '') . ' ' . (string) ($context->profile['restrictions'] ?? '')
+        ));
+
+        return [
+            'shoulder_sensitive' => ($imbalanceFlags['shoulder_sensitive'] ?? false) === true
+                || str_contains($injuryRestrictions, 'ombro')
+                || str_contains($injuryRestrictions, 'shoulder'),
+            'prefer_vertical_pull' => ($imbalanceFlags['vertical_pull_deficit'] ?? false) === true,
+        ];
+    }
+
+    /**
      * @param  array<int, WorkoutExerciseCandidate>  $candidatePool
-     * @param  array<string, true>  $usedAcrossWeek
+     * @param  array<string, int>  $usedAcrossWeek
+     * @param  array<string, true>  $previousDayExerciseIds
      * @param  array<string, true>  $previousExerciseIds
      */
-    private function pickCardioCandidate(array $candidatePool, array $usedAcrossWeek, array $previousExerciseIds): ?WorkoutExerciseCandidate
+    private function pickCardioCandidate(array $candidatePool, array $usedAcrossWeek, array $previousDayExerciseIds, array $previousExerciseIds): ?WorkoutExerciseCandidate
     {
-        $cardioCandidates = array_values(array_filter($candidatePool, function (WorkoutExerciseCandidate $candidate) use ($usedAcrossWeek): bool {
+        $cardioCandidates = array_values(array_filter($candidatePool, function (WorkoutExerciseCandidate $candidate) use ($previousDayExerciseIds): bool {
             return $this->normalizeFocusToken($candidate->focus) === 'cardio'
-                && ! isset($usedAcrossWeek[$candidate->remoteExerciseId]);
+                && ! isset($previousDayExerciseIds[$candidate->remoteExerciseId]);
         }));
 
-        usort($cardioCandidates, function (WorkoutExerciseCandidate $left, WorkoutExerciseCandidate $right) use ($previousExerciseIds): int {
+        usort($cardioCandidates, function (WorkoutExerciseCandidate $left, WorkoutExerciseCandidate $right) use ($usedAcrossWeek, $previousExerciseIds): int {
+            $leftUsage = (int) ($usedAcrossWeek[$left->remoteExerciseId] ?? 0);
+            $rightUsage = (int) ($usedAcrossWeek[$right->remoteExerciseId] ?? 0);
+
+            if ($leftUsage !== $rightUsage) {
+                return $leftUsage <=> $rightUsage;
+            }
+
             $leftRepeated = isset($previousExerciseIds[$left->remoteExerciseId]) ? 1 : 0;
             $rightRepeated = isset($previousExerciseIds[$right->remoteExerciseId]) ? 1 : 0;
 
@@ -348,6 +440,25 @@ class ExerciseSelectionEngine
                 if ($remoteExerciseId !== '') {
                     $ids[$remoteExerciseId] = true;
                 }
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $selectedExercises
+     * @return array<string, true>
+     */
+    private function selectedExerciseIds(array $selectedExercises): array
+    {
+        $ids = [];
+
+        foreach ($selectedExercises as $exercise) {
+            $remoteExerciseId = trim((string) ($exercise['remote_exercise_id'] ?? ''));
+
+            if ($remoteExerciseId !== '') {
+                $ids[$remoteExerciseId] = true;
             }
         }
 

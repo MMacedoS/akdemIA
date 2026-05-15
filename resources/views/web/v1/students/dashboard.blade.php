@@ -45,5 +45,68 @@
             <a class="btn btn-soft" href="{{ route('students.health.edit') }}">Editar dados de saude</a>
             <a class="btn btn-soft" href="{{ route('profile.edit') }}">Editar perfil</a>
         </div>
+
+        @if (($workoutStatistics['has_content'] ?? false) === true)
+            <div class="card">
+                <h3>Tendencia dos ultimos treinos</h3>
+                <p>Resumo agregado dos {{ (int) ($workoutStatistics['recent_workouts'] ?? 0) }} treinos concluidos mais recentes.</p>
+            </div>
+
+            <div class="stats">
+                <div class="card">
+                    <h3>Dias planejados</h3>
+                    <p class="stat-value">{{ (int) ($workoutStatistics['training_days_total'] ?? 0) }}</p>
+                    <span class="badge primary">Historico recente</span>
+                </div>
+
+                <div class="card">
+                    <h3>Exercicios especificos</h3>
+                    <p class="stat-value">{{ (int) ($workoutStatistics['specific_exercises_total'] ?? 0) }}</p>
+                    <span class="badge success">Volume consolidado</span>
+                </div>
+
+                <div class="card">
+                    <h3>Blocos de cardio</h3>
+                    <p class="stat-value">{{ (int) ($workoutStatistics['cardio_blocks_total'] ?? 0) }}</p>
+                    <span class="badge warning">Condicionamento</span>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="card">
+                    <h3>Medias de qualidade</h3>
+                    <div class="stack-list" style="margin-top: 10px;">
+                        @foreach (($workoutStatistics['average_quality_scores'] ?? []) as $score)
+                            <div class="mini-card">
+                                <strong>{{ (string) ($score['label'] ?? 'Indicador') }}</strong>
+                                <small>{{ (int) ($score['value'] ?? 0) }}/100</small>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Referencias recorrentes</h3>
+                    <div class="stack-list" style="margin-top: 10px;">
+                        @forelse (($workoutStatistics['references'] ?? []) as $reference)
+                            <div class="mini-card"><small>{{ (string) $reference }}</small></div>
+                        @empty
+                            <p>Sem referencias consolidadas ate o momento.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Melhorias recorrentes</h3>
+                    <div class="stack-list" style="margin-top: 10px;">
+                        @forelse (($workoutStatistics['improvements'] ?? []) as $improvement)
+                            <div class="mini-card"><small>{{ (string) $improvement }}</small></div>
+                        @empty
+                            <p>Sem melhorias consolidadas ate o momento.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 @endsection

@@ -12,6 +12,10 @@ class VolumeDistributionService
         $activityLevel = mb_strtolower((string) ($context->profile['activity_level'] ?? 'moderate'));
         $age = (int) ($context->profile['age'] ?? 30);
         $imc = is_numeric($context->profile['imc'] ?? null) ? (float) $context->profile['imc'] : null;
+        $imbalanceFlags = $trainingMemory['imbalance_flags'] ?? [];
+        $shoulderSensitive = ($imbalanceFlags['shoulder_sensitive'] ?? false) === true;
+        $chestOverloaded = ($imbalanceFlags['chest_overloaded'] ?? false) === true;
+        $verticalPullDeficit = ($imbalanceFlags['vertical_pull_deficit'] ?? false) === true;
 
         $baseSets = str_contains($goal, 'hipertrof') || str_contains($goal, 'massa') ? 16 : 12;
         $activityModifier = match ($activityLevel) {
@@ -40,7 +44,25 @@ class VolumeDistributionService
         foreach (['peito', 'costas', 'pernas', 'ombro', 'bracos', 'core'] as $focus) {
             $sessions = max(1, (int) ($focusSessions[$focus] ?? ($focus === 'core' ? 2 : 1)));
             $undertrainedBonus = in_array($focus, $trainingMemory['undertrained_muscles'] ?? [], true) ? 2 : 0;
-            $weeklySets = max(8, min(22, $baseSets + $activityModifier + $ageModifier + $imcModifier + $conservativeModifier + $undertrainedBonus));
+            $weeklySets = $baseSets + $activityModifier + $ageModifier + $imcModifier + $conservativeModifier + $undertrainedBonus;
+
+            if ($focus === 'peito' && $chestOverloaded) {
+                $weeklySets -= 4;
+            }
+
+            if ($focus === 'peito' && $shoulderSensitive) {
+                $weeklySets -= 2;
+            }
+
+            if ($focus === 'costas' && $verticalPullDeficit) {
+                $weeklySets += 4;
+            }
+
+            if ($focus === 'ombro' && $shoulderSensitive) {
+                $weeklySets -= 2;
+            }
+
+            $weeklySets = max(8, min(22, $weeklySets));
 
             if ($focus === 'core') {
                 $weeklySets = max(6, min(12, $weeklySets - 4));

@@ -46,6 +46,7 @@
                 $trainerSharedNavigationItems = [
                     ['label' => 'Dashboard', 'icon' => 'DB', 'route' => 'trainee.dashboard', 'active' => 'trainee.dashboard'],
                     ['label' => 'Selecionar tenant', 'icon' => 'TN', 'route' => 'tenants.select', 'active' => 'tenants.select*'],
+                    ['label' => 'Catalogo de Treinos', 'icon' => 'CT', 'route' => 'trainer.workouts.catalogs', 'active' => 'trainer.workouts.catalogs'],
                     ['label' => 'Creditos', 'icon' => 'CR', 'route' => 'trainee.credits.index', 'active' => 'trainee.credits.*'],
                     ['label' => 'Alunos', 'icon' => 'AL', 'route' => 'trainee.students.index', 'active' => 'trainee.students.*'],
                     ['label' => 'Minha landing', 'icon' => 'LP', 'route' => 'my-landing.edit', 'active' => 'my-landing.*'],
@@ -56,6 +57,7 @@
                 $navigationItems = match ($role) {
                     \App\Enums\Role::ADMIN => [
                         ['label' => 'Dashboard', 'icon' => 'DB', 'route' => 'admin.dashboard', 'active' => 'admin.dashboard'],
+                        ['label' => 'Catalogo de Treinos', 'icon' => 'CT', 'route' => 'admin.workouts.catalogs', 'active' => 'admin.workouts.catalogs*'],
                         ['label' => 'Landing', 'icon' => 'LP', 'route' => 'admin.landing.edit', 'active' => 'admin.landing.*'],
                         ['label' => 'Creditos', 'icon' => 'CR', 'route' => 'admin.credits.index', 'active' => 'admin.credits.*'],
                         ['label' => 'Usuarios', 'icon' => 'US', 'route' => 'admin.users.index', 'active' => 'admin.users.*'],

@@ -13,6 +13,8 @@ use App\Models\Workout\Workout;
 use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
 use App\Services\Credits\CreditService;
 use App\Services\Workouts\ExerciseCatalogService;
+use App\Services\Workouts\WorkoutGenerationCooldownService;
+use App\Services\Workouts\WorkoutInsightsService;
 use App\Services\Workouts\WorkoutLifecycleService;
 use App\Services\Workouts\WorkoutMediaService;
 use App\Services\Workouts\WorkoutRulesService;
@@ -29,6 +31,8 @@ class StudentsController extends Controller
         private readonly TraineeStudentRepositoryContract $repository,
         private readonly CreditService $creditService,
         private readonly ExerciseCatalogService $exerciseCatalogService,
+        private readonly WorkoutGenerationCooldownService $workoutGenerationCooldownService,
+        private readonly WorkoutInsightsService $workoutInsightsService,
         private readonly WorkoutMediaService $workoutMediaService,
         private readonly WorkoutRulesService $workoutRulesService,
         private readonly WorkoutLifecycleService $workoutLifecycleService,
@@ -104,14 +108,19 @@ class StudentsController extends Controller
             ->where('user_id', $student->id)
             ->orderByDesc('id')
             ->limit(10)
-            ->get(['id', 'status', 'request_status', 'created_at'])
+            ->get(['id', 'status', 'request_status', 'created_at', 'workout_plan'])
             : collect();
+        $latestWorkout = $workouts->first();
 
         return view('web.v1.trainee.students.show', [
             'student' => $student,
             'tenant' => $tenant,
             'workouts' => $workouts,
             'canManageWorkouts' => $tenant instanceof Tenant,
+            'latestWorkout' => $latestWorkout,
+            'latestWorkoutInsights' => $latestWorkout instanceof Workout
+                ? $this->workoutInsightsService->summarize(is_array($latestWorkout->workout_plan) ? $latestWorkout->workout_plan : [])
+                : [],
         ]);
     }
 
@@ -223,7 +232,14 @@ class StudentsController extends Controller
         }
 
         try {
-            $this->creditService->consumeCredits(
+            $this->workoutGenerationCooldownService->assertGenerationAllowed($tenant, (int) $student->id, 'este aluno');
+        } catch (RuntimeException $exception) {
+            return redirect()->route('trainee.students.show', $student->id)
+                ->withErrors(['workout' => $exception->getMessage()]);
+        }
+
+        try {
+            $creditTransaction = $this->creditService->consumeCredits(
                 $trainee,
                 $this->workoutRulesService->generationCredits(),
                 'consume_generation',
@@ -248,7 +264,7 @@ class StudentsController extends Controller
             'meal_plan' => [],
             'recommendations' => [],
             'cardio_plan' => [],
-            'safety_flags' => [],
+            'safety_flags' => $this->workoutGenerationCooldownService->withCreditChargeMetadata([], $creditTransaction),
         ], $this->workoutLifecycleService->activeAttributes()));
 
         GenerateWorkoutJob::dispatch($workout->id, $student->id, $tenant->id, $normalizedAdjustmentRequest, (int) $trainee->id);
@@ -341,7 +357,14 @@ class StudentsController extends Controller
         }
 
         try {
-            $this->creditService->consumeCredits(
+            $this->workoutGenerationCooldownService->assertGenerationAllowed($tenant, (int) $student->id, 'este aluno');
+        } catch (RuntimeException $exception) {
+            return redirect()->route('trainee.students.workouts.show', [$student->id, $targetWorkout->id])
+                ->withErrors(['workout' => $exception->getMessage()]);
+        }
+
+        try {
+            $creditTransaction = $this->creditService->consumeCredits(
                 $trainee,
                 $this->workoutRulesService->reuseCredits(),
                 'consume_regeneration',
@@ -373,7 +396,7 @@ class StudentsController extends Controller
             'meal_plan' => [],
             'recommendations' => [],
             'cardio_plan' => [],
-            'safety_flags' => [],
+            'safety_flags' => $this->workoutGenerationCooldownService->withCreditChargeMetadata([], $creditTransaction),
         ], $this->workoutLifecycleService->activeAttributes()));
 
         GenerateWorkoutJob::dispatch($newWorkout->id, $student->id, $tenant->id, $normalizedAdjustmentRequest, (int) $trainee->id);

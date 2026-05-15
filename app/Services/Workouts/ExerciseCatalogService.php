@@ -382,7 +382,7 @@ class ExerciseCatalogService
         $item['remote_gif_url'] = trim((string) ($exercise->remote_gif_url ?? data_get($payload, 'gifUrl', '')));
         $item['storage_path'] = trim((string) ($exercise->storage_path ?? ''));
         $item['exercise_media_url'] = trim((string) $exercise->workoutx_name) !== ''
-            ? route('api.workouts.exercises.media.show', ['workoutxName' => (string) $exercise->workoutx_name])
+            ? \api_route('api.workouts.exercises.media.show', ['workoutxName' => (string) $exercise->workoutx_name])
             : '';
 
         return $item;

@@ -5,6 +5,7 @@ namespace App\Services\Workouts;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
 use App\Models\Workout\Workout;
+use Illuminate\Support\Collection;
 
 class CurrentWorkoutResolver
 {
@@ -33,6 +34,20 @@ class CurrentWorkoutResolver
             ->first();
 
         return $workout instanceof Workout ? $this->hydrateWorkoutMedia($workout) : null;
+    }
+
+    public function recentDoneWorkoutsForUser(User $user, mixed $tenant, int $limit = 3): Collection
+    {
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : null;
+
+        $this->workoutLifecycleService->expireExpiredWorkouts($tenantId, (int) $user->id);
+
+        return $this->workoutScope($tenantId, (int) $user->id)
+            ->where('status', 'done')
+            ->orderByDesc('id')
+            ->limit(max(1, $limit))
+            ->get()
+            ->map(fn(Workout $workout): Workout => $this->hydrateWorkoutMedia($workout));
     }
 
     private function workoutScope(?int $tenantId, int $userId)

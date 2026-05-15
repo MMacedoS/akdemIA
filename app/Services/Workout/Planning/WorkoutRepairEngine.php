@@ -23,6 +23,10 @@ class WorkoutRepairEngine
             return $this->rebuildFromPlanning($planningPayload);
         }
 
+        if ($this->shouldRebuildFromPlanning($normalized['weekly_plan'], $planningPayload)) {
+            return $this->rebuildFromPlanning($planningPayload);
+        }
+
         foreach ($normalized['weekly_plan'] as $index => $dayPlan) {
             $label = (string) ($dayPlan['day'] ?? '');
             $plannedDay = $plannedDays->get($label) ?? $plannedDays->values()->get($index);
@@ -42,7 +46,7 @@ class WorkoutRepairEngine
         return $normalized;
     }
 
-    private function rebuildFromPlanning(array $planningPayload): array
+    public function rebuildFromPlanning(array $planningPayload): array
     {
         return [
             'weekly_plan' => array_map(function (array $day): array {
@@ -53,6 +57,30 @@ class WorkoutRepairEngine
                 ];
             }, $planningPayload['selected_days'] ?? []),
         ];
+    }
+
+    private function shouldRebuildFromPlanning(array $weeklyPlan, array $planningPayload): bool
+    {
+        $selectedDays = is_array($planningPayload['selected_days'] ?? null)
+            ? $planningPayload['selected_days']
+            : [];
+
+        if ($selectedDays === []) {
+            return false;
+        }
+
+        if (count($weeklyPlan) < count($selectedDays)) {
+            return true;
+        }
+
+        $plannedLabels = collect($selectedDays)
+            ->map(static fn(array $day): string => trim((string) ($day['label'] ?? $day['day'] ?? '')))
+            ->filter();
+        $weeklyLabels = collect($weeklyPlan)
+            ->map(static fn(array $day): string => trim((string) ($day['day'] ?? '')))
+            ->filter();
+
+        return $plannedLabels->diff($weeklyLabels)->isNotEmpty();
     }
 
     private function repairDayExercises(array $currentExercises, array $plannedExercises, WorkoutValidationException $exception): array

@@ -33,13 +33,13 @@ class FatigueValidator
 
             if ($heavyCompounds > $maxHeavy) {
                 throw ValidationException::withMessages([
-                    'workout' => 'Session exceeds heavy compound fatigue threshold for day: ' . ($dayPlan['focus'] ?? 'Treino'),
+                    'workout' => 'A sessao excedeu o limite de fadiga para exercicios compostos pesados no dia: ' . ($dayPlan['focus'] ?? 'Treino'),
                 ]);
             }
 
             if ($hingesInSession > 1) {
                 throw ValidationException::withMessages([
-                    'workout' => 'Session exceeds hinge fatigue threshold for day: ' . ($dayPlan['focus'] ?? 'Treino'),
+                    'workout' => 'A sessao excedeu o limite de fadiga para exercicios de hinge no dia: ' . ($dayPlan['focus'] ?? 'Treino'),
                 ]);
             }
 
@@ -50,7 +50,7 @@ class FatigueValidator
 
         if ($hingeSessions > (int) ($fatiguePlan['max_hinge_sessions_per_week'] ?? 2)) {
             throw ValidationException::withMessages([
-                'workout' => 'Weekly plan exceeds hinge frequency recovery threshold.',
+                'workout' => 'O plano semanal excedeu o limite de recuperacao para exercicios de hinge.',
             ]);
         }
     }

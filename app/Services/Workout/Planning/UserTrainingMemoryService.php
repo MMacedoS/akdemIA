@@ -10,6 +10,9 @@ class UserTrainingMemoryService
 {
     public function build(WorkoutGenerationContext $context): array
     {
+        $injuryRestrictions = mb_strtolower(trim(
+            (string) ($context->profile['injuries'] ?? '') . ' ' . (string) ($context->profile['restrictions'] ?? '')
+        ));
         $recentWorkouts = Workout::query()
             ->where('user_id', $context->userId)
             ->where('created_at', '>=', Carbon::now()->subDays(30))
@@ -18,6 +21,7 @@ class UserTrainingMemoryService
 
         $recentPatterns = [];
         $movementCounts = [];
+        $movementPatternCounts = [];
         $focusCounts = [];
         $fatigueMap = [];
         $weeklyVolume = [];
@@ -42,6 +46,7 @@ class UserTrainingMemoryService
 
                     if ($pattern !== null) {
                         $recentPatterns[$pattern] = true;
+                        $movementPatternCounts[$pattern] = ($movementPatternCounts[$pattern] ?? 0) + 1;
                         $fatigueMap[$pattern] = ($fatigueMap[$pattern] ?? 0) + ($this->isHeavyPattern($pattern) ? 2 : 1);
                     }
 
@@ -64,13 +69,43 @@ class UserTrainingMemoryService
             }
         }
 
+        $horizontalPushCount = (int) ($movementPatternCounts['horizontal_push'] ?? 0);
+        $verticalPullCount = (int) ($movementPatternCounts['vertical_pull'] ?? 0);
+        $horizontalPullCount = (int) ($movementPatternCounts['horizontal_pull'] ?? 0);
+        $shoulderSensitive = $this->containsShoulderSensitivity($injuryRestrictions);
+        $chestOverloaded = (($weeklyVolume['peito'] ?? 0) >= 16) || $horizontalPushCount >= 4;
+        $verticalPullDeficit = $verticalPullCount === 0 || ($horizontalPushCount >= max(2, $verticalPullCount + 2));
+
         return [
             'recent_patterns' => array_values(array_keys($recentPatterns)),
             'overused_movements' => array_values(array_keys(array_filter($movementCounts, static fn(int $count): bool => $count >= 2))),
             'undertrained_muscles' => $undertrainedMuscles,
             'fatigue_map' => $fatigueMap,
             'weekly_volume' => $weeklyVolume,
+            'movement_pattern_counts' => $movementPatternCounts,
+            'imbalance_flags' => [
+                'horizontal_push_excess' => $horizontalPushCount > $verticalPullCount,
+                'vertical_pull_deficit' => $verticalPullDeficit,
+                'horizontal_pull_deficit' => $horizontalPullCount < $horizontalPushCount,
+                'chest_overloaded' => $chestOverloaded,
+                'shoulder_sensitive' => $shoulderSensitive,
+            ],
         ];
+    }
+
+    private function containsShoulderSensitivity(string $value): bool
+    {
+        if ($value === '') {
+            return false;
+        }
+
+        foreach (['ombro', 'shoulder', 'manguito', 'rotator cuff', 'clavicula', 'labrum'] as $token) {
+            if (str_contains($value, $token)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalizeFocusToken(string $value): ?string

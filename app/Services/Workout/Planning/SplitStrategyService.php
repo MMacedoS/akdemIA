@@ -60,12 +60,25 @@ class SplitStrategyService
     private function fiveDayTemplate(array $trainingMemory): array
     {
         $needsMoreBack = in_array('costas', $trainingMemory['undertrained_muscles'] ?? [], true);
+        $imbalanceFlags = $trainingMemory['imbalance_flags'] ?? [];
+        $backBias = $needsMoreBack || (($imbalanceFlags['vertical_pull_deficit'] ?? false) === true) || (($imbalanceFlags['horizontal_push_excess'] ?? false) === true);
+        $shoulderSensitive = ($imbalanceFlags['shoulder_sensitive'] ?? false) === true;
+        $firstDayPatterns = $shoulderSensitive ? ['horizontal_push'] : ['horizontal_push', 'vertical_push'];
+        $fourthDayLabel = $backBias
+            ? ($shoulderSensitive ? 'Costas e Deltoides Posteriores' : 'Costas e Ombros')
+            : 'Upper Balance';
+        $fourthDayFocuses = $backBias
+            ? ['back', 'shoulders']
+            : ['chest', 'back', 'shoulders'];
+        $fourthDayPatterns = $backBias
+            ? ['vertical_pull', 'horizontal_pull', 'carry']
+            : ['horizontal_pull', 'vertical_push', 'horizontal_push'];
 
         return [
-            $this->dayBlueprint(1, 'Segunda', 'Peito e Triceps', ['chest', 'triceps'], ['horizontal_push', 'vertical_push']),
+            $this->dayBlueprint(1, 'Segunda', 'Peito e Triceps', ['chest', 'triceps'], $firstDayPatterns),
             $this->dayBlueprint(2, 'Terca', 'Costas e Biceps', ['back', 'biceps'], ['vertical_pull', 'horizontal_pull']),
             $this->dayBlueprint(3, 'Quarta', 'Pernas A', ['legs', 'core'], ['squat', 'lunge']),
-            $this->dayBlueprint(4, 'Quinta', $needsMoreBack ? 'Costas e Ombros' : 'Upper Balance', $needsMoreBack ? ['back', 'shoulders'] : ['chest', 'back', 'shoulders'], ['horizontal_pull', 'vertical_push', 'horizontal_push']),
+            $this->dayBlueprint(4, 'Quinta', $fourthDayLabel, $fourthDayFocuses, $fourthDayPatterns),
             $this->dayBlueprint(5, 'Sexta', 'Pernas B', ['legs', 'core'], ['hinge', 'squat', 'unilateral']),
         ];
     }

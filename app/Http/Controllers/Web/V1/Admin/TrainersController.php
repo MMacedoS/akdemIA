@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\V1\Admin;
 
 use App\Enums\Role;
 use App\Http\Controllers\Web\V1\PanelUsersController;
+use Illuminate\Http\Request;
 
 class TrainersController extends PanelUsersController
 {
@@ -21,4 +22,6 @@ class TrainersController extends PanelUsersController
     {
         return 'admin.trainers';
     }
+
+    public function catalog(Request $request) {}
 }
