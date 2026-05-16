@@ -312,9 +312,38 @@
 
     .exercise-catalog-modal-filters {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 220px;
+        grid-template-columns: minmax(0, 1fr) 260px;
         gap: 10px;
         align-items: center;
+    }
+
+    .catalog-filter-control {
+        display: grid;
+        gap: 6px;
+    }
+
+    .catalog-filter-control label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .catalog-filter-control input,
+    .catalog-filter-control select {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid #d1dbe8;
+        border-radius: 10px;
+        background: #fff;
+        padding: 0 12px;
+        color: #0f172a;
+    }
+
+    .catalog-filter-control input:focus,
+    .catalog-filter-control select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
 
     .exercise-catalog-modal-toolbar input {
@@ -547,10 +576,16 @@
 
                         <div class="exercise-catalog-modal-toolbar">
                             <div class="exercise-catalog-modal-filters">
-                                <input id="exercise-search-input" type="text" placeholder="Buscar exercicio no catalogo" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="exercise-results" aria-activedescendant="">
-                                <select id="exercise-focus-filter">
-                                    <option value="">Todos os focos</option>
-                                </select>
+                                <div class="catalog-filter-control">
+                                    <label for="exercise-search-input">Buscar exercicio</label>
+                                    <input id="exercise-search-input" type="text" placeholder="Nome, foco, equipamento ou WorkoutX" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="exercise-results" aria-activedescendant="">
+                                </div>
+                                <div class="catalog-filter-control">
+                                    <label for="exercise-focus-filter">Filtrar por foco</label>
+                                    <select id="exercise-focus-filter">
+                                        <option value="">Todos os focos</option>
+                                    </select>
+                                </div>
                             </div>
                             <small id="exercise-catalog-modal-status" class="catalog-picker-status">Digite pelo menos 2 letras para buscar no catalogo.</small>
                         </div>
@@ -1051,8 +1086,9 @@
 
                 const trimmedTerm = String(term || '').trim();
                 const selectedFocus = String(exerciseFocusFilter && exerciseFocusFilter.value ? exerciseFocusFilter.value : '').trim();
+                const shouldSearchByFocusOnly = selectedFocus !== '';
 
-                if (trimmedTerm.length < 2) {
+                if (trimmedTerm.length < 2 && !shouldSearchByFocusOnly) {
                     setExerciseOptions([]);
                     resetCatalogResults();
                     setSearchStatus(selectedFocus !== ''
@@ -1069,10 +1105,11 @@
                 setSearchStatus('Buscando exercicios...');
 
                 try {
-                    const query = new URLSearchParams({
-                        search: trimmedTerm,
-                        limit: '12',
-                    });
+                    const query = new URLSearchParams({ limit: '12' });
+
+                    if (trimmedTerm.length >= 2) {
+                        query.set('search', trimmedTerm);
+                    }
 
                     if (selectedFocus !== '') {
                         query.set('focus', selectedFocus);
@@ -1100,7 +1137,7 @@
                     setExerciseOptions(items);
                     setSearchStatus(items.length > 0
                         ? items.length + ' exercicio(s) encontrado(s).'
-                        : 'Nenhum exercicio encontrado para esta busca.');
+                        : (selectedFocus !== '' ? 'Nenhum exercicio encontrado para o foco selecionado.' : 'Nenhum exercicio encontrado para esta busca.'));
                 } catch (error) {
                     if (error && error.name === 'AbortError') {
                         return;
@@ -1550,8 +1587,11 @@
             if (openExerciseCatalogModalButton) {
                 openExerciseCatalogModalButton.addEventListener('click', function () {
                     syncFocusFilterWithSelectedDay();
-                    if (exerciseSearchInput && String(exerciseSearchInput.value || '').trim().length >= 2) {
-                        scheduleCatalogSearch(exerciseSearchInput.value);
+                    const currentTerm = exerciseSearchInput ? String(exerciseSearchInput.value || '').trim() : '';
+                    const selectedFocus = exerciseFocusFilter ? String(exerciseFocusFilter.value || '').trim() : '';
+
+                    if (currentTerm.length >= 2 || selectedFocus !== '') {
+                        scheduleCatalogSearch(currentTerm);
                     }
                     openCatalogModal();
                 });

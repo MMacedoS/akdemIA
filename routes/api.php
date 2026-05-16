@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\Workouts\ExerciseLookupController;
 use App\Http\Controllers\Api\V1\Workouts\InternalExerciseCatalogController;
 use App\Http\Controllers\Api\V1\Workouts\ChangeWorkoutStatusController;
 use App\Http\Controllers\Api\V1\Workouts\GenerateWorkoutController;
+use App\Http\Controllers\Api\V1\Workouts\WorkoutCatalogController;
 use App\Http\Controllers\Api\V1\Workouts\WorkoutStatusController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,6 +85,9 @@ Route::prefix('v1')->group(function () {
                     Route::get('workouts', [StudentWorkoutController::class, 'index'])->name('api.students.workouts.index');
                     Route::post('workout/generate', [StudentWorkoutController::class, 'store'])->name('api.students.workout.generate');
                     Route::post('workouts/{workoutId}/regenerate', [StudentWorkoutController::class, 'regenerate'])->name('api.students.workouts.regenerate');
+                    Route::get('catalogs', [WorkoutCatalogController::class, 'index'])->name('api.students.catalogs.index');
+                    Route::get('catalogs/mine', [WorkoutCatalogController::class, 'mine'])->name('api.students.catalogs.mine');
+                    Route::post('catalogs/{catalogId}/link', [WorkoutCatalogController::class, 'link'])->name('api.students.catalogs.link');
                 });
 
                 Route::post('workouts/generate', [GenerateWorkoutController::class, 'store'])->name('api.workouts.generate');

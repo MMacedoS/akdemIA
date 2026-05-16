@@ -157,6 +157,7 @@ Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selecte
         Route::post('/students/{id}/workouts/generate', [TraineeStudentsController::class, 'generateWorkout'])->name('students.workouts.generate');
         Route::get('/students/{id}/workouts/{workoutId}', [TraineeStudentsController::class, 'showWorkout'])->name('students.workouts.show');
         Route::get('/students/{id}/workouts/catalog/exercises', [TraineeStudentsController::class, 'searchWorkoutCatalog'])->name('students.workouts.catalog.search');
+        Route::post('/students/{id}/workouts/catalog/{catalogId}/apply', [TraineeStudentsController::class, 'applyWorkoutCatalog'])->name('students.workouts.catalog.apply');
         Route::post('/students/{id}/workouts/{workoutId}/reuse', [TraineeStudentsController::class, 'reuseWorkout'])->name('students.workouts.reuse');
         Route::post('/students/{id}/workouts/{workoutId}/activate', [TraineeStudentsController::class, 'activateWorkout'])->name('students.workouts.activate');
         Route::post('/students/{id}/workouts/{workoutId}/inactivate', [TraineeStudentsController::class, 'inactivateWorkout'])->name('students.workouts.inactivate');
@@ -174,6 +175,7 @@ Route::middleware(['auth', 'verified', 'policies.accepted.web', 'profile.selecte
         Route::post('/students/{id}/workouts/generate', [TrainerStudentsController::class, 'generateWorkout'])->name('students.workouts.generate');
         Route::get('/students/{id}/workouts/{workoutId}', [TrainerStudentsController::class, 'showWorkout'])->name('students.workouts.show');
         Route::get('/students/{id}/workouts/catalog/exercises', [TrainerStudentsController::class, 'searchWorkoutCatalog'])->name('students.workouts.catalog.search');
+        Route::post('/students/{id}/workouts/catalog/{catalogId}/apply', [TrainerStudentsController::class, 'applyWorkoutCatalog'])->name('students.workouts.catalog.apply');
         Route::post('/students/{id}/workouts/{workoutId}/reuse', [TrainerStudentsController::class, 'reuseWorkout'])->name('students.workouts.reuse');
         Route::post('/students/{id}/workouts/{workoutId}/activate', [TrainerStudentsController::class, 'activateWorkout'])->name('students.workouts.activate');
         Route::post('/students/{id}/workouts/{workoutId}/inactivate', [TrainerStudentsController::class, 'inactivateWorkout'])->name('students.workouts.inactivate');

@@ -21,6 +21,8 @@ class StudentWorkoutTransformer
             'id' => (int) $workout->id,
             'tenant_id' => $workout->tenant_id === null ? null : (int) $workout->tenant_id,
             'user_id' => (int) $workout->user_id,
+            'source_workout_catalog_id' => $workout->source_workout_catalog_id === null ? null : (int) $workout->source_workout_catalog_id,
+            'source_workout_catalog_name' => $workout->source_workout_catalog_name,
             'status' => $workout->status,
             'request_status' => $workout->request_status,
             'regeneration_request' => $workout->regeneration_request,

@@ -9,6 +9,7 @@ use App\Models\PhysicalData\PhysicalData;
 use App\Models\Preferences\Preference;
 use App\Models\Tenant\Tenant;
 use App\Models\User;
+use App\Models\Workout\WorkoutCatalog;
 use App\Models\Workout\Workout;
 use App\Repositories\Contracts\Tenant\TraineeStudentRepositoryContract;
 use App\Services\Credits\CreditService;
@@ -97,18 +98,57 @@ class StudentsController extends Controller
         [$tenant, $trainee] = $this->resolveContext($request);
         $student = $this->repository->findForTrainee($tenant, $trainee->id, $id);
         $student->loadMissing(['physicalData', 'medicalData', 'preference']);
+        $selectedCatalogId = (int) $request->query('catalog_id', 0);
+        $selectedCatalogId = $selectedCatalogId > 0 ? $selectedCatalogId : null;
 
         if ($tenant instanceof Tenant) {
             $this->workoutLifecycleService->expireExpiredWorkouts($tenant->id, $student->id);
         }
 
+        $availableAppliedCatalogs = $tenant instanceof Tenant
+            ? Workout::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('user_id', $student->id)
+            ->whereNotNull('source_workout_catalog_id')
+            ->orderByDesc('id')
+            ->get(['source_workout_catalog_id', 'source_workout_catalog_name'])
+            ->map(function (Workout $workout): array {
+                $catalogId = (int) ($workout->source_workout_catalog_id ?? 0);
+
+                return [
+                    'id' => $catalogId,
+                    'name' => trim((string) ($workout->source_workout_catalog_name ?? '')) !== ''
+                        ? (string) $workout->source_workout_catalog_name
+                        : 'Catalogo #' . $catalogId,
+                ];
+            })
+            ->filter(fn(array $catalog): bool => $catalog['id'] > 0)
+            ->unique('id')
+            ->values()
+            : collect();
+
+        $availableCatalogsToApply = $tenant instanceof Tenant
+            ? WorkoutCatalog::query()
+            ->select(['id', 'name'])
+            ->where('status', true)
+            ->where(function ($query) use ($trainee): void {
+                $query->where('is_public', true)
+                    ->orWhere('user_id', $trainee->id);
+            })
+            ->orderBy('name')
+            ->get()
+            : collect();
+
         $workouts = $tenant instanceof Tenant
             ? Workout::query()
             ->where('tenant_id', $tenant->id)
             ->where('user_id', $student->id)
+            ->when($selectedCatalogId !== null, function ($query) use ($selectedCatalogId): void {
+                $query->where('source_workout_catalog_id', $selectedCatalogId);
+            })
             ->orderByDesc('id')
             ->limit(10)
-            ->get(['id', 'status', 'request_status', 'created_at', 'workout_plan'])
+            ->get(['id', 'status', 'request_status', 'created_at', 'workout_plan', 'source_workout_catalog_id', 'source_workout_catalog_name'])
             : collect();
         $latestWorkout = $workouts->first();
 
@@ -116,6 +156,9 @@ class StudentsController extends Controller
             'student' => $student,
             'tenant' => $tenant,
             'workouts' => $workouts,
+            'selectedCatalogId' => $selectedCatalogId,
+            'availableAppliedCatalogs' => $availableAppliedCatalogs,
+            'availableCatalogsToApply' => $availableCatalogsToApply,
             'canManageWorkouts' => $tenant instanceof Tenant,
             'latestWorkout' => $latestWorkout,
             'latestWorkoutInsights' => $latestWorkout instanceof Workout
@@ -306,6 +349,53 @@ class StudentsController extends Controller
         );
 
         return response()->json($result);
+    }
+
+    public function applyWorkoutCatalog(Request $request, int $id, int $catalogId): RedirectResponse
+    {
+        [$tenant, $trainee] = $this->resolveContext($request);
+        $tenant = $this->requireWorkoutTenant($tenant);
+        $student = $this->repository->findForTrainee($tenant, $trainee->id, $id);
+
+        $catalog = $this->resolveCatalogForWorkoutImport($trainee, $catalogId);
+
+        if (! $catalog instanceof WorkoutCatalog) {
+            return redirect()->route('trainee.students.show', $student->id)
+                ->withErrors(['workout' => 'Catalogo nao encontrado ou sem permissao para aplicar.']);
+        }
+
+        $weeklyPlan = $this->buildWeeklyPlanFromCatalog($catalog);
+
+        if ($weeklyPlan === []) {
+            return redirect()->route('trainee.students.show', $student->id)
+                ->withErrors(['workout' => 'Catalogo sem exercicios validos para montar um treino.']);
+        }
+
+        Workout::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('user_id', $student->id)
+            ->where('request_status', 'active')
+            ->update(['request_status' => 'inactive']);
+
+        $newWorkout = Workout::query()->create(array_merge([
+            'tenant_id' => $tenant->id,
+            'user_id' => $student->id,
+            'source_workout_catalog_id' => $catalog->id,
+            'source_workout_catalog_name' => trim((string) $catalog->name) !== '' ? (string) $catalog->name : null,
+            'status' => 'done',
+            'regeneration_request' => 'Treino aplicado do catalogo #' . $catalog->id . ' (' . $catalog->name . ').',
+            'workout_plan' => $this->workoutMediaService->enrichWorkoutPlan(['weekly_plan' => $weeklyPlan]),
+            'meal_plan' => [],
+            'recommendations' => [
+                'Plano aplicado a partir do catalogo: ' . $catalog->name . '.',
+                'Use o editor manual para ajustar series, reps e distribuicao por dia.',
+            ],
+            'cardio_plan' => [],
+            'safety_flags' => [],
+        ], $this->workoutLifecycleService->activeAttributes()));
+
+        return redirect()->route('trainee.students.workouts.show', [$student->id, $newWorkout->id])
+            ->with('status', 'Catalogo aplicado com sucesso. Treino pronto para editar, reaproveitar e refazer com IA.');
     }
 
     public function regenerateWorkout(Request $request, int $id, int $workoutId): RedirectResponse
@@ -571,6 +661,8 @@ class StudentsController extends Controller
         $newWorkout = Workout::query()->create(array_merge([
             'tenant_id' => $tenant->id,
             'user_id' => $student->id,
+            'source_workout_catalog_id' => $sourceWorkout->source_workout_catalog_id,
+            'source_workout_catalog_name' => $sourceWorkout->source_workout_catalog_name,
             'status' => 'done',
             'regeneration_request' => 'Treino reaproveitado manualmente sem chamada de IA.',
             'workout_plan' => $sourceWorkout->workout_plan ?? ['weekly_plan' => []],
@@ -690,6 +782,102 @@ class StudentsController extends Controller
         }
 
         return round($normalizedWeight / ($normalizedHeight * $normalizedHeight), 2);
+    }
+
+    private function resolveCatalogForWorkoutImport(User $trainee, int $catalogId): ?WorkoutCatalog
+    {
+        return WorkoutCatalog::query()
+            ->with('exercises')
+            ->where('id', $catalogId)
+            ->where(function ($query) use ($trainee): void {
+                $query->where('is_public', true)
+                    ->orWhere('user_id', $trainee->id);
+            })
+            ->first();
+    }
+
+    private function buildWeeklyPlanFromCatalog(WorkoutCatalog $catalog): array
+    {
+        $preparedExercises = $catalog->exercises
+            ->map(function ($exercise): ?array {
+                $payload = is_array($exercise->payload) ? $exercise->payload : [];
+                $name = trim((string) ($exercise->localized_name_pt_br ?: $exercise->query_name ?: $exercise->workoutx_name));
+
+                if ($name === '') {
+                    return null;
+                }
+
+                $focus = trim((string) ($payload['focus'] ?? ''));
+
+                return [
+                    'name' => $name,
+                    'category' => $this->inferCatalogExerciseCategory($payload, $focus, $name),
+                    'sets' => 3,
+                    'reps' => '10-12',
+                    'rest' => '60s',
+                    'notes' => '',
+                    'steps' => [],
+                    'remote_exercise_id' => trim((string) ($exercise->remote_exercise_id ?? '')),
+                    'workoutx_name' => $this->workoutMediaService->normalizeWorkoutxName($exercise->workoutx_name, $name),
+                    'exercise_media_path' => trim((string) ($exercise->storage_path ?? '')),
+                    'exercise_media_url' => '',
+                    '_focus' => $focus,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        if ($preparedExercises->isEmpty()) {
+            return [];
+        }
+
+        $weeklyPlan = [];
+
+        foreach ($preparedExercises->chunk(5)->values() as $index => $chunk) {
+            $dayFocus = '';
+            $dayExercises = [];
+
+            foreach ($chunk as $exercise) {
+                $focusHint = trim((string) ($exercise['_focus'] ?? ''));
+                if ($dayFocus === '' && $focusHint !== '') {
+                    $dayFocus = $focusHint;
+                }
+
+                unset($exercise['_focus']);
+                $dayExercises[] = $exercise;
+            }
+
+            $weeklyPlan[] = [
+                'day' => 'Dia ' . ($index + 1),
+                'focus' => $dayFocus !== '' ? $dayFocus : 'Treino geral',
+                'exercises' => $dayExercises,
+            ];
+        }
+
+        return $weeklyPlan;
+    }
+
+    private function inferCatalogExerciseCategory(array $payload, string $focus, string $name): string
+    {
+        $category = mb_strtolower(trim((string) ($payload['category'] ?? '')));
+
+        if (in_array($category, ['specific', 'cardio'], true)) {
+            return $category;
+        }
+
+        $haystacks = [
+            mb_strtolower($focus),
+            mb_strtolower((string) ($payload['target'] ?? '')),
+            mb_strtolower($name),
+        ];
+
+        foreach ($haystacks as $haystack) {
+            if (str_contains($haystack, 'cardio') || str_contains($haystack, 'aerob')) {
+                return 'cardio';
+            }
+        }
+
+        return 'specific';
     }
 
     private function normalizeManualWeeklyPlan(array $weeklyPlan): array

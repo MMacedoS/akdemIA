@@ -4,6 +4,7 @@ namespace App\Models\Workout;
 
 use App\Models\User;
 use App\Models\Tenant\Tenant;
+use App\Models\Workout\WorkoutCatalog;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'tenant_id',
     'user_id',
+    'source_workout_catalog_id',
+    'source_workout_catalog_name',
     'status',
     'request_status',
     'regeneration_request',
@@ -32,6 +35,7 @@ class Workout extends Model
             'recommendations' => 'array',
             'cardio_plan' => 'array',
             'safety_flags' => 'array',
+            'source_workout_catalog_id' => 'integer',
             'activated_at' => 'immutable_datetime',
             'active_until_at' => 'immutable_datetime',
         ];
@@ -45,5 +49,10 @@ class Workout extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function sourceCatalog(): BelongsTo
+    {
+        return $this->belongsTo(WorkoutCatalog::class, 'source_workout_catalog_id');
     }
 }

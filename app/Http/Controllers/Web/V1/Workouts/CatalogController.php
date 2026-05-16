@@ -130,7 +130,7 @@ class CatalogController extends Controller
         return view('web.v1.workouts.catalog.form', [
             'panel' => $panel,
             'routePrefix' => $this->routePrefix($panel),
-            'exerciseOptionsEndpoint' => route($this->routePrefix($panel) . '.options'),
+            'exerciseOptionsEndpoint' => route($this->routePrefix($panel) . '.options', [], false),
             'catalog' => new WorkoutCatalog(),
             'exerciseOptions' => $exerciseOptions,
             'selectedExerciseIds' => $selectedExerciseIds,
@@ -188,7 +188,7 @@ class CatalogController extends Controller
         return view('web.v1.workouts.catalog.form', [
             'panel' => $panel,
             'routePrefix' => $this->routePrefix($panel),
-            'exerciseOptionsEndpoint' => route($this->routePrefix($panel) . '.options'),
+            'exerciseOptionsEndpoint' => route($this->routePrefix($panel) . '.options', [], false),
             'catalog' => $catalog,
             'exerciseOptions' => $exerciseOptions,
             'selectedExerciseIds' => $selectedExerciseIds,

@@ -48,6 +48,7 @@ class WorkoutController extends Controller
         $this->workoutLifecycleService->expireExpiredWorkouts($tenantId, (int) $user->id);
 
         $workouts = $this->workoutScope($tenantId, (int) $user->id)
+            ->whereNull('source_workout_catalog_id')
             ->where('user_id', (int) $user->id)
             ->orderByDesc('id')
             ->limit(3)
@@ -291,6 +292,7 @@ class WorkoutController extends Controller
     private function resolveCurrentWorkout(?int $tenantId, int $userId): ?Workout
     {
         $doneWorkout = $this->workoutScope($tenantId, $userId)
+            ->whereNull('source_workout_catalog_id')
             ->where('status', 'done')
             ->orderByDesc('id')
             ->first();
@@ -300,6 +302,7 @@ class WorkoutController extends Controller
         }
 
         $workout = $this->workoutScope($tenantId, $userId)
+            ->whereNull('source_workout_catalog_id')
             ->orderByDesc('id')
             ->first();
 

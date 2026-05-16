@@ -56,4 +56,9 @@ class WorkoutCatalog extends Model
             ->withTimestamps()
             ->orderBy('exercise_workouts_catalogs.order');
     }
+
+    public function workouts(): HasMany
+    {
+        return $this->hasMany(Workout::class, 'source_workout_catalog_id');
+    }
 }
